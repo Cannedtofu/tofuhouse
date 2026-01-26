@@ -1,0 +1,29 @@
+# --- Python Environment ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# --- Data & Large Files (Crucial for your Reddit/Pop Mart datasets) ---
+*.jsonl
+*.csv
+*.xlsx
+*.sqlite
+*.txt
+*.zip
+*.png
+data/
+outputs/
+
+# --- OCR & Automation Logs ---
+# Tesseract and Appium generate a lot of temp logs
+*.log
+screenshots/
+tmp/
+
+# --- System Files ---
+.DS_Store
+Thumbs.db
+.vscode/
