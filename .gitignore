@@ -15,6 +15,9 @@ env/
 *.zip
 *.png
 *.jpg
+*.rar
+*.exe
+*.tar.gz
 data/
 outputs/
 
