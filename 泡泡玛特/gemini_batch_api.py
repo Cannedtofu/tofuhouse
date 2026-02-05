@@ -5,7 +5,7 @@ from google import genai
 import time 
 
 # ==================== 核心配置 ====================
-API_KEY = "AIzaSyCPCdPj75PoBjfhX5xzGHcw2A1Ei_N-qkU"
+API_KEY = ""
 FILE_NAME = "popmart_analyze_test.xlsx"
 ROWS_PER_BATCH = 2000 
 # 确保使用 2026 年支持 Batch 的模型名称
@@ -141,3 +141,4 @@ def run_production_batches():
 
 if __name__ == "__main__":
     run_production_batches()
+
