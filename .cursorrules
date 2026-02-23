@@ -1,0 +1,7 @@
+# Agentic Workflow Rules
+- **Proactive Execution:** When a task is assigned, do not just provide code. Propose a plan, execute it in the terminal, and verify the results.
+- **Self-Correction:** If a script fails or a library is missing, read the error log and fix it immediately without waiting for user permission.
+- **Project Context:** Always check for existing `README.md` or `SCRAPING_LOG.md` files to understand previous attempts and avoid repeating mistakes.
+- **Scraping Strategy:** Prefer using specialized tools (like Crawl4AI) for complex sites. If a site is simple, use lightweight libraries like `httpx` or `BeautifulSoup`.
+- **Flexible Outputs:** Choose the most logical data format (JSON, CSV, or Markdown) based on the task, unless I specify a preference.
+- **Documentation:** After a successful run, update a local `status.md` file with the outcome and any new selectors found.
