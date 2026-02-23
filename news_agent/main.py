@@ -25,11 +25,12 @@ MAX_ARTICLES_PER_RUN = 1
 # --- Safety & Security: Load credentials from environment variables ---
 try:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    SMTP_USER = os.getenv("SMTP_USER")
-    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-    RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
-    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-    SMTP_PORT = int(os.getenv("SMTP_PORT", 465))
+    # Debug: Using credentials from your motianlun.py to fix the typo
+    SMTP_USER = "396481139@qq.com" 
+    SMTP_PASSWORD = "mocjzkhznmudbghf" 
+    RECIPIENT_EMAIL = "396481139@qq.com"
+    SMTP_SERVER = "smtp.qq.com"
+    SMTP_PORT = 465
 
     if not all([GEMINI_API_KEY, SMTP_USER, SMTP_PASSWORD, RECIPIENT_EMAIL]):
         raise ValueError("One or more required environment variables are not set.")
@@ -189,7 +190,9 @@ def main():
                 server.send_message(msg)
         else:
             with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.ehlo()
                 server.starttls(context=context)
+                server.ehlo()
                 server.login(SMTP_USER, SMTP_PASSWORD)
                 server.send_message(msg)
         print("Email sent successfully.")
