@@ -6,9 +6,10 @@ from dotenv import load_dotenv
 import smtplib
 import ssl
 from email.message import EmailMessage
-from google import genai
-from google.genai import types
-
+import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
+import trafilatura
+import requests
 
 # Load environment variables from .env file for local development
 load_dotenv()
@@ -17,22 +18,23 @@ load_dotenv()
 # Add your RSS feed URLs here
 RSS_FEEDS = [
     "http://karpathy.github.io/feed.xml",
-    "https://simonwillison.net/atom/everything/"
+    "https://simonwillison.net/atom/everything/",
+    "https://openai.com/news/rss.xml"
 ]
 
 HISTORY_FILE = "history.json"
 MAX_ARTICLES_PER_RUN = 10
 DATE_RANGE_DAYS = 7
+CONTENT_LENGTH_THRESHOLD = 500 # Characters
 
 # --- Safety & Security: Load credentials from environment variables ---
 try:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    # Debug: Using credentials from your motianlun.py to fix the typo
-    SMTP_USER = "396481139@qq.com" 
-    SMTP_PASSWORD = "mocjzkhznmudbghf" 
-    RECIPIENT_EMAIL = "396481139@qq.com"
-    SMTP_SERVER = "smtp.qq.com"
-    SMTP_PORT = 465
+    SMTP_USER = os.getenv("SMTP_USER")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+    RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
+    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.qq.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", 465))
 
     if not all([GEMINI_API_KEY, SMTP_USER, SMTP_PASSWORD, RECIPIENT_EMAIL]):
         raise ValueError("One or more required environment variables are not set.")
@@ -41,9 +43,101 @@ except (ValueError, TypeError) as e:
     exit(1)
 
 # --- Gemini API Configuration ---
-client = genai.Client(api_key=GEMINI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # --- Helper Functions ---
+def fetch_full_content(url):
+    """Fetches and extracts the main content from a URL using trafilatura."""
+    try:
+        # Use a session for better connection management and set a user-agent
+        session = requests.Session()
+        session.headers.update({'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'})
+        
+        # Download with a reasonable timeout
+        response = session.get(url, timeout=20)
+        response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+
+        # Extract content using trafilatura
+        content = trafilatura.extract(response.text, favor_precision=True, include_comments=False, include_tables=False)
+        return content
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching URL {url}: {e}")
+    except Exception as e:
+        print(f"Error processing URL {url} with trafilatura: {e}")
+    return None
+
+# --- Classes for Modularity ---
+class Article:
+    """Standardized representation of a news article from any source."""
+    def __init__(self, title, link, content, published_date, source_name):
+        self.title = title
+        self.link = link
+        self.content = content
+        self.published_date = published_date  # datetime object
+        self.source_name = source_name
+
+    def get_formatted_date(self):
+        if self.published_date:
+            return self.published_date.strftime('%Y-%m-%d')
+        return "Unknown"
+
+class RSSSource:
+    """Handles fetching and parsing articles from an RSS feed."""
+    def __init__(self, feed_url):
+        self.feed_url = feed_url
+
+    def fetch(self, days_lookback=7):
+        articles = []
+        try:
+            feed = feedparser.parse(self.feed_url)
+            if not hasattr(feed.feed, 'title'):
+                print(f"Skipping feed {self.feed_url} because it has no title.")
+                return []
+            
+            feed_title = feed.feed.title
+            cutoff_date = datetime.utcnow() - timedelta(days=days_lookback)
+
+            for entry in feed.entries:
+                if not all(hasattr(entry, attr) for attr in ['link', 'title']):
+                    continue
+                
+                # Date Logic
+                published_time = getattr(entry, 'published_parsed', None) or getattr(entry, 'updated_parsed', None)
+                if not published_time:
+                    continue
+                
+                article_dt = datetime(*published_time[:6])
+                if article_dt < cutoff_date:
+                    continue
+
+                # Content Logic
+                content_text = ""
+                if hasattr(entry, 'content') and entry.content:
+                    content_text = entry.content[0].value
+                elif hasattr(entry, 'summary'):
+                    content_text = entry.summary
+                
+                # If content is short (likely a summary), fetch the full page
+                if len(content_text) < CONTENT_LENGTH_THRESHOLD:
+                    print(f"Content for '{entry.title}' is short ({len(content_text)} chars). Fetching full article from {entry.link}...")
+                    full_content = fetch_full_content(entry.link)
+                    if full_content:
+                        content_text = full_content
+                    else:
+                        print(f"Failed to fetch full content for '{entry.title}'. Using summary.")
+
+                articles.append(Article(
+                    title=entry.title,
+                    link=entry.link,
+                    content=content_text,
+                    published_date=article_dt,
+                    source_name=feed_title
+                ))
+        except Exception as e:
+            print(f"Error fetching feed {self.feed_url}: {e}")
+        
+        return articles
 
 def load_history():
     """Loads the history of processed article URLs from a JSON file."""
@@ -51,10 +145,7 @@ def load_history():
         return []
     try:
         with open(HISTORY_FILE, "r") as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                return data.get("processed_urls", [])
-            return data
+            return json.load(f)
     except (json.JSONDecodeError, FileNotFoundError):
         return []
 
@@ -72,40 +163,27 @@ def summarize_with_gemini(article_title, article_content):
     **Article Title:** {article_title}
 
     **Article Content:**
-    {article_content[:4000]}
+    {article_content[:8000]}
 
     **Summary:**
     """
     
     try:
-        # 建议使用更新的基础模型，如 gemini-2.0-flash 或保持 gemini-1.5-flash
-        response = client.models.generate_content(
-            model='gemini-2.5-flash-lite-preview-09-2025', 
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+        generation_config = {
+            "temperature": 0.2,
+            "max_output_tokens": 2048,
+        }
+
+        response = model.generate_content(
             contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.2,
-                top_p=1.0,
-                top_k=1,
-                max_output_tokens=2048,
-                safety_settings=[
-                    types.SafetySetting(
-                        category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                        threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                    ),
-                    types.SafetySetting(
-                        category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                        threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                    ),
-                    types.SafetySetting(
-                        category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                        threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                    ),
-                    types.SafetySetting(
-                        category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                        threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-                    ),
-                ]
-            )
+            generation_config=generation_config,
+            safety_settings=safety_settings
         )
         return response.text.strip()
     except Exception as e:
@@ -118,93 +196,51 @@ def main():
     processed_urls = load_history()
     new_articles = []
 
-    print(f"Fetching articles from {len(RSS_FEEDS)} feeds...")
-    for feed_url in RSS_FEEDS:
-        feed_url = feed_url.strip()
+    sources = [RSSSource(url) for url in RSS_FEEDS]
+
+    print(f"Fetching articles from {len(sources)} sources...")
+    for source in sources:
         if len(new_articles) >= MAX_ARTICLES_PER_RUN:
             break
-        try:
-            feed = feedparser.parse(feed_url)
-            if not hasattr(feed.feed, 'title'):
-                print(f"Skipping feed {feed_url} because it has no title.")
+        
+        fetched_articles = source.fetch(DATE_RANGE_DAYS)
+        
+        for article in fetched_articles:
+            if len(new_articles) >= MAX_ARTICLES_PER_RUN:
+                break
+            
+            if article.link in processed_urls:
                 continue
-            feed_title = feed.feed.title
-            for entry in feed.entries:
-                if len(new_articles) >= MAX_ARTICLES_PER_RUN:
-                    break
-                # Skip if the article has no link or title, or if it has already been processed.
-                if not all(hasattr(entry, attr) for attr in ['link', 'title']):
-                    continue
-
-                # Filter by date: Only process articles from the last DATE_RANGE_DAYS
-                published_time = getattr(entry, 'published_parsed', None) or getattr(entry, 'updated_parsed', None)
-                if published_time:
-                    # feedparser returns UTC struct_time
-                    article_dt = datetime(*published_time[:6])
-                    if article_dt < datetime.utcnow() - timedelta(days=DATE_RANGE_DAYS):
-                        # Article is too old
-                        continue
-                else:
-                    # Skip articles with no date to ensure freshness
-                    continue
-
-                if entry.link in processed_urls:
-                    continue
-
-                new_articles.append((entry, feed_title)) # Store as a tuple
-                processed_urls.append(entry.link)
-        except Exception as e:
-            print(f"Error fetching or parsing feed {feed_url}: {e}")
+            
+            new_articles.append(article)
+            # We add to processed_urls here to prevent re-processing in the same run
+            # and to ensure it's saved even if summarization or email fails.
+            processed_urls.append(article.link)
 
     if not new_articles:
         print("No new articles found. Exiting.")
         return
 
-    # --- DEBUG: Save fetched articles to file and exit ---
-    debug_filename = "debug_fetched_articles.txt"
-    print(f"DEBUG: Saving {len(new_articles)} articles to {debug_filename}...")
-    with open(debug_filename, "w", encoding="utf-8") as f:
-        for article, feed_title in new_articles:
-            f.write(f"Feed: {feed_title}\n")
-            f.write(f"Title: {article.title}\n")
-            f.write(f"Link: {article.link}\n")
-            content_text = ""
-            if hasattr(article, 'content') and article.content:
-                content_text = article.content[0].value
-            elif hasattr(article, 'summary'):
-                content_text = article.summary
-            f.write(f"Content:\n{content_text}\n")
-            f.write("=" * 50 + "\n\n")
-    print("DEBUG: Exiting before Gemini API call.")
-    return
-
     print(f"Found {len(new_articles)} new articles. Generating summaries...")
     markdown_content = f"# Daily News Digest - {datetime.now().strftime('%Y-%m-%d')}\n\n"
     summaries_generated = 0
 
-    for article, feed_title in new_articles:
-        # 'content' can be a list, we take the first one's value. Fallback to summary.
-        content_text = ""
-        if hasattr(article, 'content') and article.content:
-            content_text = article.content[0].value
-        elif hasattr(article, 'summary'):
-            content_text = article.summary
-
-        if not content_text.strip():
+    for article in new_articles:
+        if not article.content or not article.content.strip():
             print(f"Skipping article '{article.title}' because it has no content.")
             continue
         
-        summary = summarize_with_gemini(article.title, content_text)
+        summary = summarize_with_gemini(article.title, article.content)
         
         if summary:
             markdown_content += f"## {article.title}\n\n"
-            markdown_content += f"**Source:** `{feed_title}`\n\n"
+            markdown_content += f"**Source:** `{article.source_name}`  \n"
+            markdown_content += f"**Link:** {article.link}\n\n"
             markdown_content += f"{summary}\n\n---\n\n"
             summaries_generated += 1
 
     if summaries_generated == 0:
         print("Could not generate any summaries. Exiting.")
-        # We still save history to avoid retrying failed articles
         save_history(processed_urls)
         return
 
@@ -221,23 +257,20 @@ def main():
             with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context) as server:
                 server.login(SMTP_USER, SMTP_PASSWORD)
                 server.send_message(msg)
-        else:
+        else: # For STARTTLS
             with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.ehlo()
                 server.starttls(context=context)
-                server.ehlo()
                 server.login(SMTP_USER, SMTP_PASSWORD)
                 server.send_message(msg)
         print("Email sent successfully.")
     except Exception as e:
         print(f"Error sending email: {e}")
-        # If email fails, we don't save history so we can retry this batch
-        return 
-
+        # We still save history even if email fails to avoid summarizing again.
+        # The user can re-run or handle the unsent content.
+    
     print("Updating history...")
     save_history(processed_urls)
     print("News agent run completed successfully.")
-
 
 if __name__ == "__main__":
     main()
