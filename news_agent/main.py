@@ -1,7 +1,7 @@
 import feedparser
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import smtplib
 import ssl
@@ -17,10 +17,12 @@ load_dotenv()
 # Add your RSS feed URLs here
 RSS_FEEDS = [
     "http://karpathy.github.io/feed.xml",
+    "https://simonwillison.net/atom/everything/"
 ]
 
 HISTORY_FILE = "history.json"
-MAX_ARTICLES_PER_RUN = 1
+MAX_ARTICLES_PER_RUN = 10
+DATE_RANGE_DAYS = 7
 
 # --- Safety & Security: Load credentials from environment variables ---
 try:
@@ -133,6 +135,19 @@ def main():
                 # Skip if the article has no link or title, or if it has already been processed.
                 if not all(hasattr(entry, attr) for attr in ['link', 'title']):
                     continue
+
+                # Filter by date: Only process articles from the last DATE_RANGE_DAYS
+                published_time = getattr(entry, 'published_parsed', None) or getattr(entry, 'updated_parsed', None)
+                if published_time:
+                    # feedparser returns UTC struct_time
+                    article_dt = datetime(*published_time[:6])
+                    if article_dt < datetime.utcnow() - timedelta(days=DATE_RANGE_DAYS):
+                        # Article is too old
+                        continue
+                else:
+                    # Skip articles with no date to ensure freshness
+                    continue
+
                 if entry.link in processed_urls:
                     continue
 
@@ -144,6 +159,24 @@ def main():
     if not new_articles:
         print("No new articles found. Exiting.")
         return
+
+    # --- DEBUG: Save fetched articles to file and exit ---
+    debug_filename = "debug_fetched_articles.txt"
+    print(f"DEBUG: Saving {len(new_articles)} articles to {debug_filename}...")
+    with open(debug_filename, "w", encoding="utf-8") as f:
+        for article, feed_title in new_articles:
+            f.write(f"Feed: {feed_title}\n")
+            f.write(f"Title: {article.title}\n")
+            f.write(f"Link: {article.link}\n")
+            content_text = ""
+            if hasattr(article, 'content') and article.content:
+                content_text = article.content[0].value
+            elif hasattr(article, 'summary'):
+                content_text = article.summary
+            f.write(f"Content:\n{content_text}\n")
+            f.write("=" * 50 + "\n\n")
+    print("DEBUG: Exiting before Gemini API call.")
+    return
 
     print(f"Found {len(new_articles)} new articles. Generating summaries...")
     markdown_content = f"# Daily News Digest - {datetime.now().strftime('%Y-%m-%d')}\n\n"
