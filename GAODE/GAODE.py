@@ -110,34 +110,46 @@ book.save(file_path)
 book.close()
 
 
-
-
 def send_email(sender_email, sender_password, receiver_email, subject, message, attachment_path):
-    # Compose the email
+    # 1. 处理收件人：将字符串转换为列表，用于 SMTP 发送
+    receivers = [addr.strip() for addr in receiver_email.split(',')]
+
+    # 2. 构建邮件内容
     msg = MIMEMultipart()
     msg['From'] = sender_email
-    msg['To'] = receiver_email
+    msg['To'] = receiver_email  # Header 中保持逗号分隔的字符串
     msg['Subject'] = subject
 
-    # Attach the message body
     msg.attach(MIMEText(message, 'plain'))
 
-    # Attach the file
-    attachment = open(attachment_path, 'rb')
-    filename = attachment_path.split('/')[-1]  # Extracts the filename from the path
-    part = MIMEBase('application', 'octet-stream')
-    part.set_payload(attachment.read())
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', f'attachment; filename= {filename}')
-    msg.attach(part)
+    # 3. 添加附件
+    try:
+        with open(attachment_path, 'rb') as attachment:
+            filename = os.path.basename(attachment_path)
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(attachment.read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename={filename}')
+            msg.attach(part)
+    except Exception as e:
+        print(f"附件读取失败: {e}")
+        return
 
-    # Connect to the email server and send the email
-    with smtplib.SMTP('smtp.qq.com', 587) as smtp:
-        smtp.starttls()
-        smtp.login(sender_email, sender_password)
-        smtp.send_message(msg)
+    # 4. 连接服务器并发送 (改用 465 端口和 SMTP_SSL)
+    try:
+        # 使用 SMTP_SSL 建立安全连接
+        with smtplib.SMTP_SSL('smtp.qq.com', 465) as smtp:
+            # smtp.set_debuglevel(1)  # 如果仍然失败，取消此行注释查看详细日志
+            smtp.login(sender_email, sender_password)
+            # 指定 to_addrs 为收件人列表
+            smtp.send_message(msg, from_addr=sender_email, to_addrs=receivers)
+        print('Email sent successfully!')
+    except smtplib.SMTPException as e:
+        print(f'Email sending failed: {e}')
 
-    print('Email sent successfully!')
+
+
+
 
 
 current_date = datetime.date.today()
@@ -145,6 +157,7 @@ formatted_date = current_date.strftime("%Y-%m-%d")
 
 sender_email = '396481139@qq.com'
 sender_password = os.getenv('EMAIL_PASS')
+print(f"DEBUG: 密码读取结果为: {sender_password}")
 receiver_email = 'cuiyuan@maisoncapital.com,zhj@maisoncapital.com,396481139@qq.com,huaqianglin88@126.com'
 
 
