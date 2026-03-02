@@ -3,8 +3,8 @@ name: Gaode Data Auto Run
 on:
   schedule:
     # 每天北京时间 09:00 运行 (UTC 01:00)
-    - cron: '0 4 * * *'
-  workflow_dispatch: # 允许手动触发测试
+    - cron: '0 1 * * *'
+  workflow_dispatch: # 允许在 GitHub 页面手动触发任务
 
 jobs:
   run-crawler:
@@ -19,35 +19,36 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-          cache: 'pip' # 缓存依赖以加快后续运行速度
-
-      - name: Install Chrome Browser
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
+          cache: 'pip'
 
       - name: Install Dependencies
-        working-directory: "代码项目/GAODE"
         run: |
           pip install -r requirements.txt
 
       - name: Run GAODE Script
         env:
-          # 此处对应您代码中的 os.getenv('EMAIL_PASS')
-          # 需在 GitHub Repo Settings -> Secrets 中配置 EMAIL_PASS
+          # 需在 GitHub Repo Settings -> Secrets -> Actions 中配置 EMAIL_PASS
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-        working-directory: "代码项目/GAODE"
-        run: python GAODE.py
+        run: |
+          # 切换到脚本所在目录执行
+          cd GAODE
+          python GAODE.py
 
       - name: Commit and Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          # 仅添加子目录下的 Excel 文件
+          
+          # 确保路径指向 GAODE 文件夹下的 Excel
           git add GAODE/GaoDe.xlsx
-          # 检查是否有更改，如有则提交
-          git commit -m "Automated update: GaoDe.xlsx $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
-          git push
+          
+          # 检查是否有文件更改，避免无更改时提交报错
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "Automated update: GaoDe.xlsx $(date +'%Y-%m-%d %H:%M')"
+            git push
+          else
+            echo "No changes to commit"
+          fi
