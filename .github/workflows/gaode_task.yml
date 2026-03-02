@@ -1,55 +1,54 @@
-name: Gaode Data Auto Run
+name: GAODE Data Scraper
 
 on:
   schedule:
-    # 每天北京时间 09:00 运行 (UTC 01:00)
-    - cron: '0 1 * * *'
-  workflow_dispatch: # 允许在 GitHub 页面手动触发任务
+    - cron: '0 2 * * *' # 每天北京时间 10:00 运行 (UTC 2:00)
+  workflow_dispatch:      # 允许在 GitHub 界面手动触发
+
+permissions:
+  contents: write         # 核心配置：允许 Action 将更新后的 Excel 文件推送回仓库
 
 jobs:
-  run-crawler:
+  run-scraper:
     runs-on: ubuntu-latest
-    
-    # 授予 GitHub Action 写入仓库的权限，用于保存 Excel 更改
-    permissions:
-      contents: write
 
     steps:
-      - name: Checkout Code
+      # 1. 拉取代码，必须显式开启 lfs 选项
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          lfs: true        # 解决 BadZipFile 错误，拉取真实的二进制文件内容
 
+      - name: Checkout LFS objects
+        run: git lfs checkout
+
+      # 2. 安装 Python 环境
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-          cache: 'pip'
 
-      - name: Install Dependencies
+      # 3. 安装依赖
+      - name: Install dependencies
         run: |
-          cd GAODE  
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install selenium webdriver-manager pandas openpyxl beautifulsoup4
 
-      - name: Run GAODE Script
+      # 4. 执行脚本
+      # 切换到 GAODE 目录执行，以匹配脚本内 './GaoDe.xlsx' 的相对路径
+      - name: Run Python script
         env:
-          # 需在 GitHub Repo Settings -> Secrets -> Actions 中配置 EMAIL_PASS
-          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }} # 从仓库 Secrets 读取授权码
         run: |
-          # 切换到脚本所在目录执行
           cd GAODE
           python GAODE.py
 
-      - name: Commit and Push Changes
+      # 5. 提交并推送修改后的 Excel 文件
+      - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # 确保路径指向 GAODE 文件夹下的 Excel
           git add GAODE/GaoDe.xlsx
-          
-          # 检查是否有文件更改，避免无更改时提交报错
-          if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "Automated update: GaoDe.xlsx $(date +'%Y-%m-%d %H:%M')"
-            git push
-          else
-            echo "No changes to commit"
-          fi
+          # 如果文件没有变动，git commit 会返回非 0 状态，使用 || echo 忽略该错误
+          git commit -m "chore: auto-update GaoDe.xlsx [skip ci]" || echo "No changes to commit"
+          git push
