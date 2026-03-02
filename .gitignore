@@ -9,7 +9,6 @@ venv/
 # --- Data & Large Files (Crucial for your Reddit/Pop Mart datasets) ---
 *.jsonl
 *.csv
-*.xlsx
 *.sqlite
 *.zip
 *.png
