@@ -18,6 +18,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import datetime
+import os
 
 #delay = random.uniform(0, 600)
 #time.sleep(delay)
@@ -27,6 +28,12 @@ options.add_argument("--ignore-certificate-errors")
 options.add_argument("--start-maximized")
 options.add_argument("--ignore-ssl-errors")
 options.add_argument("--disable-web-security")
+options.add_argument("--headless")  # 开启无头模式
+options.add_argument("--no-sandbox")  # 规避 Linux 权限问题
+options.add_argument("--disable-dev-shm-usage")  # 解决内存限制问题
+options.add_argument("--window-size=1920,1080")  # 固定分辨率防止元素找不到
+options.add_experimental_option("excludeSwitches", ["enable-logging"])
+
 
 # Suppress Chrome's own noisy logs
 options.add_experimental_option("excludeSwitches", ["enable-logging"])
@@ -81,7 +88,7 @@ if table_element:
 
 print(data)
 
-file_path = 'D:\GaoDe.xlsx' #����Ŀ���ļ�
+file_path = './GaoDe.xlsx' #����Ŀ���ļ�
 df = pd.DataFrame(data)
 df_final = df.transpose() #�������transpose
 df_final = df_final.drop(0) #ȥ������
@@ -137,7 +144,7 @@ current_date = datetime.date.today()
 formatted_date = current_date.strftime("%Y-%m-%d")
 
 sender_email = '396481139@qq.com'
-sender_password = 'mocjzkhznmudbghf'
+sender_password = os.getenv('EMAIL_PASS')
 receiver_email = 'cuiyuan@maisoncapital.com,zhj@maisoncapital.com,396481139@qq.com,huaqianglin88@126.com'
 
 
