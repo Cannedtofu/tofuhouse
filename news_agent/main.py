@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import smtplib
 import ssl
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
 from email.message import EmailMessage
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
@@ -17,13 +21,13 @@ load_dotenv()
 # --- Configuration ---
 # Add your RSS feed URLs here
 RSS_FEEDS = [
-    "http://karpathy.github.io/feed.xml",
-    "https://simonwillison.net/atom/everything/",
+    # "http://karpathy.github.io/feed.xml",
+    # "https://simonwillison.net/atom/everything/",
     "https://openai.com/news/rss.xml"
 ]
 
 HISTORY_FILE = "history.json"
-MAX_ARTICLES_PER_RUN = 10
+MAX_ARTICLES_PER_RUN = 500
 DATE_RANGE_DAYS = 7
 CONTENT_LENGTH_THRESHOLD = 500 # Characters
 
@@ -48,23 +52,35 @@ model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # --- Helper Functions ---
 def fetch_full_content(url):
-    """Fetches and extracts the main content from a URL using trafilatura."""
+    """Fetches and extracts the main content from a URL using trafilatura and Selenium."""
     try:
-        # Use a session for better connection management and set a user-agent
-        session = requests.Session()
-        session.headers.update({'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'})
-        
-        # Download with a reasonable timeout
-        response = session.get(url, timeout=20)
-        response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
 
-        # Extract content using trafilatura
-        content = trafilatura.extract(response.text, favor_precision=True, include_comments=False, include_tables=False)
+        service = ChromeService(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+        
+        driver.get(url)
+        
+        # You might need to add waits here for dynamic content to load
+        # For example:
+        # from selenium.webdriver.common.by import By
+        # from selenium.webdriver.support.ui import WebDriverWait
+        # from selenium.webdriver.support import expected_conditions as EC
+        # wait = WebDriverWait(driver, 10)
+        # wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+
+        page_source = driver.page_source
+        driver.quit()
+
+        content = trafilatura.extract(page_source, favor_precision=True, include_comments=False, include_tables=False)
         return content
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching URL {url}: {e}")
     except Exception as e:
-        print(f"Error processing URL {url} with trafilatura: {e}")
+        print(f"Error fetching URL {url} with Selenium: {e}")
     return None
 
 # --- Classes for Modularity ---
@@ -216,6 +232,21 @@ def main():
             # We add to processed_urls here to prevent re-processing in the same run
             # and to ensure it's saved even if summarization or email fails.
             processed_urls.append(article.link)
+
+    # --- DEBUG LAYER ---
+    if new_articles:
+        print("--- DEBUG: Writing fetched articles to debug_fetched_articles.txt ---")
+        with open("debug_fetched_articles.txt", "w", encoding="utf-8") as f:
+            for article in new_articles:
+                f.write(f"Title: {article.title}\n")
+                f.write(f"Link: {article.link}\n")
+                f.write(f"Source: {article.source_name}\n")
+                f.write(f"Published: {article.get_formatted_date()}\n")
+                f.write(f"Content Preview: {article.content[:2000].strip()}...\n")
+                f.write("-" * 20 + "\n")
+        print("--- DEBUG: Stopping program after writing articles. ---")
+        exit()
+    # --- END DEBUG LAYER ---
 
     if not new_articles:
         print("No new articles found. Exiting.")

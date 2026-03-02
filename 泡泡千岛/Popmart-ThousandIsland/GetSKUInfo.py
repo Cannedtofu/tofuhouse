@@ -298,7 +298,7 @@ def send_email(sender_email, sender_password, receiver_email, subject, message, 
 
 sender_email = '396481139@qq.com'
 sender_password = 'mocjzkhznmudbghf'
-receiver_email = 'cuiyuan@maisoncapital.com,linhuaqiang@maisoncapital.com,zengleshi@maisoncapital.com,cuiwenli@maisoncapital.com,396481139@qq.com'
+receiver_email = 'cuiyuan@maisoncapital.com,linhuaqiang@maisoncapital.com,zengleshi@maisoncapital.com,lidongzhuang@outlook.com,396481139@qq.com'
 
 subject = '泡泡玛特二手数据-分sku'+ current_date
 
