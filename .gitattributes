@@ -1,4 +1,10 @@
+# 保留 Excel 为大文件（如果是大型数据集）
 *.xlsx filter=lfs diff=lfs merge=lfs -text
+
+# 即使你想保留其他 txt 的 LFS，也必须明确排除 requirements.txt
+# 但通常建议不要将小型文本文件放入 LFS
+requirements.txt text eol=lf
+
+# 如果你的 csv 和 jsonl 并不大（小于 50MB），建议也去掉 LFS 以便 Git 正常对比差异
 *.csv filter=lfs diff=lfs merge=lfs -text
-*.jsonl filter=lfs diff=lfs merge=lfs -text
-*.txt filter=lfs diff=lfs merge=lfs -text
+*.jsonl filter=lfs diff=lfs merge=lfs -texts

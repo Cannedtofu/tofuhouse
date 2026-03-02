@@ -1,3 +1,6 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:b343154719fc96070ffbc0b8de700aad0af1f86aa2aa226a734db90e78dbd4a4
-size 96
+selenium==4.35.0
+beautifulsoup4
+webdriver-manager
+pandas
+openpyxl
+typing-extensions==4.14.0
