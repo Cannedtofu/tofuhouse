@@ -30,6 +30,7 @@ jobs:
           sudo apt-get install -y google-chrome-stable
 
       - name: Install Dependencies
+        working-directory: "代码项目/GAODE"
         run: |
           pip install -r requirements.txt
 
@@ -38,10 +39,8 @@ jobs:
           # 此处对应您代码中的 os.getenv('EMAIL_PASS')
           # 需在 GitHub Repo Settings -> Secrets 中配置 EMAIL_PASS
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-        run: |
-          # 切换到脚本目录执行，以确保相对路径有效
-          cd GAODE
-          python GAODE.py
+        working-directory: "代码项目/GAODE"
+        run: python GAODE.py
 
       - name: Commit and Push Changes
         run: |
