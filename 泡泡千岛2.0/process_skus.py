@@ -9,6 +9,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import sqlite3
 import re
+import config
 
 def parse_want_info(text: str) -> tuple[int, int, int]:
     if not text or text == "N/A":
@@ -69,22 +70,30 @@ def robust_get(driver, url, wait_time=2, max_retries=3):
     return driver.page_source # return whatever we have
 
 def main():
-    input_file = os.path.join("output", "results.xlsx")
+    input_file = os.path.join("output", "results.db")
     db_file = os.path.join("output", "sku_database.db")
     lean_output_file = os.path.join("output", "sku_lean_tracking.xlsx")
 
     if not os.path.exists(input_file):
-        print(f"Error: Could not find input file at {input_file}")
+        print(f"Error: Could not find input database at {input_file}")
         return
 
-    df_input = pd.read_excel(input_file)
+    try:
+        conn = sqlite3.connect(input_file)
+        df_input = pd.read_sql("SELECT * FROM feed_results", conn)
+        conn.close()
+    except Exception as e:
+        print(f"Error reading from results.db: {e}")
+        return
+
     if 'id' not in df_input.columns:
-        print("Error: Column 'id' not found in results.xlsx")
+        print("Error: Column 'id' not found in results.db")
         return
 
-    # Extract IDs for testing
-    all_target_ids = df_input['id'].head(3).tolist()
-    print(f"Loaded {len(all_target_ids)} total IDs from Excel.")
+    # Extract IDs based on config limit
+    limit = getattr(config, 'PROCESS_SKUS_LIMIT', 5)
+    all_target_ids = df_input['id'].head(limit).tolist()
+    print(f"Loaded {len(all_target_ids)} total IDs from Database (Limit: {limit}).")
 
     current_date = datetime.now().strftime("%Y-%m-%d")
 

@@ -310,6 +310,14 @@ def main() -> None:
         logger.info("=== Step 6: Run scrape loop ===")
         run_scrape_loop(appium, storage)
 
+        import subprocess
+        logger.info("=== Step 7: Parse resulting JSON to SQLite ===")
+        subprocess.run([sys.executable, "parse_results.py"], check=True)
+        
+        limit = getattr(config, 'PROCESS_SKUS_LIMIT', 5)
+        logger.info("=== Step 8: Detail Scrape with process_skus (Limit: %s) ===", limit)
+        subprocess.run([sys.executable, "process_skus.py"], check=True)
+
     except Exception as exc:
         logger.exception("Fatal error during run: %s", exc)
         sys.exit(1)

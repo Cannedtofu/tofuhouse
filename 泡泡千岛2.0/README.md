@@ -8,49 +8,47 @@ This project is a fully automated Android UI driving and mitmproxy interception 
 - **EasyOCR** for visual inspection of elements that hide their text/IDs in the Android UI tree.
 - **mitmproxy** (`mitmweb`/`mitmdump`) for invisible backend API packet interception.
 - **Postern VPN** (Android App) for forcing target app API requests through the host machine's proxy.
-- **Pandas / Openpyxl** for transforming nested JSON outputs into flat Excel deliverables.
+- **Selenium & BeautifulSoup** for subsequent granular web-scraping on series and SKU detail pages.
+- **SQLite3 & Pandas** for robust state-tracking, aggregation, and lean Excel reporting.
 
 ---
 
 ## Quick Start & Usage
 
-### 1. Production Run
-To start a full run from a completely stopped state, run the orchestrator:
+### 1. The Master Pipeline Run
+To run the entire end-to-end pipeline from a completely stopped state, simply run the orchestrator:
 ```powershell
 .venv\Scripts\python.exe main.py
 ```
-**What this does automatically:**
+**What this single command does automatically:**
 1. Launches the MuMu emulator and waits for ADB connection verification.
 2. Starts the background `mitmdump` proxy server listening on port `8080`.
 3. Establishes the Appium UiAutomator2 session.
 4. Opens Postern VPN and flips the proxy connection switch ON.
 5. Launches the target application (`tech.echoing.kuril`).
-6. Enters the scraping phase: clicks the search bar, types "泡泡玛特", hits search, locates the results, uses OCR to locate "玩具系列", and then begins the infinitely-scrolling scrape loop while `addon.py` watches network traffic.
-7. Gracefully tears down the app, VPN, proxy, appium, and emulator cleanly whether it succeeds or crashes.
+6. **Mobile Scraping Phase**: Clicks the search bar, types "泡泡玛特", hits search, locates the results, uses OCR to locate "玩具系列", and then begins the infinitely-scrolling Android scrape loop until it hits `TARGET_SCRAPE_COUNT` while `addon.py` dumps network packets to `results.jsonl`.
+7. **Database Conversion Phase**: Automatically fires `parse_results.py` to convert the raw JSON into rows inside the robust `output/results.db` SQLite database, permanently stamping the time scraped.
+8. **Granular Web Scraping Phase**: Automatically executes `process_skus.py`, spinning up a local Selenium browser in the background. It reads the top URLs from `results.db` and iteratively scrapes their deeply nested children pages into a pristine aggregate Excel sheet (`sku_lean_tracking.xlsx`) and an appended raw SQLite table (`sku_database.db`).
+9. Gracefully tears down the app, VPN, proxy, appium, selenium, and emulator cleanly.
 
-### 2. Development Run
+### 2. Development & Testing
 If you are tweaking the UI logic and do not want the emulator, VPN, and Proxy shutting down and restarting every time, you can leave the environment components open and work against:
 ```powershell
 .venv\Scripts\python.exe test_ui.py
 ```
 This bypasses backend/emulator initialization and runs *only* the Appium interaction workflow directly against whatever is currently open on the screen.
 
-### 3. Parsing Results
-After scraping concludes, the raw JSON packets will be safely sitting in `output/results.jsonl`. 
-To convert this raw data into a clean, human-readable Excel sheet (`output/results.xlsx`):
-```powershell
-.venv\Scripts\python.exe parse_results.py
-```
-
 ---
 
 ## Core Configuration & Files
 
-- **`config.py`**: The central source of truth for paths, URIs, endpoints, and targets. This is where you configure `TARGET_SCRAPE_COUNT` (e.g., `1000` items) and `TARGET_URL_PATTERN` (e.g., `api.qiandao.com/treasure/spus/feed`).
+- **`config.py`**: The central source of truth for paths, URIs, endpoints, and targets. 
+  - `TARGET_SCRAPE_COUNT` (e.g., `1000`): How many items the Android infinite-scroller should collect before stopping.
+  - `PROCESS_SKUS_LIMIT` (e.g., `15`): Determines exactly how many of those scraped IDs the system should sequentially pipe into the detailed Selenium Web-Scraper (`process_skus.py`). Setting this to 10 will limit the deep-dive to the top 10 series found.
+  - `TARGET_URL_PATTERN` (e.g., `api.qiandao.com/treasure/spus/feed`): The exact API endpoint mitmproxy watches for.
 - **`proxy/addon.py`**: The mitmproxy script. Looks mathematically for JSON blocks intercepted via the URL regex defined in `config.py` and silently appends them to disk in real-time.
-- **`ocr.py`**: A computer vision module wrapping EasyOCR. Allows the scripts to capture the screen, parse English/Chinese characters from pixels, and calculate exact relative touchscreen (X, Y) coordinates to bypass React Native framework abstraction.
-- **`screenshot.py`**: Generates and parses local `ui_dump.xml` pages cleanly. It checks `resource-id`, `bounds`, and UI text to perform layout heuristics.
-- **`emulator/` & `automation/` modules**: Independent controllers providing safe abstractions over Appium, Postern UI manipulation, and MuMu process handling.
+- **`process_skus.py`**: The granular web-scraping script. Employs fault-tolerant iterative-saving, network retries, and a Resume-Checker connected to `sku_database.db` so that if your computer crashes on page 1,999, running it again skips the first 1,999 pages automatically. 
+- **`ocr.py`**: A computer vision module wrapping EasyOCR. Allows the scripts to capture the screen, parse English/Chinese characters from pixels, and calculate exact relative touchscreen (X, Y) coordinates.
 
 ---
 
@@ -58,6 +56,9 @@ To convert this raw data into a clean, human-readable Excel sheet (`output/resul
 
 ### Robust Zombie-Process Purging
 On Windows environments, automated loops often crash, leaving isolated invisible `mitmdump` or `MuMu` subprocesses alive in the background which permanently lock Port 8080 or the ADB interface, entirely breaking subsequent runs. `main.py` utilizes hardcoded Windows `taskkill /F /T /PID` logic alongside context managers to aggressively sweep out these orphaned child threads inside the `finally:` block, guaranteeing a perfectly 0-state machine wipe every single time.
+
+### Incremental Zero-Loss Saving System
+When processing 2000+ nested Web GUI pages sequentially via `process_skus.py`, holding data in memory carries catastrophic failure risk. The scraper utilizes absolute incremental persistence—writing the fully parsed SKU structures to the SQLite Database (`sku_database.db`) and Excel (`sku_lean_tracking.xlsx`) sequentially *per series loop*. If power is lost mid-scrape, exactly zero recorded items drop from memory. 
 
 ### Android Memory Management (Trim)
 When dynamically fetching `1000+` rich image rows of JSON content via rapid Android native scrolling, the target app will rapidly consume system RAM causing Appium to suffer a fatal `socket hang up` crash. 
@@ -67,10 +68,3 @@ Combined with python `gc.collect()`, this forces the Android memory renderer to 
 
 ### OCR Fuzzy Matching Guard
 The scraper does not blindly click bounding boxes. Due to matching ambiguity (e.g., `玩具` vs. `玩具系列`), `test_ui.py` explicitly drops down into `ocr_all_text()` mode, looping over every detected bounding box in the screenshot, guaranteeing that it only fires a touchscreen tap event if exactly *both* vocabulary boundaries ("玩具" and "系列") exist physically within the returned machine-learning boundaries.
-
-### Humanization Trajectory 
-To evade server-side telemetry bot-detection, all repetitive motions pass through randomized mathematical models:
-- **X-Coordinate Trajectory**: Thumb-path starting and ending coordinates randomly drift sideways `-50` to `+50` pixels per action.
-- **Scroll Distance**: The drag offset randomly selects between `60%` and `85%` of the physical viewport height per attempt.
-- **Swipe Velocity**: Finger pressure drag velocities are randomized between `300ms` and `600ms`.
-- **Reading Decay**: Between-action sleep intervals are heavily pseudo-randomized between `1.0s` and `2.0s`.

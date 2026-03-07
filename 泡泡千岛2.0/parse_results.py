@@ -14,12 +14,13 @@ Usage:
 
 import json
 import os
+import sqlite3
+from datetime import datetime
 
 import pandas as pd
 
 JSONL_PATH = os.path.join("output", "results.jsonl")
-EXCEL_PATH = os.path.join("output", "results.xlsx")
-
+DB_PATH = os.path.join("output", "results.db")
 
 def main() -> None:
     rows: list[dict] = []
@@ -42,6 +43,10 @@ def main() -> None:
                 if item_id in seen_ids:
                     continue
                 seen_ids.add(item_id)
+                
+                # Add the current date to track when this data was generated
+                item['query_date'] = datetime.now().strftime("%Y-%m-%d")
+                
                 rows.append(item)
 
     if not rows:
@@ -49,9 +54,13 @@ def main() -> None:
         return
 
     df = pd.json_normalize(rows)
-    df.to_excel(EXCEL_PATH, index=False, engine="openpyxl")
-    print(f"Exported {len(df)} rows → {EXCEL_PATH}")
-
+    
+    # Save to SQLite instead of Excel
+    conn = sqlite3.connect(DB_PATH)
+    df.to_sql("feed_results", conn, if_exists="replace", index=False)
+    conn.close()
+    
+    print(f"Exported {len(df)} rows → {DB_PATH}")
 
 if __name__ == "__main__":
     main()
