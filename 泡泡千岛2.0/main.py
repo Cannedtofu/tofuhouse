@@ -133,21 +133,22 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
     window = driver.get_window_size()
     w, h = window['width'], window['height']
     start_y = 1200
-    end_y_initial = 1200 - int(h * random.uniform(0.60, 0.70))
+    end_y_initial = 1200 - int(h * random.uniform(0.15, 0.25))
     start_x = (w // 2) + random.randint(-50, 50)
     end_x = start_x + random.randint(-20, 20)
     
-    logger.info("  Initial scroll (2/3 screen) from y=%d to y=%d...", start_y, end_y_initial)
-    driver.swipe(start_x, start_y, end_x, end_y_initial, random.randint(300, 600))
+    logger.info("  Initial gentle scroll from y=%d to y=%d...", start_y, end_y_initial)
+    driver.swipe(start_x, start_y, end_x, end_y_initial, random.randint(1200, 2000))
     time.sleep(random.uniform(1.0, 2.0))
     
     import ocr
     found_coords = None
-    max_scrolls = 10
+    scroll_start_time = time.time()
+    attempts = 0
     img_path = "output/search_scroll.png"
     
-    for i in range(max_scrolls):
-        img_path = f"output/search_scroll_{i}.png"
+    while (time.time() - scroll_start_time) < 180:  # 3 minutes maximum
+        img_path = f"output/search_scroll_{attempts}.png"
         driver.get_screenshot_as_file(img_path)
         
         blocks = ocr.ocr_all_text(img_path)
@@ -155,19 +156,21 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
             text = b["text"]
             if "玩具" in text and "系列" in text:
                 coords = b["center"]
-                logger.info("  → Found '%s' at pixel %s on attempt %d", text, coords, i)
+                logger.info("  → Found '%s' at pixel %s on attempt %d", text, coords, attempts)
                 found_coords = coords
                 break
                 
         if found_coords:
             break
             
-        logger.info("  → Not found on attempt %d. Scrolling down 1/2 screen...", i)
-        end_y_half = 1200 - int(h * random.uniform(0.40, 0.60))
+        logger.info("  → Not found on attempt %d. Scrolling down gently...", attempts)
+        end_y_gentle = 1200 - int(h * random.uniform(0.15, 0.25))
         start_x = (w // 2) + random.randint(-50, 50)
         end_x = start_x + random.randint(-20, 20)
-        driver.swipe(start_x, start_y, end_x, end_y_half, random.randint(300, 600))
+        # Gentle slow swipe taking between 1.5 - 2.5 seconds
+        driver.swipe(start_x, start_y, end_x, end_y_gentle, random.randint(1500, 2500))
         time.sleep(random.uniform(1.0, 2.0))
+        attempts += 1
 
     if found_coords:
         click_x = 830
@@ -265,7 +268,7 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
             
         logger.info("  → Successfully scraped %d rows! (Records registered in storage: %d)", len(items), storage.record_count())
     else:
-        logger.error("  [ERROR] Could not find '玩具系列' after %d scrolls.", max_scrolls)
+        logger.error("  [ERROR] Could not find '玩具系列' within 3 minutes.")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

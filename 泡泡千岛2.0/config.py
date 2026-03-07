@@ -58,4 +58,4 @@ TARGET_ACTIVITY: str = "tech.echoing.kuril.MainActivity"
 OUTPUT_DIR: str = "output"
 JSONL_FILENAME: str = "results.jsonl"
 TARGET_SCRAPE_COUNT: int = 500
-PROCESS_SKUS_LIMIT: int = 15
+PROCESS_SKUS_LIMIT: int = 300
