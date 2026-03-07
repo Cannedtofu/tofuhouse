@@ -170,7 +170,8 @@ def main() -> None:
     finally:
         # Reverse startup order: target app → VPN → everything else
         try:
-            appium.close_app()
+            if appium.driver is not None:
+                appium.close_app()
         except Exception as exc:
             logger.warning("Target app close error: %s", exc)
         if postern is not None:

@@ -29,7 +29,7 @@ MITM_ADDON_PATH: str = "proxy/addon.py"   # relative to project root
 # Set to "" to capture ALL JSON responses (discovery mode).
 # Replace with a specific substring once you've identified the right endpoint, e.g.:
 #   TARGET_URL_PATTERN = "api.kuril.tech/v1/search"
-TARGET_URL_PATTERN: str = ""
+TARGET_URL_PATTERN: str = "api.qiandao.com/treasure/spus/feed"
 
 # ── Appium Server ─────────────────────────────────────────────────────────────
 APPIUM_SERVER_URL: str = "http://127.0.0.1:4723"
@@ -57,3 +57,4 @@ TARGET_ACTIVITY: str = "tech.echoing.kuril.MainActivity"
 # ── Data Storage ──────────────────────────────────────────────────────────────
 OUTPUT_DIR: str = "output"
 JSONL_FILENAME: str = "results.jsonl"
+TARGET_SCRAPE_COUNT: int = 1000

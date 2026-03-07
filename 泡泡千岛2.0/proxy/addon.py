@@ -13,6 +13,11 @@ from datetime import datetime, timezone
 
 from mitmproxy import http
 
+# Ensure the root project directory is in PYTHONPATH so 'import config' works
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import config
 
 logger = logging.getLogger(__name__)
