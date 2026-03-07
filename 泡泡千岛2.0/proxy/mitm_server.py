@@ -99,7 +99,12 @@ class MitmProxyServer:
             return
 
         logger.info("Stopping mitmproxy (pid=%d).", self._process.pid)
-        self._process.terminate()
+        import sys
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(self._process.pid)], capture_output=True)
+        else:
+            self._process.terminate()
+            
         try:
             self._process.wait(timeout=8)
         except subprocess.TimeoutExpired:

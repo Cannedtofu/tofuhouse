@@ -66,7 +66,12 @@ class MuMuController:
         """Terminate the MuMu process if it was started by this controller."""
         if self._process and self._process.poll() is None:
             logger.info("Terminating MuMu emulator process (pid=%d).", self._process.pid)
-            self._process.terminate()
+            import sys
+            if sys.platform == "win32":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(self._process.pid)], capture_output=True)
+            else:
+                self._process.terminate()
+                
             try:
                 self._process.wait(timeout=10)
             except subprocess.TimeoutExpired:
