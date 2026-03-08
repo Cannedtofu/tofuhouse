@@ -274,16 +274,27 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
+    # Register signal handlers so Ctrl-C still triggers cleanup
+    import signal
+    import sys
+    
+    def handle_exit(*_args):
+        logger.info("  [INFO] Received termination signal. Exiting gracefully.")
+        sys.exit(0)
+    
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, handle_exit)
+
+    logger.info("\n===========================================================")
+    logger.info("       STARTING AUTOMATED SCRAPE RUN")
+    logger.info("===========================================================\n")
+
     emulator = MuMuController()
     proxy    = MitmProxyServer()
     appium   = AppiumSession()
     storage  = DataStorage()
     postern  = None  # set in try block; referenced in finally for cleanup
     cleanup  = build_cleanup(emulator, proxy, appium)
-
-    # Register signal handlers so Ctrl-C still triggers cleanup
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(sig, lambda *_: (cleanup(), sys.exit(0)))
 
     try:
         # 1. Emulator
@@ -300,7 +311,7 @@ def main() -> None:
 
         # 4. Postern VPN — auto-connects on open
         logger.info("=== Step 4: Start Postern VPN ===")
-        postern = PosternController(appium)  # noqa: F841 (referenced in finally)
+        postern = PosternController(appium)  
         postern.start_postern()
 
         # 5. Target app
@@ -319,25 +330,38 @@ def main() -> None:
         
         limit = getattr(config, 'PROCESS_SKUS_LIMIT', 5)
         logger.info("=== Step 8: Detail Scrape with process_skus (Limit: %s) ===", limit)
-        subprocess.run([sys.executable, "process_skus.py"], check=True)
+        
+        import process_skus
+        total_db, success_db = process_skus.main()
+        
+        logger.info("=== Step 9: Dispatching Result Email ===")
+        from automation.emailer import send_report_email
+        
+        import os
+        attachment_path = "output/sku_lean_tracking.xlsx"
+        send_report_email(success_count=success_db, failed_count=(total_db - success_db), attachment_path=attachment_path)
 
     except Exception as exc:
         logger.exception("Fatal error during run: %s", exc)
         sys.exit(1)
+        
     finally:
         # Reverse startup order: target app → VPN → everything else
+        logger.info("--- Shutting down components ---")
         try:
             if appium.driver is not None:
                 appium.close_app()
         except Exception as exc:
             logger.warning("Target app close error: %s", exc)
+            
         if postern is not None:
             try:
                 postern.disable_vpn()
             except Exception as exc:
                 logger.warning("Postern shutdown error: %s", exc)
+                
         cleanup()
-
+        logger.info("\n[CYCLE COMPLETE] Task finished execution successfully.")
 
 if __name__ == "__main__":
     main()

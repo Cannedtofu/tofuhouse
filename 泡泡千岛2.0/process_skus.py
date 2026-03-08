@@ -141,6 +141,8 @@ def main():
         driver.set_page_load_timeout(15)
 
     base_url = "https://qiandao.com"
+    all_lean_data = []
+    processed_series_count = 0
 
     for idx, spu_id in enumerate(target_ids, 1):
         series_url = f"{base_url}/spu?id={spu_id}"
@@ -243,37 +245,24 @@ def main():
                 if subset.empty:
                     lean_rows.append([
                         series_name, filter_cat, total_skus, hidden_skus,
-                        0, 0, 0, 0, 0, 0, 0.0, 0.0
+                        0, 0, 0, 0, 0, 0, 0.0, 0.0, current_date, f"https://qiandao.com/spu?id={spu_id}"
                     ])
                 else:
                     lean_rows.append([
                         series_name, filter_cat, total_skus, hidden_skus,
-                        subset['views'].sum(),
-                        subset['wants'].sum(),
-                        subset['owns'].sum(),
-                        subset['num_paid'].sum(),
-                        subset['num_selling'].sum(),
-                        subset['num_buying'].sum(),
-                        round(subset['price_listing'].mean(), 2),
-                        round(subset['curr_avg_price'].mean(), 2)
+                        subset['views'].sum() if not subset['views'].isna().all() else 0,
+                        subset['wants'].sum() if not subset['wants'].isna().all() else 0,
+                        subset['owns'].sum() if not subset['owns'].isna().all() else 0,
+                        subset['num_paid'].sum() if not subset['num_paid'].isna().all() else 0,
+                        subset['num_selling'].sum() if not subset['num_selling'].isna().all() else 0,
+                        subset['num_buying'].sum() if not subset['num_buying'].isna().all() else 0,
+                        subset['price_listing'].mean() if not subset['price_listing'].isna().all() else 0.0,
+                        subset['curr_avg_price'].mean() if not subset['curr_avg_price'].isna().all() else 0.0,
+                        current_date, f"https://qiandao.com/spu?id={spu_id}"
                     ])
 
-            df_lean = pd.DataFrame(lean_rows, columns=[
-                "系列名", "分类筛选", "总SKU数", "隐藏款SKU数", 
-                "浏览量", "想要人数", "拥有人数", "付款人数", "正在出售", "正在求购",
-                "交易价格_平均", "成交均价_平均"
-            ])
-
-            try:
-                if os.path.exists(lean_output_file):
-                    with pd.ExcelWriter(lean_output_file, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
-                        startrow = writer.sheets['lean_tracking'].max_row if 'lean_tracking' in writer.sheets else 0
-                        df_lean.to_excel(writer, sheet_name='lean_tracking', startrow=startrow, index=False, header=(startrow==0))
-                else:
-                    df_lean.to_excel(lean_output_file, sheet_name='lean_tracking', index=False)
-            except Exception as e:
-                print(f"  [ERROR] Lean excel save failed for series: {e}")
-
+            all_lean_data.extend(lean_rows)
+            processed_series_count += 1
             print(f"  ✓ Safely secured {total_skus} SKUs to disk.")
         else:
             print(f"  ✓ No SKUs extracted for series.")
@@ -281,5 +270,33 @@ def main():
     driver.quit()
     print("\n--- Scraping run completed successfully! ---")
 
-if __name__ == "__main__":
-    main()
+    # Final Excel dump for lean tracking
+    if all_lean_data:
+        df_lean_new = pd.DataFrame(all_lean_data, columns=[
+            "系列名", "分类筛选", "总SKU数", "隐藏款SKU数", 
+            "浏览量", "想要人数", "拥有人数", "付款人数", "正在出售", "正在求购",
+            "交易价格_平均", "成交均价_平均", "查询日期", "系列URL"
+        ])
+
+        excel_file = lean_output_file
+        if os.path.exists(excel_file):
+            try:
+                # Read existing data
+                df_existing = pd.read_excel(excel_file, sheet_name='lean_tracking')
+                # Append new data
+                df_combined = pd.concat([df_existing, df_lean_new], ignore_index=True)
+                # Remove duplicates based on key columns (e.g., series_name, filter_cat, query_date)
+                df_combined.drop_duplicates(subset=["系列名", "分类筛选", "查询日期"], keep='last', inplace=True)
+                df_combined.to_excel(excel_file, sheet_name='lean_tracking', index=False, engine='openpyxl')
+            except Exception as e:
+                print(f"  [ERROR] Failed to update existing lean excel file: {e}")
+                df_lean_new.to_excel(excel_file, sheet_name='lean_tracking', index=False, engine='openpyxl') # Fallback to overwrite
+        else:
+            df_lean_new.to_excel(excel_file, sheet_name='lean_tracking', index=False, engine='openpyxl')
+        print(f"\n[LEAN DB] Excel spreadsheet updated gracefully! ({len(df_lean_new)} new rows added)")
+        
+    return len(all_target_ids), processed_series_count
+
+if __name__ == '__main__':
+    total, success = main()
+    print(f"\n[SUMMARY] Processed {success} of {total} scheduled items.")
