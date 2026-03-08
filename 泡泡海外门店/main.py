@@ -48,7 +48,7 @@ def main():
         # If there's only 1 scrape in the DB, it's the very first run.
         if len(previous_stores) == 0:
             logger.info("This is the first scrape. No comparison possible yet.")
-            report_body = "This is the initial scrape. Currently tracking " + str(len(current_stores)) + " stores. No net changes to report yet."
+            report_body = "这是首次检测。系统目前正在追踪 " + str(len(current_stores)) + " 家门店。尚无净增减数据可供比对。"
         else:
             comparison_results = compare_stores(current_stores, previous_stores)
             report_body = format_comparison_for_email(comparison_results)

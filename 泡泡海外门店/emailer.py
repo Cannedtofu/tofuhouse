@@ -15,11 +15,10 @@ def send_update_email(html_body: str, plain_body: str, attachment_path: str = No
     """
     sender_email = '396481139@qq.com'
     sender_password = 'mocjzkhznmudbghf'
-    receiver_email = '396481139@qq.com'
-    #'cuiyuan@maisoncapital.com, zengleshi@maisoncapital.com,lidongzhuang@outlook.com,396481139@qq.com'
+    receiver_email = 'cuiyuan@maisoncapital.com, zengleshi@maisoncapital.com,lidongzhuang@outlook.com,396481139@qq.com'
     
     current_date = datetime.now().strftime("%Y-%m-%d")
-    subject = f'Popmart US Store Updates {current_date}'
+    subject = f'泡泡玛特海外门店追踪更新 {current_date}'
 
     msg = MIMEMultipart('alternative')
     msg['From'] = sender_email

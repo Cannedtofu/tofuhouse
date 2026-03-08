@@ -41,6 +41,10 @@ def handle_popups(driver):
         
         # XPaths targeting common confirmation/dismissal buttons and close icons
         popup_xpaths = [
+            # Popmart specific IP Location popups (Found in HTML dump)
+            "//div[@role='dialog']//img[@alt='close']",
+            "//div[contains(@class, 'index_ipInConutry')]",
+            "//div[contains(@class, 'index_chooseCountry')]",
             # Region selection confirmations
             "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'confirm')]",
             "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'continue')]",

@@ -115,12 +115,12 @@ def get_last_two_scrapes():
     
     if len(recent_scrapes) >= 1:
         curr_scrape_id = recent_scrapes[0]['id']
-        cursor.execute('SELECT store_name, address, is_robo_shop FROM stores WHERE scrape_id = ?', (curr_scrape_id,))
+        cursor.execute('SELECT store_name, address, is_robo_shop, region, country FROM stores WHERE scrape_id = ?', (curr_scrape_id,))
         current_stores = [dict(row) for row in cursor.fetchall()]
         
     if len(recent_scrapes) >= 2:
         prev_scrape_id = recent_scrapes[1]['id']
-        cursor.execute('SELECT store_name, address, is_robo_shop FROM stores WHERE scrape_id = ?', (prev_scrape_id,))
+        cursor.execute('SELECT store_name, address, is_robo_shop, region, country FROM stores WHERE scrape_id = ?', (prev_scrape_id,))
         previous_stores = [dict(row) for row in cursor.fetchall()]
 
     conn.close()
