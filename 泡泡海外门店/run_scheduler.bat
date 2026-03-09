@@ -1,4 +1,6 @@
 @echo off
-cd /d "d:\代码项目\泡泡海外门店"
-call .venv\Scripts\activate.bat
-python main.py
+cd /d "%~dp0"
+if exist .venv\Scripts\activate.bat (
+    call .venv\Scripts\activate.bat
+)
+"D:\Visual Studio\Python39_64\python.exe" main.py
