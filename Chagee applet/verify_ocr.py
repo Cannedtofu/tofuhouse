@@ -44,22 +44,40 @@ def verify_ocr():
         
         print(f"Expected: {len(expected)}, Found: {len(results)}")
         
-        for i, exp in enumerate(expected):
-            if i < len(results):
-                res = results[i]
+        # Order-insensitive matching
+        matched_results = []
+        found_indices = set()
+        
+        from difflib import SequenceMatcher
+        def fuzzy_ratio(a, b):
+            return SequenceMatcher(None, a, b).ratio()
+
+        for exp in expected:
+            best_match_idx = -1
+            best_score = -1
+            
+            exp_s = normalize(exp['store_name'])
+            exp_o = normalize(exp['order_status'])
+            
+            for j, res in enumerate(results):
+                if j in found_indices: continue
                 
-                exp_s = normalize(exp['store_name'])
                 res_s = normalize(res['store_name'])
-                exp_o = normalize(exp['order_status'])
                 res_o = normalize(res['order_status'])
-
-                from difflib import SequenceMatcher
-                def fuzzy_ratio(a, b):
-                    return SequenceMatcher(None, a, b).ratio()
-
-                # Store matching: fuzzy ratio > 0.6 or substring
-                store_match = fuzzy_ratio(exp_s, res_s) > 0.6 or exp_s in res_s or res_s in exp_s
-                # Status matching: substring or fuzzy ratio > 0.8
+                
+                # Use store name similarity as the primary matching criteria
+                score = fuzzy_ratio(exp_s, res_s)
+                if score > best_score:
+                    best_score = score
+                    best_match_idx = j
+            
+            if best_match_idx != -1 and best_score > 0.4: # Found a potential match
+                found_indices.add(best_match_idx)
+                res = results[best_match_idx]
+                res_s = normalize(res['store_name'])
+                res_o = normalize(res['order_status'])
+                
+                store_match = best_score > 0.6 or exp_s in res_s or res_s in exp_s
                 status_match = exp_o in res_o or res_o in exp_o or fuzzy_ratio(exp_o, res_o) > 0.8
                 
                 if store_match: correct_stores += 1
@@ -67,9 +85,14 @@ def verify_ocr():
                 
                 print(f"  Exp: '{exp['store_name']}' | '{exp['order_status']}'")
                 print(f"  Res: '{res['store_name']}' | '{res['order_status']}'")
-                print(f"  Match: Store={store_match} ({fuzzy_ratio(exp_s, res_s):.2f}), Status={status_match}")
+                print(f"  Match: Store={store_match} ({best_score:.2f}), Status={status_match}")
             else:
                 print(f"  MISSING result for: {exp['store_name']}")
+
+        # Optional: Print extra results
+        for j, res in enumerate(results):
+            if j not in found_indices:
+                print(f"  EXTRA result: '{res['store_name']}' | '{res['order_status']}'")
 
     print("\n--- FINAL RESULTS ---")
     print(f"Total Expected: {total_expected}")

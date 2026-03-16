@@ -1,31 +1,54 @@
-# Chagee Applet Scraper Project Notes
+# Chagee Applet Scraper: OCR Methodology
 
 ## Project Overview
-This project is designed to automate the scraping of data from the "Chagee" (霸王茶姬) WeChat applet. Because WeChat applets run within the WeChat container, we use a hybrid approach:
-1. **UI Automation** (`uiautomation` library): To mimic human interaction, search for the applet, open it, and navigate through the UI to trigger data generation.
-2. **Network Interception** (`mitmproxy`): To run in the background, intercept the backend API calls made by the applet, and capture the JSON payload directly.
+This project automates data extraction from the "Chagee" (霸王茶姬) WeChat applet using a **Vision-Based Scraping** approach. Unlike network interception, this method relies on UI automation and high-accuracy Optical Character Recognition (OCR) to scrape store queues and order statuses directly from the screen.
+
+## Execution Logic & Workflow
+
+### 1. UI Navigation & Orchestration
+**Module**: `ui_modules/applet_interact.py`
+**Goal**: Locate the applet, navigate to the data source, and manage the scrolling feedback loop.
+
+*   **`interact_with_applet(target_count=15)`**: 
+    1.  **Window Discovery**: Uses `uiautomation` to find the `Chrome_WidgetWin_0` class window (excluding the main WeChat window).
+    2.  **Entry Trigger**: Clicks specifically at `(120, 600)` relative to the applet window to enter the store list page.
+    3.  **Initial Positioning**: Performs a 3-wheel-rotation scroll at `(200, 566)` to settle the list into its scraping position.
+    4.  **Dynamic Scrape Loop**:
+        -   **Capture**: `applet_window.CaptureToImage()` saves the current view to `temp_scrape.png`.
+        -   **OCR Process**: Calls the `ChageeOCRExtractor` to parse the screenshot.
+        -   **Feedback**: Compares detected stores against `all_scraped_stores`. If no new stores are found after a scroll, it increments a retry counter.
+        -   **Auto-Scroll**: `auto.WheelDown(wheelTimes=5)` moves the list down to bring fresh entries into view.
+    5.  **Persistence**: Once the target count (default 15) is reached, it uses `pandas` to export the results to `scraped_stores.xlsx` with current Date, Time, and Day.
+
+### 2. Vision & OCR Engine
+**Module**: `ocr_extractor.py`
+**Goal**: Low-latency, high-accuracy localization and character recognition.
+
+*   **`ChageeOCRExtractor.extract_data(image_path)`**:
+    -   **Localization**: Uses OpenCV (Canny/Contours) to find store containers within a ROI (ignoring the top 12% of the screen). 
+    -   **Deduplication**: Implements a vertical IoU (Intersection over Union) logic to handle overlapping or nested boxes, ensuring each store is counted only once.
+    -   **Targeted Cropping**:
+        -   **Store Name**: Fixed offset `(22px to 46px)` relative to the box top.
+        -   **Order Status**: Fixed offset `(46px to 70px)` relative to the box top.
+    -   **OCR Core**: Uses **PaddleOCR** in recognition-only mode (`det=False`). Images are upscaled 4x before processing to enhance character clarity.
+    -   **Post-Processing**:
+        -   `clean_text`: Strips noise and applies a custom dictionary for common OCR errors (e.g., `芸` -> `荟`).
+        -   `parse_status`: Extracts the numerical **Cup Count** (e.g., "前方 18 杯制作中" -> `18`).
+
+### 3. Accuracy Verification & Benchmarking
+**Module**: `verify_ocr.py`
+**Goal**: Ensure extraction quality remains >95%.
+
+*   **`verify_ocr()`**: Runs the extractor against a set of ground-truth samples in `OCR_sample/`. It employs an **order-insensitive matching** algorithm that finds the best store similarity match, proving the system's robustness even when items shift vertically.
 
 ## Directory Structure
-- `main.py`: The entry point orchestration script. It spins up the `mitmproxy` interceptor in the background and sequentially calls the UI automation modules.
-- `proxy/interceptor.py`: The `mitmproxy` addon script. It filters network traffic searching for the specific API endpoint and dumps the JSON payload into a `data` folder.
-- `ui_modules/`:
-  - `core_wechat.py`: Handles finding the WeChat application window, bringing it to the foreground, and focusing the search bar.
-  - `applet_nav.py`: Responsible for searching the specific applet ("Chagee" / 霸王茶姬) and clicking it to open the applet window.
-  - `applet_interact.py`: Coordinates the in-applet UI clicks (e.g., clicking the menu, store locator, scrolling) to push the applet into making the target data request.
-- `test_ui.py`: A convenience script to test individual steps independently (`--step 1`, `--step 2`, etc.).
+- `ui_modules/applet_interact.py`: The main scraper driver (Navigation + Loop).
+- `ocr_extractor.py`: The brain of the scraper (Localization + PaddleOCR).
+- `verify_ocr.py`: Accuracy benchmarking tool.
+- `export_to_excel.py`: Offline batch processing tool for sample images.
+- `scraped_stores.xlsx`: The final output file containing store names, statuses, and cup counts.
 
-## Prerequisites & Setup (Netch / Proxifier)
-To intercept the traffic successfully, network routing is required:
-1. **Mitmproxy Port**: `mitmproxy` runs on `127.0.0.1:8080` (by default configured in `main.py`).
-2. **Traffic Routing**: You must use a tool like **Netch** or **Proxifier** to force the `WeChatAppEx.exe` (the WeChat applet process) to route its traffic through `127.0.0.1:8080`.
-3. **Certificate Installation**: The `mitmproxy` CA certificate (`%USERPROFILE%\.mitmproxy\mitmproxy-ca-cert.cer`) must be installed in the Windows **Trusted Root Certification Authorities** store so the applet trusts the HTTPS interception.
-
-## Next Steps / TODOs
-- **Applet Name Configuration**: Verify the exact search name for the Chagee applet inside the script.
-- **UI Logic Customization**: Update `ui_modules/applet_interact.py` with the exact UI tags, names, or coordinates needed to navigate the Chagee applet. You can use the Accessibility Insights tool or `uiautomation` inspect mechanisms to find the right elements.
-- **API Target Identification**: We need to use Charles Proxy or Mitmproxy web interface to manually identify the exact URL fragment of the Chagee data API, and update `proxy/interceptor.py` with this target.
-
-## Running the Complete Flow
-1. Ensure Netch/Proxifier is running and routing `WeChatAppEx.exe`.
-2. Activate Virtual Environment: `.venv\\Scripts\\activate`
-3. Run the orchestrator: `python main.py`
+## Operational Prerequisites
+- **PaddleOCR**: Local GPU acceleration (RTX series recommended) or CPU.
+- **uiautomation**: Windows UI accessibility bridge.
+- **Resolution**: The applet window should be visible and not minimized during the `applet_interact` sequence.
