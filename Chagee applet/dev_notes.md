@@ -1,54 +1,52 @@
 # Chagee Applet Scraper: OCR Methodology
 
 ## Project Overview
-This project automates data extraction from the "Chagee" (霸王茶姬) WeChat applet using a **Vision-Based Scraping** approach. Unlike network interception, this method relies on UI automation and high-accuracy Optical Character Recognition (OCR) to scrape store queues and order statuses directly from the screen.
+This project automates data extraction from the "Chagee" (霸王茶姬) WeChat applet using a **Vision-Based Scraping** approach. Unlike network interception, this method relies on UI automation and high-accuracy Optical Character Recognition (OCR) to scrape store queues and order statuses directly from the screen across multiple cities.
 
 ## Execution Logic & Workflow
 
-### 1. UI Navigation & Orchestration
+### 1. Multi-City Orchestration
 **Module**: `ui_modules/applet_interact.py`
-**Goal**: Locate the applet, navigate to the data source, and manage the scrolling feedback loop.
+**Goal**: Manage the transition between the initial city and a list of target cities defined in `config.py`.
 
-*   **`interact_with_applet(target_count=15)`**: 
-    1.  **Window Discovery**: Uses `uiautomation` to find the `Chrome_WidgetWin_0` class window (excluding the main WeChat window).
-    2.  **Entry Trigger**: Clicks specifically at `(120, 600)` relative to the applet window to enter the store list page.
-    3.  **Initial Positioning**: Performs a 3-wheel-rotation scroll at `(200, 566)` to settle the list into its scraping position.
-    4.  **Dynamic Scrape Loop**:
-        -   **Capture**: `applet_window.CaptureToImage()` saves the current view to `temp_scrape.png`.
-        -   **OCR Process**: Calls the `ChageeOCRExtractor` to parse the screenshot.
-        -   **Feedback**: Compares detected stores against `all_scraped_stores`. If no new stores are found after a scroll, it increments a retry counter.
-        -   **Auto-Scroll**: `auto.WheelDown(wheelTimes=5)` moves the list down to bring fresh entries into view.
-    5.  **Persistence**: Once the target count (default 15) is reached, it uses `pandas` to export the results to `scraped_stores.xlsx` with current Date, Time, and Day.
+*   **`main_workflow()`**: 
+    1.  **Initial Scrape**: Scrapes 15 stores from the city currently selected in the applet (Default: "Initial City") via `scrape_city_stores(click_entry=True)`.
+    2.  **Iterative City Switching**: Loops through `CITY_LIST` in `config.py`.
+    3.  **Regional Transition**: Calls `switch_city(name)` to trigger the applet's internal city selector.
+    4.  **Targeted Scrape**: Once switched, calls `scrape_city_stores(click_entry=False)` to collect results for the new region.
+    5.  **Unified Export**: Aggregates all results into `multi_city_stores.xlsx` with city labels and timestamps.
 
-### 2. Vision & OCR Engine
+### 2. City Switching Logic
+**Module**: `city_switching.py`
+**Goal**: Automate region selection using OCR and Pinyin calculation.
+
+*   **`switch_city(city_name)`**:
+    1.  **Trigger Detection**: Uses full-screen OCR to find the keyword **"搜索门店"** (Search Store) and clicks **89 pixels to the left** to open the city selector.
+    2.  **Index Navigation**: Calculates the city's first Pinyin character (e.g., "H" for "杭州") using `pypinyin`.
+    3.  **Sidebar Interaction**: Searches for the index character in the sidebar using OCR and clicks it to jump to the correct alphabetical section.
+    4.  **City Search**: Scans the scrollable city list for the target name and clicks it, with an automatic scroll-down fallback (max 10 retries).
+
+### 3. Vision & OCR Engine
 **Module**: `ocr_extractor.py`
 **Goal**: Low-latency, high-accuracy localization and character recognition.
 
-*   **`ChageeOCRExtractor.extract_data(image_path)`**:
-    -   **Localization**: Uses OpenCV (Canny/Contours) to find store containers within a ROI (ignoring the top 12% of the screen). 
-    -   **Deduplication**: Implements a vertical IoU (Intersection over Union) logic to handle overlapping or nested boxes, ensuring each store is counted only once.
-    -   **Targeted Cropping**:
-        -   **Store Name**: Fixed offset `(22px to 46px)` relative to the box top.
-        -   **Order Status**: Fixed offset `(46px to 70px)` relative to the box top.
-    -   **OCR Core**: Uses **PaddleOCR** in recognition-only mode (`det=False`). Images are upscaled 4x before processing to enhance character clarity.
-    -   **Post-Processing**:
-        -   `clean_text`: Strips noise and applies a custom dictionary for common OCR errors (e.g., `芸` -> `荟`).
-        -   `parse_status`: Extracts the numerical **Cup Count** (e.g., "前方 18 杯制作中" -> `18`).
+*   **`ChageeOCRExtractor`**:
+    -   **`extract_data`**: Detects store boxes, deduplicates via area-aware sorting, and crops Store Name/Order Status regions using fixed pixel offsets.
+    -   **`ocr_full_image`**: Runs full detection-recognition OCR to localize UI elements like buttons or keywords.
+    -   **Core**: Powered by **PaddleOCR** with 4x upscaling and aggressive text cleaning (mapping common OCR hallucinations like `芸` -> `荟`).
 
-### 3. Accuracy Verification & Benchmarking
-**Module**: `verify_ocr.py`
-**Goal**: Ensure extraction quality remains >95%.
-
-*   **`verify_ocr()`**: Runs the extractor against a set of ground-truth samples in `OCR_sample/`. It employs an **order-insensitive matching** algorithm that finds the best store similarity match, proving the system's robustness even when items shift vertically.
+## Configuration
+**Module**: `config.py`
+Contains the `CITY_LIST` of tuples: `(city_name, target_store_count, initial_location)`.
 
 ## Directory Structure
-- `ui_modules/applet_interact.py`: The main scraper driver (Navigation + Loop).
-- `ocr_extractor.py`: The brain of the scraper (Localization + PaddleOCR).
-- `verify_ocr.py`: Accuracy benchmarking tool.
-- `export_to_excel.py`: Offline batch processing tool for sample images.
-- `scraped_stores.xlsx`: The final output file containing store names, statuses, and cup counts.
+- `ui_modules/applet_interact.py`: Multi-city orchestration driver.
+- `city_switching.py`: Region navigation logic using relative OCR positioning.
+- `ocr_extractor.py`: Brain of the scraper (Localization + Character recognition).
+- `config.py`: Global settings and city targets.
+- `multi_city_stores.xlsx`: The unified output file.
 
 ## Operational Prerequisites
-- **PaddleOCR**: Local GPU acceleration (RTX series recommended) or CPU.
+- **PaddleOCR**: Local GPU acceleration (RTX series recommended).
 - **uiautomation**: Windows UI accessibility bridge.
-- **Resolution**: The applet window should be visible and not minimized during the `applet_interact` sequence.
+- **Robust I/O**: The system uses numpy-buffered reading/writing to ensure compatibility with Chinese file paths in the workspace.

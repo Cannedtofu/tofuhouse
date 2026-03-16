@@ -180,6 +180,14 @@ class ChageeOCRExtractor:
         
         return extracted_data
 
+    def ocr_full_image(self, image_path):
+        img = self._load_image(image_path)
+        if img is None:
+            return []
+        # Full OCR with detection
+        res = self.ocr.ocr(img, det=True, cls=True)
+        return res[0] if res else []
+
     def _save_image(self, path, img):
         _, ext = os.path.splitext(path)
         res, img_encode = cv2.imencode(ext, img)

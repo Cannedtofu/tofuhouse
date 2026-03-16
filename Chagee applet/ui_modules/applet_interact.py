@@ -5,116 +5,115 @@ import sys
 import pandas as pd
 from datetime import datetime
 
-# Add parent directory to sys.path to import ocr_extractor
+# Add parent directory to sys.path to import ocr_extractor and config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ocr_extractor import ChageeOCRExtractor
+from config import CITY_LIST
+from city_switching import switch_city
 
-def interact_with_applet(target_count=15):
-    print(f"Starting applet interaction sequence. Target: {target_count} stores.")
-    
-    extractor = ChageeOCRExtractor()
-    
-    # Locate the applet window
-    applet_window = None
+def get_applet_window():
     for i in range(5):
         for window in auto.GetRootControl().GetChildren():
-            # Applet windows usually have class 'Chrome_WidgetWin_0' and are NOT named '微信'
             if window.ClassName == "Chrome_WidgetWin_0" and window.Name != "微信" and window.Name != "":
-                applet_window = window
-                break
-        if applet_window: break
+                return window
         time.sleep(1)
-        
-    if not applet_window:
-        print("Cannot find applet window for interaction.")
-        return False
-        
-    applet_window.SetActive()
-    rect = applet_window.BoundingRectangle
-    print(f"Interacting with applet window '{applet_window.Name}' at {rect}")
+    return None
 
-    # 1. Click (120, 600) leads to the scrolling page
-    click1_x = rect.left + 120
-    click1_y = rect.top + 600
-    print(f"Clicking at relative (120, 600) -> Global ({click1_x}, {click1_y})")
-    auto.Click(click1_x, click1_y)
+
+def scrape_city_stores(applet_window, extractor, target_count=15, city_name="Default", click_entry=True):
+    print(f"\n--- Scraping City: {city_name} (Target: {target_count}) ---")
+    applet_window.SetActive()
+    time.sleep(1)
+    rect = applet_window.BoundingRectangle
     
-    # Wait for page transition
-    time.sleep(5)
+    if click_entry:
+        # 1. Click (120, 600) leads to the scrolling page
+        click1_x = rect.left + 120
+        click1_y = rect.top + 600
+        print(f"Clicking at relative (120, 600) -> Global ({click1_x}, {click1_y})")
+        auto.Click(click1_x, click1_y)
+        time.sleep(5)
+    else:
+        print("Skipping entry click (120, 600) as requested.")
     
-    # 2. Initial scroll at (200, 566) to set position
+    # 2. Initial scroll
     scroll_x = rect.left + 200
     scroll_y = rect.top + 566
-    print(f"Initial scroll at ({scroll_x}, {scroll_y})")
     auto.MoveTo(scroll_x, scroll_y)
     auto.WheelDown(wheelTimes=3, interval=0.1)
     time.sleep(2)
-    print("Initial scroll complete. Starting Scrape Loop...")
 
-    all_scraped_stores = {} # Store Name -> Full Record
+    city_results = {}
     consecutive_no_new = 0
-    max_retries = 10
     
-    while len(all_scraped_stores) < target_count and consecutive_no_new < max_retries:
-        # Capture current screen
+    while len(city_results) < target_count and consecutive_no_new < 10:
         screenshot_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temp_scrape.png")
         applet_window.CaptureToImage(screenshot_path)
         
-        # Run OCR
         results = extractor.extract_data(screenshot_path)
-        
-        new_found_this_iter = 0
+        new_found = 0
         for res in results:
             name = res['store_name']
-            if name not in all_scraped_stores:
-                all_scraped_stores[name] = res
-                new_found_this_iter += 1
-                print(f"  [+] Scraped: {name} | {res['order_status']}")
+            if name not in city_results:
+                res['City'] = city_name
+                city_results[name] = res
+                new_found += 1
+                print(f"  [+] {city_name}: {name}")
         
-        if new_found_this_iter > 0:
+        if new_found > 0:
             consecutive_no_new = 0
-            print(f"Progress: {len(all_scraped_stores)}/{target_count}")
         else:
             consecutive_no_new += 1
-            print(f"No new stores found ({consecutive_no_new}/{max_retries}). Scrolling to find more...")
-
-        if len(all_scraped_stores) >= target_count:
-            break
             
-        # Scroll down - Increased distance by 3x (from 2 to 6)
+        if len(city_results) >= target_count: break
+            
         auto.MoveTo(scroll_x, scroll_y)
         auto.WheelDown(wheelTimes=5, interval=0.1)
-        time.sleep(2) # Wait for UI to settle
+        time.sleep(2)
 
-    print(f"\nScraping complete. Total stores found: {len(all_scraped_stores)}")
-    return list(all_scraped_stores.values())
+    print(f"Scraped {len(city_results)} stores in {city_name}.")
+    return list(city_results.values())
 
-if __name__ == "__main__":
-    results = interact_with_applet(15)
-    if results:
-        print("\nSummary of Scraped Data:")
-        for r in results:
-            print(f"- {r['store_name']}: {r['order_status']}")
-            
-        # Export logic
+def main_workflow():
+    applet_window = get_applet_window()
+    if not applet_window:
+        print("Applet window not found.")
+        return
+
+    extractor = ChageeOCRExtractor()
+    all_results = []
+
+    # 1. Scrape the first city (implicitly current)
+    all_results.extend(scrape_city_stores(applet_window, extractor, 15, "Initial City"))
+
+    # 2. Move on to rest of cities
+    for city_name, target_count, _ in CITY_LIST:
+        # Switch City directly (this begins with a click at 50, 395 now via Search Store)
+        if switch_city(city_name, target_count, None):
+            # After switching, we are already on the store list page
+            all_results.extend(scrape_city_stores(applet_window, extractor, target_count, city_name, click_entry=False))
+        else:
+            print(f"Failed to switch to {city_name}. Skipping.")
+
+    # Final Export
+    if all_results:
         now = datetime.now()
-        date_str = now.strftime("%Y-%m-%d")
-        time_str = now.strftime("%H:%M")
-        day_str = now.strftime("%A")
-        
         export_data = []
-        for r in results:
+        for r in all_results:
             export_data.append({
+                "City": r.get('City', 'Unknown'),
                 "Store Name": r['store_name'],
                 "Order Status": r['order_status'],
                 "Cup Count": r['cup_count'],
-                "Date": date_str,
-                "Time": time_str,
-                "Day": day_str
+                "Date": now.strftime("%Y-%m-%d"),
+                "Time": now.strftime("%H:%M"),
+                "Day": now.strftime("%A")
             })
             
         df = pd.DataFrame(export_data)
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        output_file = os.path.join(base_dir, "scraped_stores.xlsx")
+        output_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "multi_city_stores.xlsx")
         df.to_excel(output_file, index=False)
-        print(f"\nResults successfully exported to {output_file}")
+        print(f"\nAll cities scraped. Total: {len(all_results)} results. Saved to {output_file}")
+
+if __name__ == "__main__":
+    main_workflow()
