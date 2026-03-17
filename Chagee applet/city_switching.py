@@ -145,8 +145,12 @@ def switch_city(city_name, target_store_count, initial_location):
                 auto.Click(click_x, click_y)
                 city_found = True
                 time.sleep(5)
-                auto.WheelUp(wheelTimes=1, interval=0.1)
-                
+                # scroll reset to top
+                scroll_x = rect.left + 200
+                scroll_y = rect.top + 566
+                auto.MoveTo(scroll_x, scroll_y)
+                auto.WheelUp(wheelTimes=20, interval=0.1)
+
                 break
         
         if city_found:

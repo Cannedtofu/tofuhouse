@@ -20,7 +20,7 @@ def get_applet_window():
     return None
 
 
-def scrape_city_stores(applet_window, extractor, target_count=15, city_name="Default", click_entry=True):
+def scrape_city_stores(applet_window, extractor, target_count=200, city_name="Default", click_entry=True):
     print(f"\n--- Scraping City: {city_name} (Target: {target_count}) ---")
     applet_window.SetActive()
     time.sleep(1)
@@ -45,8 +45,9 @@ def scrape_city_stores(applet_window, extractor, target_count=15, city_name="Def
 
     city_results = {}
     consecutive_no_new = 0
+    max_no_new_scrolls = 4 # User Rule: Abort city if 4 scrolls yield no new data
     
-    while len(city_results) < target_count and consecutive_no_new < 10:
+    while len(city_results) < target_count and consecutive_no_new < max_no_new_scrolls:
         screenshot_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temp_scrape.png")
         applet_window.CaptureToImage(screenshot_path)
         
@@ -64,12 +65,16 @@ def scrape_city_stores(applet_window, extractor, target_count=15, city_name="Def
             consecutive_no_new = 0
         else:
             consecutive_no_new += 1
+            print(f"  [!] No new stores found ({consecutive_no_new}/{max_no_new_scrolls}).")
             
         if len(city_results) >= target_count: break
             
         auto.MoveTo(scroll_x, scroll_y)
         auto.WheelDown(wheelTimes=5, interval=0.1)
         time.sleep(2)
+
+    if consecutive_no_new >= max_no_new_scrolls:
+        print(f"  [!] Aborting {city_name}: Reached limit of {max_no_new_scrolls} scrolls without new data.")
 
     print(f"Scraped {len(city_results)} stores in {city_name}.")
     return list(city_results.values())
@@ -84,7 +89,7 @@ def main_workflow():
     all_results = []
 
     # 1. Scrape the first city (implicitly current)
-    all_results.extend(scrape_city_stores(applet_window, extractor, 15, "Initial City"))
+    all_results.extend(scrape_city_stores(applet_window, extractor, 200, "上海"))
 
     # 2. Move on to rest of cities
     for city_name, target_count, _ in CITY_LIST:
