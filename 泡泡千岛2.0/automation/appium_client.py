@@ -11,11 +11,77 @@ from appium import webdriver
 from appium.options.common.base import AppiumOptions
 from selenium.common.exceptions import WebDriverException
 
+import time
+import os
 import config
 
 logger = logging.getLogger(__name__)
 
+class AppiumServer:
+    """Wraps an Appium server subprocess."""
+    def __init__(self, port: int = 4723) -> None:
+        self.port = port
+        self._process: Optional[subprocess.Popen] = None
 
+    def start(self, wait_seconds: float = 12.0) -> None:
+        if self._process and self._process.poll() is None:
+            logger.warning("Appium server is already running (pid=%d).", self._process.pid)
+            return
+
+        # --- Clean Slate: Kill existing process on port ---
+        try:
+            import sys
+            if sys.platform == "win32":
+                result = subprocess.run(
+                    f"netstat -ano | findstr :{self.port}", 
+                    shell=True, capture_output=True, text=True
+                )
+                for line in result.stdout.strip().split('\n'):
+                    if line and 'LISTENING' in line:
+                        parts = line.strip().split()
+                        if len(parts) >= 5:
+                            pid = parts[-1]
+                            if pid != "0":
+                                logger.info("Killing existing process %s on port %d", pid, self.port)
+                                subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
+            else:
+                subprocess.run(f"lsof -ti:{self.port} | xargs kill -9", shell=True, capture_output=True)
+        except Exception as e:
+            logger.warning("Failed to clean up port %d: %s", self.port, e)
+        # --------------------------------------------------
+
+        project_root = str(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        log_path = os.path.join(project_root, "output", "appium.log")
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+
+        cmd = ["appium.cmd", "-p", str(self.port)]
+        logger.info("Starting Appium server: %s  (log → %s)", " ".join(cmd), log_path)
+        log_fh = open(log_path, "w", encoding="utf-8")
+        try:
+            self._process = subprocess.Popen(
+                cmd,
+                stdout=log_fh,
+                stderr=subprocess.STDOUT,
+                shell=True
+            )
+        finally:
+            log_fh.close()
+
+        time.sleep(wait_seconds)
+        if self._process.poll() is not None:
+            raise RuntimeError(f"Appium exited immediately (rc={self._process.returncode}).")
+        logger.info("Appium server listening on port %d (pid=%d).", self.port, self._process.pid)
+
+    def stop(self) -> None:
+        if not self._process or self._process.poll() is not None:
+            return
+
+        logger.info("Stopping Appium server (pid=%d).", self._process.pid)
+        import sys
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(self._process.pid)], capture_output=True)
+        else:
+            self._process.terminate()
 class AppiumSession:
     """
     Wraps an Appium WebDriver session. The driver is created lazily on

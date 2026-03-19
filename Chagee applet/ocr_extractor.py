@@ -3,6 +3,7 @@ import numpy as np
 import os
 from paddleocr import PaddleOCR
 import json
+import config
 
 # Faster initialization
 os.environ['PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK'] = 'True'
@@ -32,7 +33,7 @@ class ChageeOCRExtractor:
 
         h_full, w_full = img.shape[:2]
         # Ignore top static elements (search/map)
-        roi_y = int(h_full * 0.12)
+        roi_y = int(h_full * config.ROI_TOP_IGNORE_PERCENT)
         roi = img[roi_y:, :]
         
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
@@ -49,7 +50,8 @@ class ChageeOCRExtractor:
         for cnt in contours:
             x, y, w, h = cv2.boundingRect(cnt)
             # Slightly relaxed constraints
-            if 320 <= w <= 450 and 50 <= h <= 500:
+            if config.BOX_MIN_WIDTH <= w <= config.BOX_MAX_WIDTH and \
+               config.BOX_MIN_HEIGHT <= h <= config.BOX_MAX_HEIGHT:
                 # Store (area, box) to help deduplication prefer smaller boxes
                 boxes.append((w * h, (x, y + roi_y, w, h)))
         
@@ -88,18 +90,18 @@ class ChageeOCRExtractor:
             self._save_image(os.path.join(debug_base, f"box_{i}_full.png"), box_img)
             
             # User Rule: finalized cropping logic
-            sn_y_start = 22 
-            sn_height = 24 
+            sn_y_start = config.SN_CROP_Y_START 
+            sn_height = config.SN_CROP_HEIGHT 
             # Out of bounds safety for partial/bottom boxes
             y1, y2 = min(sn_y_start, bh-1), min(sn_y_start + sn_height, bh)
-            sn_roi = box_img[y1:y2, 10 : int(bw * 0.75)]
+            sn_roi = box_img[y1:y2, 10 : int(bw * config.BOX_WIDTH_CUTOFF_PERCENT)]
             if sn_roi.size == 0: continue
             
-            # User Rule: Order status crop offset: 46px to 70px
-            os_y_start = 46
-            os_height = 24 
+            # User Rule: Order status crop offset
+            os_y_start = config.OS_CROP_Y_START
+            os_height = config.OS_CROP_HEIGHT 
             y3, y4 = min(os_y_start, bh-1), min(os_y_start + os_height, bh)
-            os_roi = box_img[y3:y4, 10 : int(bw * 0.75)]
+            os_roi = box_img[y3:y4, 10 : int(bw * config.BOX_WIDTH_CUTOFF_PERCENT)]
             if os_roi.size == 0: os_roi = np.zeros((1, 1, 3), dtype=np.uint8) # Dummy for OCR skip
             
             # Log for inspection as requested
@@ -138,6 +140,11 @@ class ChageeOCRExtractor:
                 # Suffix fix: if ends in thing that's likely '店'
                 if len(text) > 4 and text[-1] in '志庆交底不面銀適影':
                     text = text[:-1] + '店'
+                
+                # If '店' is second to last, remove the last character (likely OCR noise)
+                if len(text) >= 2 and text[-2] == '店':
+                    text = text[:-1]
+
                 return text.strip()
 
             store_name = clean_text(store_name_raw)
@@ -158,15 +165,20 @@ class ChageeOCRExtractor:
                 digits = re.findall(r'\d+', normalized)
                 cup_count = 0
                 
-                # Handle queue status
-                if digits and any(k in normalized for k in ['制作', '杯', '林', '重', '中']):
+                # Rule: Strict format check for "前方x杯制作中"
+                # Must have digits, '杯', and either '前方' or '制作'
+                if digits and '杯' in normalized and (any(k in normalized for k in ['前方', '制作', '中', '制'])):
                     cup_count = int(digits[0])
                     return f"前方{cup_count}杯制作中", cup_count
                 
+                # Rule: Check for "现在下单，立即制作"
                 if any(k in normalized for k in ['立即制作', '现在下单', '立即', '下单', '制作中']):
                     return "现在下单，立即制作", 0
                 
-                return clean_text(normalized), 0
+                # If it doesn't match the primary patterns, avoid returning random digits
+                # Just return cleaned text but set count to 0
+                cleaned = clean_text(normalized)
+                return cleaned if cleaned else "已休息", 0
 
             order_status, cup_count = parse_status(order_status_raw)
             

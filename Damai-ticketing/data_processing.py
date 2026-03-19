@@ -2,8 +2,8 @@ import pandas as pd
 import json
 
 # Configuration
-input_file = "scraped_data.jsonl"
-output_file = "processed_live_entertainment_data.xlsx"
+input_file = "scraped_data_music_only.jsonl"
+output_file = "processed_live_entertainment_data_music_only_260305.xlsx"
 
 def process_data(jsonl_path, excel_path):
     data = []

@@ -156,8 +156,7 @@ current_date = datetime.date.today()
 formatted_date = current_date.strftime("%Y-%m-%d")
 
 sender_email = '396481139@qq.com'
-sender_password = os.getenv('EMAIL_PASS')
-print(f"DEBUG: 密码读取结果为: {sender_password}")
+sender_password = 'mocjzkhznmudbghf'
 receiver_email = 'cuiyuan@maisoncapital.com,zhj@maisoncapital.com,396481139@qq.com,huaqianglin88@126.com'
 
 

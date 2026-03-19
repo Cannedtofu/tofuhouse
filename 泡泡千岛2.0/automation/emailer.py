@@ -15,10 +15,10 @@ def send_report_email(success_count: int, failed_count: int, attachment_path: st
     """
     sender_email = '396481139@qq.com'
     sender_password = 'mocjzkhznmudbghf'
-    receiver_email = 'cuiyuan@maisoncapital.com,linhuaqiang@maisoncapital.com,zengleshi@maisoncapital.com,lidongzhuang@outlook.com,396481139@qq.com'
+    receiver_email = 'cuiyuan@maisoncapital.com, zengleshi@maisoncapital.com,lidongzhuang@outlook.com,396481139@qq.com,sunjingwen@maisoncapital.com'
     
     current_date = datetime.now().strftime("%Y-%m-%d")
-    subject = f'泡泡玛特二手数据-分sku {current_date}'
+    subject = f'泡泡玛特二手数据-top300热度 {current_date}'
 
     total_count = success_count + failed_count
     

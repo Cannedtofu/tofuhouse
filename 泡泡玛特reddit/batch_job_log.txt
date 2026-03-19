@@ -1,0 +1,12 @@
+Batch_3: batches/goqngugpqm26h3nhiazd3w027bryo91hwr5w
+Batch_4: batches/pylja2kzrb4hhgxqabehq5vyi8nibr0s3v0h
+Batch_5: batches/1uawit8tdeelf1nugx8fqjb3h1hnwiitmb8z
+Batch_6: batches/ig22aq70pda1ipon4fc6ycqko9ul4rrdkiah
+Batch_7: batches/9almyazo79nbqecxii0sd4ph7dys4108v26d
+Batch_8: batches/snayhqcd024u85tlpqnrn13jvqmwvnyflc80
+Batch_9: batches/6gxl5sxje50rrj0wztolbl8rpqlcun7g7wte
+Batch_10: batches/jz8dxpp7coeim55qzzxr5f37729uuhgxufll
+Batch_11: batches/1sml1j5ee4zn6kmm9wphk08uyi52g4xottoe
+Batch_12: batches/03ia9abeqgevibm5fitfnpco92t4sshsvj2a
+Batch_1: batches/sedfz2zugq4gnap29o1j510roqpjwu9f9zbn
+Batch_2: batches/9rxc6328t7fwcws2leilgxw5irlp9szbpf98

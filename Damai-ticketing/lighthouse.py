@@ -550,7 +550,7 @@ if __name__ == "__main__":
         click_bounds = (0, 168, 67, 267)
 
         # --- Loop: click + scrape until click fails ---
-        while count < 1100:
+        while count < 90:
             try:
                 # Attempt to click the bounds
                 clicked = click_by_bounds(scraper.driver, click_bounds, duration=100, debug=False, debug_prefix="auto_click")

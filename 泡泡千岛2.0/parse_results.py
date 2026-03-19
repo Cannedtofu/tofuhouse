@@ -26,6 +26,10 @@ def main() -> None:
     rows: list[dict] = []
     seen_ids: set[str] = set()
 
+    if not os.path.exists(JSONL_PATH):
+        print(f"No results file found at {JSONL_PATH}.")
+        return
+
     with open(JSONL_PATH, encoding="utf-8") as fh:
         for lineno, line in enumerate(fh, start=1):
             line = line.strip()
@@ -55,8 +59,9 @@ def main() -> None:
 
     df = pd.json_normalize(rows)
     
-    # Save to SQLite instead of Excel
+    # Save to SQLite
     conn = sqlite3.connect(DB_PATH)
+    # Ensure specific columns exist if needed or let to_sql handle it
     df.to_sql("feed_results", conn, if_exists="replace", index=False)
     conn.close()
     

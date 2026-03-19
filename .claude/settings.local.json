@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"Z:/MuMu模拟器/nx_main/adb.exe\" -s 127.0.0.1:7555 shell getprop ro.build.version.release)",
+      "Bash(curl -s http://127.0.0.1:4723/status)",
+      "Bash(where appium)",
+      "Bash(appium --version)",
+      "Bash(python -c \":*)",
+      "Bash(python -:*)",
+      "Bash(\"Z:/MuMu模拟器/nx_main/adb.exe\" -s 127.0.0.1:7555 shell am start -n com.tunnel.postern/.PosternMainActivity)",
+      "Bash(\"Z:/MuMu模拟器/nx_main/adb.exe\" -s 127.0.0.1:7555 shell uiautomator dump /sdcard/ui.xml)",
+      "Bash(\"Z:/MuMu模拟器/nx_main/adb.exe\" -s 127.0.0.1:7555 pull /sdcard/ui.xml \"d:/代码项目/泡泡千岛2.0/postern_ui.xml\")",
+      "Bash(\"Z:/MuMu模拟器/nx_main/adb.exe\" -s 127.0.0.1:7555 shell pm list packages)",
+      "Bash(\"Z:/MuMu模拟器/nx_main/adb.exe\" -s 127.0.0.1:7555 shell dumpsys package com.tunnelworkshop.postern)",
+      "Bash(\"Z:/MuMu模拟器/nx_main/adb.exe\" -s 127.0.0.1:7555 shell monkey -p com.tunnelworkshop.postern -c android.intent.category.LAUNCHER 1)",
+      "Bash(\"Z:/MuMu模拟器/nx_main/adb.exe\" -s 127.0.0.1:7555 shell dumpsys window)",
+      "Bash(python -m venv .venv)",
+      "Bash(python -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(py -0)",
+      "Bash(where python3*)",
+      "Bash(source .venv/Scripts/activate)",
+      "Bash(python -m pip install --upgrade pip)",
+      "Bash(pip install -r requirements.txt)",
+      "Bash(.venv/Scripts/python -c \"import easyocr; print\\(''easyocr OK''\\)\")",
+      "Bash(\"d:/代码项目/GAODE/venv/Scripts/python.exe\" -c \"import webdriver_manager; print\\(''ok''\\)\")"
+    ]
+  }
+}

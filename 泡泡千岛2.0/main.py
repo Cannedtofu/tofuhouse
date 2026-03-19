@@ -33,8 +33,9 @@ import screenshot
 
 from emulator.mumu_controller import MuMuController
 from proxy.mitm_server import MitmProxyServer
-from automation.appium_client import AppiumSession
+from automation.appium_client import AppiumSession, AppiumServer
 from automation.postern_controller import PosternController
+from automation.reset_env import reset_env
 from data.storage import DataStorage
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
@@ -57,12 +58,14 @@ def build_cleanup(
     emulator: MuMuController,
     proxy: MitmProxyServer,
     appium: AppiumSession,
+    appium_server: AppiumServer,
 ):
     """Return a cleanup callable that captures live component references."""
     def cleanup():
         logger.info("--- Shutting down ---")
         for name, fn in [
             ("Appium", appium.quit),
+            ("Appium Server", appium_server.stop),
             ("mitmproxy", proxy.stop),
             ("Emulator", emulator.stop_emulator),
         ]:
@@ -285,16 +288,20 @@ def main() -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, handle_exit)
 
+    # 0. Environmental Reset
+    reset_env()
+
     logger.info("\n===========================================================")
     logger.info("       STARTING AUTOMATED SCRAPE RUN")
     logger.info("===========================================================\n")
 
     emulator = MuMuController()
     proxy    = MitmProxyServer()
+    appium_server = AppiumServer()
     appium   = AppiumSession()
     storage  = DataStorage()
     postern  = None  # set in try block; referenced in finally for cleanup
-    cleanup  = build_cleanup(emulator, proxy, appium)
+    cleanup  = build_cleanup(emulator, proxy, appium, appium_server)
 
     try:
         # 1. Emulator
@@ -306,7 +313,10 @@ def main() -> None:
         proxy.start()
 
         # 3. Appium
-        logger.info("=== Step 3: Connect Appium ===")
+        logger.info("=== Step 3: Start Appium Server ===")
+        appium_server.start()
+        
+        logger.info("=== Step 3a: Connect Appium ===")
         appium.connect()
 
         # 4. Postern VPN — auto-connects on open

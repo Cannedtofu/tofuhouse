@@ -76,7 +76,7 @@ def main():
 
     if not os.path.exists(input_file):
         print(f"Error: Could not find input database at {input_file}")
-        return
+        return 0, 0
 
     try:
         conn = sqlite3.connect(input_file)
@@ -84,14 +84,18 @@ def main():
         conn.close()
     except Exception as e:
         print(f"Error reading from results.db: {e}")
-        return
+        return 0, 0
 
     if 'id' not in df_input.columns:
         print("Error: Column 'id' not found in results.db")
-        return
+        return 0, 0
 
-    # Extract IDs based on config limit
-    limit = getattr(config, 'PROCESS_SKUS_LIMIT', 5)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=int, default=getattr(config, 'PROCESS_SKUS_LIMIT', 5))
+    args, unknown = parser.parse_known_args()
+    limit = args.limit
+    
     all_target_ids = df_input['id'].head(limit).tolist()
     print(f"Loaded {len(all_target_ids)} total IDs from Database (Limit: {limit}).")
 
@@ -121,7 +125,7 @@ def main():
     print(f"Queueing {len(target_ids)} Series URLs for processing...")
     if not target_ids:
         print("All targets have already been processed today. Exiting.")
-        return
+        return 0, 0
 
     # 2. Setup Selenium
     chrome_options = Options()
@@ -155,6 +159,12 @@ def main():
         h1_tag = soup.find('div', class_='single-spu-name')
         if h1_tag:
             series_name = h1_tag.get_text(strip=True)
+
+        # Get mainTagDisplayName from input data for this spu_id
+        main_tag_display_name = "N/A"
+        matching_row = df_input[df_input['id'].astype(str) == str(spu_id)]
+        if not matching_row.empty:
+            main_tag_display_name = matching_row.iloc[0].get('mainTagDisplayName', 'N/A')
 
         a_tags = soup.find_all('a', {'data-v-ba00a76c': "", 'aria-current': "page"})
         print(f"  → Found {len(a_tags)} sub-SKUs in series: '{series_name}'")
@@ -210,7 +220,8 @@ def main():
                     'num_paid': parse_generic_number(sku_personpaid, is_float=False),
                     'num_selling': parse_generic_number(sku_personselling, is_float=False),
                     'num_buying': parse_generic_number(sku_personbuying, is_float=False),
-                    'is_hidden': is_hidden
+                    'is_hidden': is_hidden,
+                    'mainTagDisplayName': main_tag_display_name
                 })
                 
             except Exception as e:
@@ -245,7 +256,8 @@ def main():
                 if subset.empty:
                     lean_rows.append([
                         series_name, filter_cat, total_skus, hidden_skus,
-                        0, 0, 0, 0, 0, 0, 0.0, 0.0, current_date, f"https://qiandao.com/spu?id={spu_id}"
+                        0, 0, 0, 0, 0, 0, 0.0, 0.0, current_date, f"https://qiandao.com/spu?id={spu_id}",
+                        main_tag_display_name
                     ])
                 else:
                     lean_rows.append([
@@ -258,7 +270,8 @@ def main():
                         subset['num_buying'].sum() if not subset['num_buying'].isna().all() else 0,
                         subset['price_listing'].mean() if not subset['price_listing'].isna().all() else 0.0,
                         subset['curr_avg_price'].mean() if not subset['curr_avg_price'].isna().all() else 0.0,
-                        current_date, f"https://qiandao.com/spu?id={spu_id}"
+                        current_date, f"https://qiandao.com/spu?id={spu_id}",
+                        main_tag_display_name
                     ])
 
             all_lean_data.extend(lean_rows)
@@ -275,7 +288,7 @@ def main():
         df_lean_new = pd.DataFrame(all_lean_data, columns=[
             "系列名", "分类筛选", "总SKU数", "隐藏款SKU数", 
             "浏览量", "想要人数", "拥有人数", "付款人数", "正在出售", "正在求购",
-            "交易价格_平均", "成交均价_平均", "查询日期", "系列URL"
+            "交易价格_平均", "成交均价_平均", "查询日期", "系列URL", "主标签"
         ])
 
         excel_file = lean_output_file

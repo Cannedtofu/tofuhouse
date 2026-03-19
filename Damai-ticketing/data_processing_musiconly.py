@@ -46,4 +46,4 @@ def transform_music_data(input_file, output_file):
     print(f"Successfully processed {len(df)} rows to {output_file}")
 
 # Execution
-transform_music_data("scraped_data_music_only.jsonl", "music_analysis_pivot.csv")
+transform_music_data("scraped_data_music_only.jsonl", "processed_live_entertainment_data_music_only_260305.csv")

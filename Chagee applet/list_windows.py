@@ -1,10 +1,13 @@
 import uiautomation as auto
+import time
 
-def list_windows():
+def list_all_windows():
     print("Listing all top-level windows...")
     for window in auto.GetRootControl().GetChildren():
-        if window.ClassName:
-            print(f"Name: {window.Name} | Class: {window.ClassName}")
+        try:
+            print(f"Name: '{window.Name}', ClassName: '{window.ClassName}', ProcessId: {window.ProcessId}")
+        except Exception as e:
+            print(f"Error getting window info: {e}")
 
 if __name__ == "__main__":
-    list_windows()
+    list_all_windows()
