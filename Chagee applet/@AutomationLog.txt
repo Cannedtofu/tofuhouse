@@ -1,1 +1,2 @@
 2026-03-16 21:38:01.317 <string>[1] <module> -> Find Control Timeout(10s): {Name: '霸王茶姬', ClassName: 'Chrome_WidgetWin_0', ControlType: WindowControl}
+2026-03-19 22:00:58.064 cleanup.py[37] close_chagee_windows -> Can not move cursor. ButtonControl's BoundingRectangle is (0,0,0,0)[0x0]. SearchProperties: {Name: '关闭', ControlType: ButtonControl}

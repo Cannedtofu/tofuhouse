@@ -2,7 +2,7 @@ import uiautomation as auto
 import time
 
 def search_applet_only(applet_name):
-    """Types the applet name into the search bar and submits."""
+    """Types the applet name into the search bar and submits, ensuring the bar is clear."""
     print(f"Typing search query: {applet_name}")
     wechat_window = auto.WindowControl(ClassName="Qt51514QWindowIcon")
     if not wechat_window.Exists(1, 0):
@@ -11,11 +11,24 @@ def search_applet_only(applet_name):
     wechat_window.SetActive()
     time.sleep(0.5)
 
-    auto.SendKeys('{Ctrl}a{Delete}') 
+    # User Rule: Aggressively clear the search bar to avoid corruption
+    # Method 1: Repeated Ctrl+A and Delete
+    for _ in range(2):
+        auto.SendKeys('{Ctrl}a')
+        time.sleep(0.1)
+        auto.SendKeys('{Delete}')
+        time.sleep(0.1)
+    
+    # Method 2: Backspace a few times just in case Ctrl+A failed
+    for _ in range(15):
+        auto.SendKeys('{BackSpace}')
+    
     time.sleep(0.2)
     auto.SendKeys(applet_name)
+    time.sleep(0.2)
     auto.SendKeys('{Enter}')
     print("Search query submitted. Please wait for results to load manually if needed.")
+
 
 def find_search_result_window():
     """Finds and activates the window likely containing search results."""

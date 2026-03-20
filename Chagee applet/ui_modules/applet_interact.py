@@ -90,22 +90,23 @@ def scrape_city_stores(applet_window, extractor, target_count=None, city_name="D
     return list(city_results.values())
 
 def close_windows():
-    print("\n--- Wrapping up: Closing windows ---")
-    # 1. Close Applet Window
-    for window in auto.GetRootControl().GetChildren():
-        if window.ClassName == "Chrome_WidgetWin_0" and window.Name != "微信" and window.Name != "":
-            print(f"Closing Applet Window: '{window.Name}'")
-            window.SetActive()
-            auto.SendKeys('{Alt}{F4}')
-            time.sleep(1)
+    print("\n--- Wrapping up: Closing windows using robust method ---")
+    try:
+        # Import the robust method from cleanup.py in the root directory
+        root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if root_path not in sys.path:
+            sys.path.append(root_path)
+            
+        from cleanup import close_chagee_windows
+        close_chagee_windows()
+    except Exception as e:
+        print(f"Error calling robust cleanup: {e}")
+        # Fallback to simple Alt+F4 if import fails
+        for window in auto.GetRootControl().GetChildren():
+            if window.ClassName == "Chrome_WidgetWin_0" and window.Name != "微信" and window.Name != "":
+                window.SetActive()
+                auto.SendKeys('{Alt}{F4}')
 
-    # 2. Close WeChat Search Result Window
-    for window in auto.GetRootControl().GetChildren():
-        if window.ClassName == "Chrome_WidgetWin_0" and window.Name == "微信":
-            print(f"Closing Search Window: '{window.Name}'")
-            window.SetActive()
-            auto.SendKeys('{Alt}{F4}')
-            time.sleep(1)
 
 def main_workflow():
     applet_window = get_applet_window()
@@ -154,10 +155,24 @@ def main_workflow():
                 "Day": r.get('Day', '')
             })
             
-        df = pd.DataFrame(export_data)
+        df_new = pd.DataFrame(export_data)
         output_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "multi_city_stores.xlsx")
-        df.to_excel(output_file, index=False)
-        print(f"\nAll cities scraped. Total: {len(all_results)} results. Saved to {output_file}")
+        
+        if os.path.exists(output_file):
+            try:
+                df_old = pd.read_excel(output_file)
+                # Append new data to old data
+                df_final = pd.concat([df_old, df_new], ignore_index=True)
+                print(f"\nAppended {len(df_new)} new results to existing {len(df_old)} records.")
+            except Exception as e:
+                print(f"Error reading existing file ({e}). Saving new data only.")
+                df_final = df_new
+        else:
+            df_final = df_new
+            print(f"\nCreated new output file with {len(df_new)} results.")
+
+        df_final.to_excel(output_file, index=False)
+        print(f"Total records in historical file: {len(df_final)}. Saved to {output_file}")
     
     # User Rule: Wrap up and close windows
     close_windows()

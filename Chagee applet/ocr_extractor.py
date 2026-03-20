@@ -182,6 +182,26 @@ class ChageeOCRExtractor:
 
             order_status, cup_count = parse_status(order_status_raw)
             
+            # --- New Feature: High Threshold Screenshot ---
+            if getattr(config, 'SCREENSHOT_ON_THRESHOLD', False) and cup_count >= getattr(config, 'CUP_COUNT_THRESHOLD', 80):
+                try:
+                    from datetime import datetime
+                    data_dir = os.path.join(os.getcwd(), getattr(config, 'DATA_FOLDER', 'data'))
+                    if not os.path.exists(data_dir):
+                        os.makedirs(data_dir)
+                    
+                    # Clean filename (remove special chars from store name)
+                    clean_name = "".join([c for c in store_name if c.isalnum() or c in (" ", "-", "_")])
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"{clean_name}_{cup_count}cups_{timestamp}.png"
+                    save_path = os.path.join(data_dir, filename)
+                    
+                    # Save the full box image for context
+                    self._save_image(save_path, box_img)
+                    print(f"  [!] Threshold hit: Saved screenshot for {store_name} ({cup_count} cups) to {filename}")
+                except Exception as e:
+                    print(f"  [!] Failed to save threshold screenshot: {e}")
+
             extracted_data.append({
                 "store_name": store_name,
                 "order_status": order_status,
@@ -189,6 +209,7 @@ class ChageeOCRExtractor:
                 "debug_sn": os.path.join(debug_base, f"box_{i}_sn_crop.png"),
                 "debug_os": os.path.join(debug_base, f"box_{i}_os_crop.png")
             })
+
         
         return extracted_data
 

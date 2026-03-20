@@ -65,3 +65,8 @@ OS_CROP_HEIGHT = 24
 
 # Horizontal Cutoff (% of box width to keep from left)
 BOX_WIDTH_CUTOFF_PERCENT = 0.7
+
+# --- New Feature: High Threshold Screenshot (ocr_extractor.py) ---
+SCREENSHOT_ON_THRESHOLD = True  # Toggle for capturing high-volume stores
+CUP_COUNT_THRESHOLD = 80       # Capture store screenshot if cup count is >= this
+DATA_FOLDER = "data"           # Folder to store threshold screenshots

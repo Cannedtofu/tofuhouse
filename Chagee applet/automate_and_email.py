@@ -32,7 +32,7 @@ def send_report_email(total_stores: int, total_cups: int, stats_text: str, attac
     # Same credentials and recipients as 泡泡千岛2.0
     sender_email = '396481139@qq.com'
     sender_password = 'mocjzkhznmudbghf'
-    receiver_email = 'cuiyuan@maisoncapital.com, zengleshi@maisoncapital.com, lidongzhuang@outlook.com, 396481139@qq.com, sunjingwen@maisoncapital.com'
+    receiver_email = 'cuiyuan@maisoncapital.com, 396481139@qq.com, linhuaqiang@maisoncapital.com'
     
     current_date = datetime.now().strftime("%Y-%m-%d")
     subject = f'霸王茶姬-门店数据 {current_date}'
@@ -84,6 +84,14 @@ def run_automation_and_report():
         full_back_to_back_test()
     except Exception as e:
         logger.error(f"Error during scraping: {e}")
+    finally:
+        # User Rule: Ensure applet and search windows are closed at the end
+        try:
+            from cleanup import close_chagee_windows
+            close_chagee_windows()
+        except Exception as e:
+            logger.error(f"Failed to run final cleanup: {e}")
+
     
     # 2. Locate the output file
     # Based on applet_interact.py, it's 'multi_city_stores.xlsx' in the project root
@@ -95,20 +103,44 @@ def run_automation_and_report():
 
     # 3. Calculate statistics
     try:
-        # Load the latest results
+        # Load the results
         df = pd.read_excel(output_file)
         
         # Remove any empty or malformed rows
         df = df.dropna(subset=['Store Name'])
+
+        # Filter for only the current day's scraping
+        today_date = datetime.now().strftime("%Y-%m-%d")
         
-        total_stores = len(df)
-        total_cups = df['Cup Count'].sum()
+        # Ensure we only proceed if data for today was actually added
+        if 'Date' in df.columns:
+            try:
+                # Handle strings, timestamps, and mixed types
+                df_standardized_date = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
+                df_latest = df[df_standardized_date == today_date]
+            except Exception as e:
+                logger.warning(f"Standard date conversion failed ({e}), falling back to string comparison")
+                df_latest = df[df['Date'].astype(str) == today_date]
+            
+            if df_latest.empty:
+                logger.info(f"No new data found for today ({today_date}). Skipping email report.")
+                return # Stop here: do not send email
+                
+            logger.info(f"Summarizing stats for today's scrape: {today_date}")
+            latest_date = today_date
+        else:
+            logger.error("No 'Date' column was found in the Excel file. Cannot determine what's new. Skipping email.")
+            return
         
-        stores_per_city = df.groupby('City').size().sort_values(ascending=False)
-        cups_per_city = df.groupby('City')['Cup Count'].sum().sort_values(ascending=False)
+        total_stores = len(df_latest)
+        total_cups = df_latest['Cup Count'].sum()
+        
+        stores_per_city = df_latest.groupby('City').size().sort_values(ascending=False)
+        cups_per_city = df_latest.groupby('City')['Cup Count'].sum().sort_values(ascending=False)
         
         # Format the city-specific stats for the email body text
-        city_stats_text = "--- Stores Scrapped for Each City ---\n"
+        city_stats_text = f"Summary for Date: {latest_date if 'Date' in df.columns else 'All'}\n"
+        city_stats_text += "--- Stores Scrapped for Each City ---\n"
         for city, count in stores_per_city.items():
             city_stats_text += f"  {city}: {count}\n"
             
