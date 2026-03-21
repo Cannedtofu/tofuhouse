@@ -1,2 +1,42 @@
 2026-03-16 21:38:01.317 <string>[1] <module> -> Find Control Timeout(10s): {Name: '闇哥帇鑼跺К', ClassName: 'Chrome_WidgetWin_0', ControlType: WindowControl}
 2026-03-19 22:00:58.064 cleanup.py[37] close_chagee_windows -> Can not move cursor. ButtonControl's BoundingRectangle is (0,0,0,0)[0x0]. SearchProperties: {Name: '鍏抽棴', ControlType: ButtonControl}
+---------------------------------------- 
+[2026/03/21 周六 14:00:19.95] Starting Daily Automation 
+[2026/03/21 周六 14:00:20.09] Running automate_and_email.py... 
+2026-03-21 14:00:20,763 - comtypes.client._code_cache - INFO - Imported existing <module 'comtypes.gen' from 'C:\\Users\\Jason\\AppData\\Roaming\\Python\\Python39\\site-packages\\comtypes\\gen\\__init__.py'>
+2026-03-21 14:00:20,764 - comtypes.client._code_cache - INFO - Using writeable comtypes cache directory: 'C:\Users\Jason\AppData\Roaming\Python\Python39\site-packages\comtypes\gen'
+信息: 用提供的模式无法找到文件。
+C:\Users\Jason\AppData\Roaming\Python\Python39\site-packages\paddle\utils\cpp_extension\extension_utils.py:718: UserWarning: No ccache found. Please be aware that recompiling all source files may be required. You can download and install ccache from: https://github.com/ccache/ccache/blob/master/doc/INSTALL.md
+  warnings.warn(warning_message)
+2026-03-21 14:00:40,021 - __main__ - ERROR - Error during scraping: ord() expected a character, but string of length 9 found
+=== Starting Full Back-to-Back Test ===
+Looking for WeChat main window...
+Clicking search bar...
+UI-based search bar not found. Attempting keyboard shortcut (Ctrl+F)...
+Typing search query: 霸王茶姬小程序
+Starting cleanup: Closing applet and search windows...
+  - No more applet windows matching '霸王茶姬' found.
+[2026/03/21 周六 14:00:41.04] Success: Process completed with exit code 0. 
+[2026/03/21 周六 14:00:41.05] Daily Automation Finished. 
+---------------------------------------- 
+ 
+---------------------------------------- 
+[2026/03/21 周六 14:00:53.19] Starting Daily Automation 
+[2026/03/21 周六 14:00:53.30] Running automate_and_email.py... 
+2026-03-21 14:00:53,809 - comtypes.client._code_cache - INFO - Imported existing <module 'comtypes.gen' from 'C:\\Users\\Jason\\AppData\\Roaming\\Python\\Python39\\site-packages\\comtypes\\gen\\__init__.py'>
+2026-03-21 14:00:53,809 - comtypes.client._code_cache - INFO - Using writeable comtypes cache directory: 'C:\Users\Jason\AppData\Roaming\Python\Python39\site-packages\comtypes\gen'
+信息: 用提供的模式无法找到文件。
+C:\Users\Jason\AppData\Roaming\Python\Python39\site-packages\paddle\utils\cpp_extension\extension_utils.py:718: UserWarning: No ccache found. Please be aware that recompiling all source files may be required. You can download and install ccache from: https://github.com/ccache/ccache/blob/master/doc/INSTALL.md
+  warnings.warn(warning_message)
+2026-03-21 14:01:05,910 - __main__ - ERROR - Error during scraping: ord() expected a character, but string of length 9 found
+=== Starting Full Back-to-Back Test ===
+Looking for WeChat main window...
+Clicking search bar...
+UI-based search bar not found. Attempting keyboard shortcut (Ctrl+F)...
+Typing search query: 霸王茶姬小程序
+Starting cleanup: Closing applet and search windows...
+  - No more applet windows matching '霸王茶姬' found.
+[2026/03/21 周六 14:01:06.85] Success: Process completed with exit code 0. 
+[2026/03/21 周六 14:01:06.86] Daily Automation Finished. 
+---------------------------------------- 
+ 
