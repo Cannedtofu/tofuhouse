@@ -1,68 +1,75 @@
 # Chagee Applet Scraper: Multi-City Vision Scraping
 
-This project automates the extraction of store queue data (Store Name, Order Status, and Cup Count) from the "霸王茶姬" (Chagee) WeChat applet using UI automation and OCR.
+![Chagee Applet Scraper](https://img.shields.io/badge/Status-Active-brightgreen) ![Python](https://img.shields.io/badge/Python-3.x-blue) ![PaddleOCR](https://img.shields.io/badge/OCR-PaddleOCR-orange)
 
-## 📁 Project Structure
+This project automates the extraction of store queue data (Store Name, Order Status, and Cup Count) from the "霸王茶姬" (Chagee) WeChat applet using UI automation and OCR. It's designed to run on a daily schedule, scrape data across multiple specified cities, and orchestrate reporting and cleanup.
 
-*   `full_test.py`: **Main Entry Point**. Executes the full workflow from opening WeChat to exporting results.
-*   `config.py`: **Central Configuration**. All UI coordinates, OCR regions, and scraping targets are defined here.
-*   `city_switching.py`: Logic for navigating between different cities.
-*   `ocr_extractor.py`: The vision engine utilizing PaddleOCR to detect and parse store data.
-*   `ui_modules/`:
-    *   `applet_interact.py`: Orchestrates the scrolling/scraping loop within a city.
-    *   `core_wechat.py`: Handles WeChat window focus and search bar interaction.
-    *   `applet_nav.py`: Navigates to and opens the specific applet from search results.
-*   `verify_ocr.py`: Utility to test OCR accuracy against samples in `OCR_sample/`.
+## 📁 Modular Project Structure
+
+The codebase is organized into functional modules orchestrating different phases of the scraping pipeline:
+
+*   **`main.py`**: **Master Orchestrator**. The single entry point script. Runs the initialization, scraping, data calculation, email reporting, and cleanup workflows sequentially.
+*   **`config.py`**: **Central Configuration**. All UI coordinates, OCR regions, target cities (`CITY_LIST`), quotas, and scraping thresholds are defined here.
+*   **`wechat_interaction.py`**: **Applet Initialization**. Handles bringing WeChat to the foreground, searching for "霸王茶姬小程序" in the search bar, clearing out old searches, and opening the applet.
+*   **`scraping_logic.py`**: **Core Vision & Navigation Engine**.
+    *   Finds and interacts with the applet UI (scrolling, clicking).
+    *   *City Switching*: Navigates the city list using pinyin initialization (`switch_city`).
+    *   *Vision Processing*: Uses `PaddleOCR` (`ChageeOCRExtractor`) with edge detection and smart bounding box selection to parse store names and order statuses from screenshots.
+*   **`data_manager.py`**: **Data Operations**. Calculates daily metrics (stores scrapped, total cups, city breakdowns) and appends current run data to the historical Excel tracking file (`multi_city_stores.xlsx`).
+*   **`email_sender.py`**: **Notification Protocol**. Uses SMTP to send out daily statistical summary emails along with the comprehensive Excel attachment to stakeholders.
+*   **`cleanup_manager.py`**: **Fail-Safe Cleanup**. Hardened logic to ensure WeChat search and applet windows (`Chrome_WidgetWin_0`) are closed safely using UI buttons, Alt+F4, or taskkill after script execution.
 
 ## 🛠 Workflows & Step-by-Step Logic
 
 ### 1. Applet Initialization
-**Script**: `full_test.py` -> `core_wechat.py` / `applet_nav.py`
+**Script**: `main.py` -> `wechat_interaction.py`
 1.  **Focus WeChat**: Finds the WeChat window by class `Qt51514QWindowIcon`.
-2.  **Search**: Types "霸王茶姬小程序" and presses Enter.
-3.  **Open**: Clicks the applet in the search result window at coordinates managed in `applet_nav.py`.
+2.  **Search**: Clears search text, types "霸王茶姬小程序", and presses Enter.
+3.  **Open**: Explicitly clicks the applet in the detached search result window and verifies its launch.
 
-### 2. Multi-City Scraping Loop
-**Script**: `applet_interact.py` (`main_workflow`)
-1.  **Initial Scape**: Scrapes the current city (e.g., Shanghai) with 200 target stores.
-2.  **City Selection**: For each city in `CITY_LIST` (`config.py`):
-    *   **Trigger**: Calls `switch_city` which locates "搜索门店" and clicks the city selector.
-    *   **Index**: Finds the Pinyin initial of the city (A-Z) and clicks it on the sidebar.
-    *   **Locate**: Scrolls the city list until the target name is found and clicked.
-3.  **Data Extraction**: Calls `scrape_city_stores` for the new region.
+### 2. Multi-City Scraping Loop & Data Extraction
+**Script**: `main.py` -> `scraping_logic.py`
+1.  **Initial Scrape**: Scrapes the initial assumed city (e.g., Shanghai) until it finishes or hits `DEFAULT_TARGET_COUNT`.
+2.  **City Selection**: For each city outlined in `config.py` (`CITY_LIST`):
+    *   Triggers the "搜索门店" city selector.
+    *   Clicks the pinyin initial index (A-Z).
+    *   Scrolls down and clicks the explicit text target of the city.
+3.  **Deep OCR Loop (`ChageeOCRExtractor`)**:
+    *   **Capture**: Snaps `temp_scrape.png`.
+    *   **Detect**: Runs OpenCV logic (Canny Edges & Contours) to slice up horizontal store cards.
+    *   **Parse**: Chops individual bounding boxes into Store Name ranges and Order Status ranges, pushing them through PaddleOCR. Cleans up garbled OCR text dynamically.
+    *   **High-Volume Triggers**: Automatically saves permanent screenshots of stores exceeding the `CUP_COUNT_THRESHOLD`.
 
-### 3. Scroll-Capture-OCR Cycle
-**Script**: `applet_interact.py` (`scrape_city_stores`)
-1.  **Capture**: Takes a screenshot of the applet view (`temp_scrape.png`).
-2.  **Detect**: `ocr_extractor.py` uses Canny edge detection to find store boxes.
-3.  **Parse**:
-    *   **Store Name**: Cropped from the top-left section of each box.
-    *   **Order Status**: Cropped from below the name. Pattern-matched for "前方x杯制作中".
-4.  **Feedback**: If no new stores are found after `MAX_NO_NEW_SCROLLS` (default 4), the script moves to the next city.
+### 3. Reporting & Cleanup
+**Script**: `main.py` -> `data_manager.py` / `email_sender.py` / `cleanup_manager.py`
+1.  **Excel Logging**: Aggregates the multi-city run into pandas DataFrames and appends to `multi_city_stores.xlsx`.
+2.  **Statistic Calculation**: Parses the appended data and filters for the current day's insertions to evaluate run success.
+3.  **Email Output**: Attaches the spreadsheet and inserts the analytics directly into the body of an SMTP email.
+4.  **Window Pruning**: Kills background applet window processes so subsequent runs don't encounter locked or hung UI fragments.
 
-## ⚙️ Configuration Guide (`config.py`)
+## ⚙️ Key Configurations (`config.py`)
 
-| Parameter | Purpose | Step/Workflow |
+| Parameter | Purpose | Area |
 | :--- | :--- | :--- |
-| `CITY_LIST` | Target cities and quotas. | Multi-City Loop |
-| `CITY_TRIGGER_OFFSET_X` | Relative shift from "搜索门店" to City Button. | City Switching |
-| `STORE_LIST_ENTRY_REL_COORD` | Click to enter store list from Home. | Initial Scrape |
-| `MAX_NO_NEW_SCROLLS` | Safety abort for small cities. | Scraping Logic |
-| `BOX_WIDTH_CUTOFF_PERCENT` | Ignores right-side UI elements (e.g., Distance). | OCR Extraction |
-| `SN_CROP_Y_START` | Vertical offset for Store Name within box. | OCR Extraction |
+| `CITY_LIST` | Target cities and store processing quotas. | Multi-City Loop |
+| `MAX_NO_NEW_SCROLLS` | Safety abort to move to the next city early on small lists. | Scraping Logic |
+| `BOX_WIDTH_CUTOFF_PERCENT` | Ignores right-side UI elements (e.g., Distance) when cropping OCR inputs. | OCR Extraction |
+| `SN_CROP_Y_START`& `OS_`... | Vertical offsets to accurately split Store Name & Order text inside bounding boxes. | OCR Extraction |
+| `SCREENSHOT_ON_THRESHOLD` | Boolean toggle for keeping raw screenshots of busy stores. | OCR Extraction |
+| `CUP_COUNT_THRESHOLD` | Volume integer limit (e.g., 80) triggering the screenshot save feature. | OCR Extraction |
 
 ## 🚀 How to Run
-1.  Ensure WeChat is open and logged in.
-2.  Run the terminal as **Administrator**.
-3.  Execute:
+
+1.  Ensure WeChat is open, logged in, and scaled appropriately.
+2.  Run your terminal/command prompt as **Administrator** (Required by `uiautomation`).
+3.  Execute the orchestrator:
     ```bash
-    python full_test.py
+    python main.py
     ```
-4.  Results will be saved to `multi_city_stores.xlsx`.
+4.  Optionally set up `run_daily_chagee.bat` with Windows Task Scheduler to run step #3.
 
 ## 📦 Dependencies
-*   `uiautomation`: UI control.
-*   `paddleocr`: OCR engine.
-*   `opencv-python` & `numpy`: Image processing.
-*   `pandas` & `openpyxl`: Data export.
-*   `pypinyin`: Chinese to Pinyin conversion.
+*   `uiautomation`: Desktop UI control.
+*   `paddleocr` / `opencv-python` / `numpy`: Vision engine & Image preprocessing.
+*   `pandas` / `openpyxl`: Analytical tracking and Excel data export.
+*   `pypinyin`: Dynamic Chinese-to-Pinyin alphabet indexing inside the applet.

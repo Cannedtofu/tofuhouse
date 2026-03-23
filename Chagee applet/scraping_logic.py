@@ -1,12 +1,20 @@
+import uiautomation as auto
+import time
+import os
+import sys
 import cv2
 import numpy as np
-import os
+import pandas as pd
+from datetime import datetime
 from paddleocr import PaddleOCR
 import json
-import config
+from pypinyin import pinyin, Style
 
-# Faster initialization
-os.environ['PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK'] = 'True'
+# Import configuration
+import config
+from config import CITY_LIST
+
+# --- Group 2: Chagee Applet Navigation and Main Scraping Logic ---
 
 class ChageeOCRExtractor:
     def __init__(self, lang='ch'):
@@ -228,9 +236,225 @@ class ChageeOCRExtractor:
             with open(path, 'wb') as f:
                 f.write(img_encode)
 
-if __name__ == "__main__":
+def switch_city(city_name, target_count, current_city=None):
+    """
+    Switching city involves:
+    1. Clicking the city selector trigger.
+    2. Clicking the Pinyin index on the side.
+    3. Scrolling and finding the city by text.
+    """
+    print(f"\n--- Initiating Switch to {city_name} ---")
+    
+    # 1. Open city selector
+    search_bar = auto.EditControl(Name="搜索门店", searchDepth=6)
+    if not search_bar.Exists(5, 1):
+        # Alternative attempt: find by text content if Name property is tricky
+        for edit in auto.WindowControl(ClassName="Chrome_WidgetWin_0").GetChildren():
+             if "搜索门店" in edit.Name:
+                 search_bar = edit
+                 break
+
+    if not search_bar.Exists(1, 0):
+        print("Could not find '搜索门店' button to trigger city switch.")
+        return False
+    
+    rect = search_bar.BoundingRectangle
+    trigger_x = rect.left + config.CITY_TRIGGER_OFFSET_X
+    trigger_y = rect.top + config.CITY_TRIGGER_OFFSET_Y
+    
+    auto.Click(trigger_x, trigger_y)
+    time.sleep(2)
+
+    # 2. Get city initial for index navigation
+    # Use pypinyin to get the first letter of the first character
+    initial = pinyin(city_name, style=Style.FIRST_LETTER)[0][0].upper()
+    print(f"Navigating to index '{initial}' for city '{city_name}'...")
+    
+    index_btn = auto.TextControl(Name=initial, searchDepth=8)
+    if index_btn.Exists(2, 1):
+        index_btn.Click()
+        time.sleep(1)
+    else:
+        print(f"Index button '{initial}' not found, attempting manual scroll...")
+
+    # 3. Find and click city name
+    # We look for the TextControl with the city name. 
+    # Since it might be off-screen, we might need a small scroll.
+    city_target = auto.TextControl(Name=city_name, searchDepth=8)
+    
+    # Try finding it immediately
+    if city_target.Exists(1, 0):
+        city_target.Click()
+        time.sleep(3) # Wait for list to refresh
+        return True
+
+    # If not found, scroll a bit in the city list area
+    print(f"City '{city_name}' not in view, scrolling...")
+    # Target the middle of the screen for scrolling
+    # Typically city list is a large central pane
+    root_rect = auto.GetRootControl().BoundingRectangle
+    scroll_x, scroll_y = root_rect.CenterX(), root_rect.CenterY()
+    auto.Click(scroll_x, scroll_y) # Focus
+    
+    for _ in range(5):
+        auto.WheelDown(wheelTimes=3, interval=0.1)
+        time.sleep(0.5)
+        if city_target.Exists(1, 0):
+            city_target.Click()
+            time.sleep(3)
+            return True
+            
+    print(f"Failed to find city '{city_name}' in the list.")
+    return False
+
+def get_applet_window():
+    for i in range(5):
+        for window in auto.GetRootControl().GetChildren():
+            if window.ClassName == "Chrome_WidgetWin_0" and window.Name != "微信" and window.Name != "":
+                return window
+        time.sleep(1)
+    return None
+
+def scrape_city_stores(applet_window, extractor, target_count=None, city_name="Default", click_entry=True):
+    if target_count is None:
+        target_count = config.DEFAULT_TARGET_COUNT
+        
+    print(f"\n--- Scraping City: {city_name} (Target: {target_count}) ---")
+    applet_window.SetActive()
+    time.sleep(1)
+    rect = applet_window.BoundingRectangle
+    
+    if click_entry:
+        # 1. Click entry coordinate leads to the scrolling page
+        entry_x = rect.left + config.STORE_LIST_ENTRY_REL_COORD[0]
+        entry_y = rect.top + config.STORE_LIST_ENTRY_REL_COORD[1]
+        print(f"Clicking at relative {config.STORE_LIST_ENTRY_REL_COORD} -> Global ({entry_x}, {entry_y})")
+        auto.Click(entry_x, entry_y)
+        time.sleep(5)
+    else:
+        print(f"Skipping entry click {config.STORE_LIST_ENTRY_REL_COORD} as requested.")
+    
+    # 2. Initial scroll / Reset to Top
+    scroll_x = rect.left + config.SCROLL_REL_COORD[0]
+    scroll_y = rect.top + config.SCROLL_REL_COORD[1]
+    auto.MoveTo(scroll_x, scroll_y)
+    
+    # User Rule: Force reset to top to avoid missing entries
+    print("Resetting scroll to top of list...")
+    auto.WheelUp(wheelTimes=10, interval=0.1)
+    time.sleep(1)
+    
+    auto.WheelDown(wheelTimes=3, interval=0.1) # Initial settling
+    time.sleep(2)
+
+    city_results = {}
+    consecutive_no_new = 0
+    max_no_new_scrolls = config.MAX_NO_NEW_SCROLLS
+    
+    while len(city_results) < target_count and consecutive_no_new < max_no_new_scrolls:
+        # Use absolute path for temp_scrape.png in current dir
+        screenshot_path = os.path.join(os.getcwd(), "temp_scrape.png")
+        applet_window.CaptureToImage(screenshot_path)
+        
+        results = extractor.extract_data(screenshot_path)
+        new_found = 0
+        for res in results:
+            name = res['store_name']
+            if name not in city_results:
+                res['City'] = city_name
+                city_results[name] = res
+                new_found += 1
+                print(f"  [+] {city_name}: {name}")
+        
+        if new_found > 0:
+            consecutive_no_new = 0
+        else:
+            consecutive_no_new += 1
+            print(f"  [!] No new stores found ({consecutive_no_new}/{max_no_new_scrolls}).")
+            
+        if len(city_results) >= target_count: break
+            
+        auto.MoveTo(scroll_x, scroll_y)
+        auto.WheelDown(wheelTimes=config.SCROLL_WHEEL_TIMES, interval=0.1)
+        time.sleep(2)
+
+    if consecutive_no_new >= max_no_new_scrolls:
+        print(f"  [!] Aborted {city_name}: Reached limit of {max_no_new_scrolls} scrolls without new data.")
+
+    print(f"Scraped {len(city_results)} stores in {city_name}.")
+    return list(city_results.values())
+
+def main_workflow():
+    applet_window = get_applet_window()
+    if not applet_window:
+        print("Applet window not found.")
+        return
+
     extractor = ChageeOCRExtractor()
-    # Test on test_1.png
-    base_path = "d:/代码项目/Chagee applet/OCR_sample/"
-    results = extractor.extract_data(os.path.join(base_path, "test_1.png"))
-    print(json.dumps(results, indent=2, ensure_ascii=False))
+    all_results = []
+
+    # 1. Scrape the first city (implicitly current)
+    initial_res = scrape_city_stores(applet_window, extractor, config.DEFAULT_TARGET_COUNT, "上海")
+    now = datetime.now()
+    for r in initial_res:
+        r['Date'] = now.strftime("%Y-%m-%d")
+        r['Time'] = now.strftime("%H:%M")
+        r['Day'] = now.strftime("%A")
+    all_results.extend(initial_res)
+
+    # 2. Move on to rest of cities
+    for city_name, target_count, _ in CITY_LIST:
+        # Switch City directly 
+        if switch_city(city_name, target_count, None):
+            # After switching, we are already on the store list page
+            city_res = scrape_city_stores(applet_window, extractor, target_count, city_name, click_entry=False)
+            now = datetime.now()
+            for r in city_res:
+                r['Date'] = now.strftime("%Y-%m-%d")
+                r['Time'] = now.strftime("%H:%M")
+                r['Day'] = now.strftime("%A")
+            all_results.extend(city_res)
+        else:
+            print(f"Failed to switch to {city_name}. Skipping.")
+
+    # Final Export
+    if all_results:
+        # Import data handler dynamically to resolve circular dependency if any
+        # though ideally main.py calls this.
+        try:
+            from data_manager import save_results_to_excel
+            save_results_to_excel(all_results)
+        except ImportError:
+            # Fallback if reorganization isn't complete
+            export_data = []
+            for r in all_results:
+                export_data.append({
+                    "City": r.get('City', 'Unknown'),
+                    "Store Name": r['store_name'],
+                    "Order Status": r['order_status'],
+                    "Cup Count": r['cup_count'],
+                    "Date": r.get('Date', ''),
+                    "Time": r.get('Time', ''),
+                    "Day": r.get('Day', '')
+                })
+                
+            df_new = pd.DataFrame(export_data)
+            output_file = os.path.join(os.getcwd(), "multi_city_stores.xlsx")
+            
+            if os.path.exists(output_file):
+                try:
+                    df_old = pd.read_excel(output_file)
+                    df_final = pd.concat([df_old, df_new], ignore_index=True)
+                except:
+                    df_final = df_new
+            else:
+                df_final = df_new
+            df_final.to_excel(output_file, index=False)
+            print(f"Saved to {output_file}")
+    
+    # Internal cleanup call
+    try:
+        from cleanup_manager import close_chagee_windows
+        close_chagee_windows()
+    except ImportError:
+        pass

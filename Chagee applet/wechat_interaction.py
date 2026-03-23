@@ -1,6 +1,52 @@
 import uiautomation as auto
 import time
 
+def focus_wechat_and_open_search():
+    """Focuses the main WeChat window and opens the search bar to find an applet."""
+    print("Looking for WeChat main window...")
+    wechat_window = None
+    # Try finding by ClassName first as it's more specific to this Qt version
+    try:
+        wechat_window = auto.WindowControl(ClassName="Qt51514QWindowIcon", searchDepth=1)
+        if not wechat_window.Exists(1, 0):
+            # Fallback to Name if ClassName fails
+            wechat_window = auto.WindowControl(Name="微信", searchDepth=1)
+    except Exception as e:
+        print(f"Error initializing window control: {e}")
+
+    if not wechat_window or not wechat_window.Exists(3, 1):
+        print("WeChat main window not found. Please ensure WeChat is running and visible.")
+        print("TIP: If WeChat is running as Administrator, you MUST run this terminal as Administrator too.")
+        return False
+
+    wechat_window.SetActive()
+    wechat_window.SetTopmost(True)
+    time.sleep(0.5)
+    wechat_window.SetTopmost(False)
+
+    print("Clicking search bar...")
+    # Qt version often nests everything under a 'Weixin' Pane
+    main_pane = wechat_window.PaneControl(Name="Weixin")
+    
+    # Try finding the search bar with more depth
+    search_bar = wechat_window.EditControl(Name="搜索", searchDepth=3)
+    if not search_bar.Exists(0, 0):
+        search_bar = wechat_window.ButtonControl(Name="搜索", searchDepth=3)
+    if not search_bar.Exists(0, 0) and main_pane.Exists(1, 0):
+        search_bar = main_pane.EditControl(Name="搜索", searchDepth=2)
+    
+    if search_bar.Exists(2, 1):
+        search_bar.Click()
+        time.sleep(0.5)
+        return True
+    
+    print("UI-based search bar not found. Attempting keyboard shortcut (Ctrl+F)...")
+    wechat_window.SetActive()
+    time.sleep(0.2)
+    auto.SendKeys('{Ctrl}f')
+    time.sleep(0.5)
+    return True # Assume it worked if no error
+
 def search_applet_only(applet_name):
     """Types the applet name into the search bar and submits, ensuring the bar is clear."""
     print(f"Typing search query: {applet_name}")
@@ -21,14 +67,13 @@ def search_applet_only(applet_name):
     
     # Method 2: Backspace a few times just in case Ctrl+A failed
     for _ in range(15):
-        auto.SendKeys('{BackSpace}')
+        auto.SendKeys('{Back}')
     
     time.sleep(0.2)
     auto.SendKeys(applet_name)
     time.sleep(0.2)
     auto.SendKeys('{Enter}')
     print("Search query submitted. Please wait for results to load manually if needed.")
-
 
 def find_search_result_window():
     """Finds and activates the window likely containing search results."""
@@ -88,6 +133,9 @@ def click_xiaochengxu_button():
 
 def search_and_open_applet(applet_name):
     """Full workflow: search, coordinate click, and wait for applet."""
+    if not focus_wechat_and_open_search():
+        return None
+        
     search_applet_only(applet_name)
     print("Waiting 5 seconds for results to load...")
     time.sleep(5)
@@ -95,7 +143,6 @@ def search_and_open_applet(applet_name):
     if click_xiaochengxu_button():
         print("Waiting for applet window to appear...")
         # Verify and wait for the applet window
-        # Applet windows usually have class 'Chrome_WidgetWin_0' but different Name than main WeChat
         for i in range(10):
             for window in auto.GetRootControl().GetChildren():
                 if window.ClassName == "Chrome_WidgetWin_0" and window.Name != "微信" and window.Name != "":
@@ -106,7 +153,5 @@ def search_and_open_applet(applet_name):
     print("Could not verify applet window opening.")
     return None
 
-
 if __name__ == "__main__":
-    # Placeholder for testing
     search_and_open_applet("霸王茶姬小程序")

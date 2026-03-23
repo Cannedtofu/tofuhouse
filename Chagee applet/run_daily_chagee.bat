@@ -5,15 +5,15 @@ cd /d "d:\代码项目\Chagee applet"
 :: Setup log file
 set LOG_FILE="@AutomationLog.txt"
 
-echo ---------------------------------------- >> %LOG_FILE%
+echo ---------------------------------------- > %LOG_FILE%
 echo [%DATE% %TIME%] Starting Daily Automation >> %LOG_FILE%
 
 :: Activate virtual environment
 call .venv\Scripts\activate >> %LOG_FILE% 2>&1
 
 :: Run automation script (append all stdout and stderr to log file)
-echo [%DATE% %TIME%] Running automate_and_email.py... >> %LOG_FILE%
-python automate_and_email.py >> %LOG_FILE% 2>&1
+echo [%DATE% %TIME%] Running main.py (Reorganized)... >> %LOG_FILE%
+python main.py >> %LOG_FILE% 2>&1
 
 set STATUS=%ERRORLEVEL%
 if %STATUS% equ 0 (

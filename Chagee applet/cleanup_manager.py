@@ -82,7 +82,7 @@ def close_chagee_windows():
                         time.sleep(1)
                         if not is_window_exists(TARGET_APPLET):
                             print("  - Process killed successfully.")
-                            continue
+                            break
                             
             except Exception as e:
                 # If window was closed during the process, it might throw an error
@@ -116,7 +116,3 @@ def close_chagee_windows():
 
 if __name__ == "__main__":
     close_chagee_windows()
-
-
-
-
