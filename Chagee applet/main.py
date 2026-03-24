@@ -45,7 +45,8 @@ def run_daily_automation(skip_init=False, skip_scrape=False, skip_report=False, 
     
     # 3. Data & Report: Calculate stats from the generated Excel and email it
     if not skip_report:
-        output_file = os.path.join(os.getcwd(), "multi_city_stores.xlsx")
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        output_file = os.path.join(project_dir, "multi_city_stores.xlsx")
         
         if os.path.exists(output_file):
             stats = calculate_daily_stats(output_file)

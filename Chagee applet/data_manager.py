@@ -14,7 +14,8 @@ def save_results_to_excel(all_results, output_file=None):
         return
         
     if output_file is None:
-        output_file = os.path.join(os.getcwd(), "multi_city_stores.xlsx")
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        output_file = os.path.join(project_dir, "multi_city_stores.xlsx")
 
     export_data = []
     for r in all_results:
@@ -116,7 +117,8 @@ def export_results_to_excel_from_samples():
     try:
         from scraping_logic import ChageeOCRExtractor
         extractor = ChageeOCRExtractor()
-        base_path = os.path.join(os.getcwd(), "OCR_sample")
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.join(project_dir, "OCR_sample")
         
         if not os.path.exists(base_path):
              print(f"Sample path {base_path} not found.")
@@ -158,7 +160,8 @@ def export_results_to_excel_from_samples():
 
 if __name__ == "__main__":
     # Test stats
-    result_file = os.path.join(os.getcwd(), "multi_city_stores.xlsx")
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    result_file = os.path.join(project_dir, "multi_city_stores.xlsx")
     stats = calculate_daily_stats(result_file)
     if stats:
         print(stats['stats_text'])

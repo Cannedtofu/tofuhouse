@@ -61,5 +61,6 @@ def send_report_email(total_stores: int, total_cups: int, stats_text: str, attac
 
 if __name__ == "__main__":
     # Test call (requires attachment to exist)
-    output_file = os.path.join(os.getcwd(), "multi_city_stores.xlsx")
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    output_file = os.path.join(project_dir, "multi_city_stores.xlsx")
     send_report_email(0, 0, "Test stats text", output_file)

@@ -18,6 +18,7 @@ The codebase is organized into functional modules orchestrating different phases
 *   **`data_manager.py`**: **Data Operations**. Calculates daily metrics (stores scrapped, total cups, city breakdowns) and appends current run data to the historical Excel tracking file (`multi_city_stores.xlsx`).
 *   **`email_sender.py`**: **Notification Protocol**. Uses SMTP to send out daily statistical summary emails along with the comprehensive Excel attachment to stakeholders.
 *   **`cleanup_manager.py`**: **Fail-Safe Cleanup**. Hardened logic to ensure WeChat search and applet windows (`Chrome_WidgetWin_0`) are closed safely using UI buttons, Alt+F4, or taskkill after script execution.
+*   **`check_trigger.py`**: **UI Diagnostic Tool**. A helper script to verify if the applet UI elements (like the city search bar or text controls) can be found. It captures a screenshot (`debug_trigger.png`) highlighting the clicking offsets and specific target coordinates (like relative `(49, 126)`) to help debug UI changes dynamically.
 
 ## 🛠 Workflows & Step-by-Step Logic
 

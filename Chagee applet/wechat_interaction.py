@@ -85,6 +85,14 @@ def find_search_result_window():
             print(f"Found potential search window: '{window.Name}' | Class: {window.ClassName}")
             window.SetActive()
             time.sleep(0.5)
+            
+            # Save the Handle so cleanup_manager uniquely targets this exact window later
+            try:
+                with open("search_window_handle.txt", "w") as f:
+                    f.write(str(window.NativeWindowHandle))
+            except Exception as e:
+                print(f"Warning: Could not save handle: {e}")
+                
             return window
     
     # Fallback: check the main WeChat window if no separate window is found

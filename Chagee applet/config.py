@@ -1,30 +1,27 @@
 # Chagee Applet Scraper: Global Settings
 
 # --- Workflow: City Selection (config.py / city_switching.py) ---
-CITY_LIST = [
-    ('杭州', 150, 'xxx'),
-    ('深圳', 100, 'xxx'),
-    ('成都', 150, 'xxx'),
-    ('重庆', 100, 'xxx'),
-    ('北京', 100, 'xxx'),
-    ('广州', 100, 'xxx'),
-]
-DEFAULT_TARGET_COUNT = 200
-
 # CITY_LIST = [
-#     ('杭州', 15, 'xxx'),
-#     ('深圳', 10, 'xxx'),
-#     ('成都', 15, 'xxx'),
-#     ('重庆', 10, 'xxx'),
-#     ('北京', 10, 'xxx'),
-#     ('广州', 10, 'xxx'),
+#     ('杭州', 150, 'xxx'),
+#     ('深圳', 100, 'xxx'),
+#     ('成都', 150, 'xxx'),
+#     ('重庆', 100, 'xxx'),
+#     ('北京', 100, 'xxx'),
+#     ('广州', 100, 'xxx'),
 # ]
-# DEFAULT_TARGET_COUNT = 20
+# DEFAULT_TARGET_COUNT = 200
+
+CITY_LIST = [
+    ('杭州', 15, 'xxx'),
+    ('深圳', 10, 'xxx'),
+]
+DEFAULT_TARGET_COUNT = 20
 
 # Coordinate for city selection trigger (Relative to Applet Window)
-# Method: Locate "搜索门店" and shift left
-CITY_TRIGGER_KEYWORD = "搜索门店"
-CITY_TRIGGER_OFFSET_X = -89 
+# Method: Direct coordinate click relative to top-left of Applet
+CITY_TRIGGER_COORD = (49, 126)
+CITY_SCROLL_WHEEL_TIMES = 3
+CITY_SCROLL_MAX_RETRIES = 5
 
 # Sidebar Index Region (A-Z list)
 CITY_INDEX_REGION = {

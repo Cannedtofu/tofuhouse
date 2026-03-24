@@ -194,7 +194,8 @@ class ChageeOCRExtractor:
             if getattr(config, 'SCREENSHOT_ON_THRESHOLD', False) and cup_count >= getattr(config, 'CUP_COUNT_THRESHOLD', 80):
                 try:
                     from datetime import datetime
-                    data_dir = os.path.join(os.getcwd(), getattr(config, 'DATA_FOLDER', 'data'))
+                    project_dir = os.path.dirname(os.path.abspath(__file__))
+                    data_dir = os.path.join(project_dir, getattr(config, 'DATA_FOLDER', 'data'))
                     if not os.path.exists(data_dir):
                         os.makedirs(data_dir)
                     
@@ -236,73 +237,150 @@ class ChageeOCRExtractor:
             with open(path, 'wb') as f:
                 f.write(img_encode)
 
-def switch_city(city_name, target_count, current_city=None):
+def switch_city(applet_window, city_name, target_count, current_city=None, extractor=None):
     """
     Switching city involves:
-    1. Clicking the city selector trigger.
-    2. Clicking the Pinyin index on the side.
+    1. OCR '搜索门店' and click left offset.
+    2. Getting the Pinyin initial, and OCR-ing finding it on the sidebar box.
     3. Scrolling and finding the city by text.
     """
     print(f"\n--- Initiating Switch to {city_name} ---")
     
-    # 1. Open city selector
-    search_bar = auto.EditControl(Name="搜索门店", searchDepth=6)
-    if not search_bar.Exists(5, 1):
-        # Alternative attempt: find by text content if Name property is tricky
-        for edit in auto.WindowControl(ClassName="Chrome_WidgetWin_0").GetChildren():
-             if "搜索门店" in edit.Name:
-                 search_bar = edit
-                 break
-
-    if not search_bar.Exists(1, 0):
-        print("Could not find '搜索门店' button to trigger city switch.")
-        return False
+    rect = applet_window.BoundingRectangle
+    trigger_x, trigger_y = -1, -1
     
-    rect = search_bar.BoundingRectangle
-    trigger_x = rect.left + config.CITY_TRIGGER_OFFSET_X
-    trigger_y = rect.top + config.CITY_TRIGGER_OFFSET_Y
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    temp_img = os.path.join(project_dir, "temp_search_trigger.png")
+    
+    if extractor:
+        # 1. OCR finding for "搜索门店"
+        applet_window.CaptureToImage(temp_img)
+        results = extractor.ocr_full_image(temp_img)
+        keyword = getattr(config, 'CITY_TRIGGER_KEYWORD', '搜索门店')
+        
+        for res in results:
+            box, (text, score) = res
+            if keyword in text:
+                center_x = (box[0][0] + box[2][0]) / 2.0
+                center_y = (box[0][1] + box[2][1]) / 2.0
+                trigger_x = int(rect.left + center_x + getattr(config, 'CITY_TRIGGER_OFFSET_X', -89))
+                trigger_y = int(rect.top + center_y + getattr(config, 'CITY_TRIGGER_OFFSET_Y', 0))
+                print(f"OCR found '{text}' at relative ({center_x}, {center_y}). Trigger global coordinate: ({trigger_x}, {trigger_y})")
+                break
+                
+    if trigger_x == -1:
+        print(f"OCR failed to find '{getattr(config, 'CITY_TRIGGER_KEYWORD', '搜索门店')}'. Using direct coordinate fallback.")
+        # Fallback to older keyword search approach
+        keyword = getattr(config, 'CITY_TRIGGER_KEYWORD', '搜索门店')
+        search_bar = applet_window.EditControl(Name=keyword, searchDepth=6)
+        if not search_bar.Exists(5, 1):
+            for edit in applet_window.GetChildren():
+                 if keyword in edit.Name:
+                     search_bar = edit
+                     break
+
+        if not search_bar.Exists(1, 0):
+            print(f"Could not find trigger button to switch city.")
+            return False
+        
+        s_rect = search_bar.BoundingRectangle
+        trigger_x = s_rect.left + getattr(config, 'CITY_TRIGGER_OFFSET_X', -89)
+        trigger_y = s_rect.top + getattr(config, 'CITY_TRIGGER_OFFSET_Y', 0)
     
     auto.Click(trigger_x, trigger_y)
     time.sleep(2)
 
     # 2. Get city initial for index navigation
-    # Use pypinyin to get the first letter of the first character
     initial = pinyin(city_name, style=Style.FIRST_LETTER)[0][0].upper()
     print(f"Navigating to index '{initial}' for city '{city_name}'...")
     
-    index_btn = auto.TextControl(Name=initial, searchDepth=8)
-    if index_btn.Exists(2, 1):
-        index_btn.Click()
-        time.sleep(1)
-    else:
-        print(f"Index button '{initial}' not found, attempting manual scroll...")
+    clicked_index = False
+    if extractor:
+        # Re-capture the window as UI has changed after clicking to the city selector page
+        applet_window.CaptureToImage(temp_img)
+        
+        # Use paddleocr to search for initial in the whole applet screen to avoid OpenCV unicode path issues
+        idx_results = extractor.ocr_full_image(temp_img)
+        for res in idx_results:
+            box, (text, score) = res
+            if initial in text.upper():
+                center_x_local = (box[0][0] + box[2][0]) / 2.0
+                center_y_local = (box[0][1] + box[2][1]) / 2.0
+                
+                # Check if the initial found is actually structurally in the sidebar layout region 
+                # (Relaxed box around 387,213 and 405,632)
+                if 350 <= center_x_local <= 420 and 200 <= center_y_local <= 650:
+                    target_click_x = int(rect.left + center_x_local)
+                    target_click_y = int(rect.top + center_y_local)
+                    print(f"OCR found initial '{initial}' in sidebar box. Clicking absolute: ({target_click_x}, {target_click_y})")
+                    auto.Click(target_click_x, target_click_y)
+                    clicked_index = True
+                    time.sleep(1)
+                    break
+                    
+    if not clicked_index:
+        print(f"OCR failed to find initial '{initial}', attempting manual TextControl UI search...")
+        index_btn = auto.TextControl(Name=initial, searchDepth=8)
+        if index_btn.Exists(2, 1):
+            index_btn.Click()
+            time.sleep(1)
+        else:
+            print(f"Index button '{initial}' not found in UI tree either, attempting manual scroll...")
 
-    # 3. Find and click city name
-    # We look for the TextControl with the city name. 
-    # Since it might be off-screen, we might need a small scroll.
-    city_target = auto.TextControl(Name=city_name, searchDepth=8)
+    # 3. Find and click city name using OCR
+    print(f"Searching for city '{city_name}' inside view...")
     
-    # Try finding it immediately
-    if city_target.Exists(1, 0):
-        city_target.Click()
-        time.sleep(3) # Wait for list to refresh
+    def try_find_city_ocr():
+        if not extractor:
+            return False
+            
+        applet_window.CaptureToImage(temp_img)
+        res_list = extractor.ocr_full_image(temp_img)
+        for res in res_list:
+            box, (text, score) = res
+            # Strict match to avoid partials unless absolutely necessary, 
+            # but usually WeChat lists just say "杭州" or "杭州市".
+            if city_name in text:
+                cx = (box[0][0] + box[2][0]) / 2.0
+                cy = (box[0][1] + box[2][1]) / 2.0
+                click_x = int(rect.left + cx)
+                click_y = int(rect.top + cy)
+                print(f"OCR found city '{text}'. Clicking absolute: ({click_x}, {click_y}).")
+                auto.Click(click_x, click_y)
+                time.sleep(3) # Wait for list to refresh
+                return True
+        return False
+
+    if try_find_city_ocr():
         return True
-
-    # If not found, scroll a bit in the city list area
-    print(f"City '{city_name}' not in view, scrolling...")
-    # Target the middle of the screen for scrolling
-    # Typically city list is a large central pane
-    root_rect = auto.GetRootControl().BoundingRectangle
-    scroll_x, scroll_y = root_rect.CenterX(), root_rect.CenterY()
-    auto.Click(scroll_x, scroll_y) # Focus
-    
-    for _ in range(5):
-        auto.WheelDown(wheelTimes=3, interval=0.1)
-        time.sleep(0.5)
+        
+    # Legacy fallback if no extractor
+    city_target = None
+    if not extractor:
+        city_target = auto.TextControl(Name=city_name, searchDepth=8)
         if city_target.Exists(1, 0):
             city_target.Click()
             time.sleep(3)
             return True
+
+    # If not found, scroll a bit in the city list area
+    print(f"City '{city_name}' not in view, scrolling...")
+    scroll_x = int((rect.left + rect.right) / 2)
+    scroll_y = int((rect.top + rect.bottom) / 2)
+    auto.MoveTo(scroll_x, scroll_y) # Hover over center of applet
+    
+    for _ in range(getattr(config, 'CITY_SCROLL_MAX_RETRIES', 5)):
+        auto.WheelDown(wheelTimes=getattr(config, 'CITY_SCROLL_WHEEL_TIMES', 3), interval=0.1)
+        time.sleep(1) # Give it an extra moment to render the new list before OCR
+        
+        if extractor:
+            if try_find_city_ocr():
+                return True
+        else:
+            if city_target and city_target.Exists(1, 0):
+                city_target.Click()
+                time.sleep(3)
+                return True
             
     print(f"Failed to find city '{city_name}' in the list.")
     return False
@@ -352,8 +430,8 @@ def scrape_city_stores(applet_window, extractor, target_count=None, city_name="D
     max_no_new_scrolls = config.MAX_NO_NEW_SCROLLS
     
     while len(city_results) < target_count and consecutive_no_new < max_no_new_scrolls:
-        # Use absolute path for temp_scrape.png in current dir
-        screenshot_path = os.path.join(os.getcwd(), "temp_scrape.png")
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        screenshot_path = os.path.join(project_dir, "temp_scrape.png")
         applet_window.CaptureToImage(screenshot_path)
         
         results = extractor.extract_data(screenshot_path)
@@ -405,7 +483,7 @@ def main_workflow():
     # 2. Move on to rest of cities
     for city_name, target_count, _ in CITY_LIST:
         # Switch City directly 
-        if switch_city(city_name, target_count, None):
+        if switch_city(applet_window, city_name, target_count, None, extractor):
             # After switching, we are already on the store list page
             city_res = scrape_city_stores(applet_window, extractor, target_count, city_name, click_entry=False)
             now = datetime.now()
@@ -438,8 +516,8 @@ def main_workflow():
                     "Day": r.get('Day', '')
                 })
                 
-            df_new = pd.DataFrame(export_data)
-            output_file = os.path.join(os.getcwd(), "multi_city_stores.xlsx")
+            project_dir = os.path.dirname(os.path.abspath(__file__))
+            output_file = os.path.join(project_dir, "multi_city_stores.xlsx")
             
             if os.path.exists(output_file):
                 try:

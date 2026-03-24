@@ -103,16 +103,33 @@ def close_chagee_windows():
             print(f"  - One or more windows still open after attempt {attempt + 1}, retrying...")
             time.sleep(1)
 
-    # 2. Close WeChat Search Result Window
-    for window in auto.GetRootControl().GetChildren():
-        try:
-            if window.ClassName == "Chrome_WidgetWin_0" and window.Name == "微信":
-                print(f"Closing Search Result Window: '{window.Name}'")
-                window.SetActive()
-                auto.SendKeys('{Alt}{F4}')
-                time.sleep(1)
-        except:
-            pass
+    # 2. Close WeChat Search Result Window safely by exact Handle matching
+    try:
+        handle_file = "search_window_handle.txt"
+        if os.path.exists(handle_file):
+            with open(handle_file, "r") as f:
+                handle_str = f.read().strip()
+                if handle_str.isdigit():
+                    target_handle = int(handle_str)
+                    print(f"Closing specific Search Result Window (Handle: {target_handle}) used during init...")
+                    found = False
+                    for window in auto.GetRootControl().GetChildren():
+                        if window.NativeWindowHandle == target_handle:
+                            found = True
+                            window.SetActive()
+                            time.sleep(0.5)
+                            auto.SendKeys('{Alt}{F4}')
+                            print("Search Result Window closed precisely.")
+                            time.sleep(1)
+                            break
+                    if not found:
+                        print("Search Result Window already closed or not found.")
+            # Clean up the handle file after attempts
+            os.remove(handle_file)
+        else:
+            print("No saved search window handle found. Skipping generic search window cleanup to protect your other WeChat windows.")
+    except Exception as e:
+        print(f"Error during precise search window cleanup: {e}")
 
 if __name__ == "__main__":
     close_chagee_windows()
