@@ -1,6 +1,10 @@
 @echo off
-:: Navigate to project directory
-cd /d "d:\代码项目\Chagee applet"
+:: Force UTF-8 encoding to prevent Chinese string corruption in Task Scheduler
+chcp 65001 >nul
+set PYTHONUTF8=1
+
+:: Navigate strictly to the directory where this batch file is located
+cd /d "%~dp0"
 
 :: Setup log file
 set LOG_FILE="@AutomationLog.txt"
@@ -8,10 +12,7 @@ set LOG_FILE="@AutomationLog.txt"
 echo ---------------------------------------- > %LOG_FILE%
 echo [%DATE% %TIME%] Starting Daily Automation >> %LOG_FILE%
 
-:: Activate virtual environment
-call .venv\Scripts\activate >> %LOG_FILE% 2>&1
-
-:: Run automation script (append all stdout and stderr to log file)
+:: Run automation script using the global python path (Because your packages like 'cv2' are installed system-wide, not in .venv)
 echo [%DATE% %TIME%] Running main.py (Reorganized)... >> %LOG_FILE%
 python main.py >> %LOG_FILE% 2>&1
 
