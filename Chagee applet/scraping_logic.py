@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from collections import Counter
 from paddleocr import PaddleOCR
 import json
 from pypinyin import pinyin, Style
@@ -164,50 +165,50 @@ class ChageeOCRExtractor:
                 continue
             if any(k in store_name for k in ['外卖', '到店', '自取', '筛选', '搜索']):
                 continue
-                
-            def parse_status(raw):
-                # Status-specific misrecognitions: '林' often read as '杯'
-                normalized = raw.replace('卵', '即').replace('刻', '制').replace('佛', '作').replace('下羡', '下单').replace('析', '6').replace('怀', '坏').replace('广单', '下单').replace('林', '杯')
-                
-                import re
-                digits = re.findall(r'\d+', normalized)
-                cup_count = 0
-                
-                # Rule: Strict format check for "前方x杯制作中"
-                # Must have digits, '杯', and either '前方' or '制作'
-                if digits and '杯' in normalized and (any(k in normalized for k in ['前方', '制作', '中', '制'])):
-                    cup_count = int(digits[0])
-                    return f"前方{cup_count}杯制作中", cup_count
-                
-                # Rule: Check for "现在下单，立即制作"
-                if any(k in normalized for k in ['立即制作', '现在下单', '立即', '下单', '制作中']):
-                    return "现在下单，立即制作", 0
-                
-                # If it doesn't match the primary patterns, avoid returning random digits
-                # Just return cleaned text but set count to 0
-                cleaned = clean_text(normalized)
-                return cleaned if cleaned else "已休息", 0
-
-            order_status, cup_count = parse_status(order_status_raw)
+            # Initial parse
+            order_status, cup_count = self.parse_status(order_status_raw)
             
-            # --- New Feature: High Threshold Screenshot ---
-            if getattr(config, 'SCREENSHOT_ON_THRESHOLD', False) and cup_count >= getattr(config, 'CUP_COUNT_THRESHOLD', 80):
+            # 1. Verification for high cup counts: Check 4 times and take most common
+            threshold = getattr(config, 'CUP_COUNT_THRESHOLD', 80)
+            if cup_count >= threshold:
+                print(f"  [?] High value detected for {store_name} ({cup_count}). Starting 4-sample verification...")
+                verified_counts = [cup_count]
+                
+                # Re-run OCR with 3 different upscale factors to ensure consistency
+                for scale in [3, 5, 2]:
+                    # Upscale original os_roi
+                    proc_alt = cv2.resize(os_roi, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+                    res_alt = self.ocr.ocr(proc_alt, det=False, cls=True)
+                    raw_alt = res_alt[0][0][0] if res_alt and res_alt[0] else ""
+                    _, count_alt = self.parse_status(raw_alt)
+                    verified_counts.append(count_alt)
+                
+                # Take the most common result (mode)
+                cup_count = Counter(verified_counts).most_common(1)[0][0]
+                # Re-sync the order_status text to match the final cup_count
+                if cup_count > 0:
+                    order_status = f"前方{cup_count}杯制作中"
+                else:
+                    order_status = "现在下单，立即制作"
+                
+                print(f"  [√] Verified result: {cup_count} (Samples: {verified_counts})")
+
+            # 2. Alignment: Save threshold screenshot ONLY if the verified result is still >= threshold
+            if getattr(config, 'SCREENSHOT_ON_THRESHOLD', False) and cup_count >= threshold:
                 try:
-                    from datetime import datetime
                     project_dir = os.path.dirname(os.path.abspath(__file__))
                     data_dir = os.path.join(project_dir, getattr(config, 'DATA_FOLDER', 'data'))
                     if not os.path.exists(data_dir):
                         os.makedirs(data_dir)
                     
-                    # Clean filename (remove special chars from store name)
+                    # Clean filename
                     clean_name = "".join([c for c in store_name if c.isalnum() or c in (" ", "-", "_")])
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"{clean_name}_{cup_count}cups_{timestamp}.png"
                     save_path = os.path.join(data_dir, filename)
                     
-                    # Save the full box image for context
                     self._save_image(save_path, box_img)
-                    print(f"  [!] Threshold hit: Saved screenshot for {store_name} ({cup_count} cups) to {filename}")
+                    print(f"  [!] Threshold hit: Saved verified screenshot for {store_name} ({cup_count} cups) to {filename}")
                 except Exception as e:
                     print(f"  [!] Failed to save threshold screenshot: {e}")
 
@@ -221,6 +222,28 @@ class ChageeOCRExtractor:
 
         
         return extracted_data
+
+    def parse_status(self, raw):
+        """Parses order status text to extract cup count and normalized status."""
+        # Status-specific misrecognitions: '林' often read as '杯'
+        normalized = raw.replace('卵', '即').replace('刻', '制').replace('佛', '作').replace('下羡', '下单').replace('析', '6').replace('怀', '坏').replace('广单', '下单').replace('林', '杯')
+        
+        import re
+        digits = re.findall(r'\d+', normalized)
+        cup_count = 0
+        
+        # Rule: Strict format check for "前方x杯制作中"
+        if digits and '杯' in normalized and (any(k in normalized for k in ['前方', '制作', '中', '制'])):
+            cup_count = int(digits[0])
+            return f"前方{cup_count}杯制作中", cup_count
+        
+        # Rule: Check for "现在下单，立即制作"
+        if any(k in normalized for k in ['立即制作', '现在下单', '立即', '下单', '制作中']):
+            return "现在下单，立即制作", 0
+        
+        # Fallback: Clean and return as 0
+        cleaned = "".join([c for c in normalized if '\u4e00' <= c <= '\u9fff' or c.isalnum()])
+        return cleaned if cleaned else "已休息", 0
 
     def ocr_full_image(self, image_path):
         img = self._load_image(image_path)

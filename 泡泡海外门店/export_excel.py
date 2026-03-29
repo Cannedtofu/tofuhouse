@@ -3,6 +3,12 @@ import pandas as pd
 import os
 
 def export_db_to_excel(db_path='stores.db', output_file='stores_export.xlsx'):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = os.path.join(base_dir, db_path)
+    output_file = os.path.join(base_dir, output_file)
+
+    print(f"DB path: {db_path}")
+    print(f"Output path: {output_file}")
     print(f"Connecting to database: {db_path}...")
     
     if not os.path.exists(db_path):
