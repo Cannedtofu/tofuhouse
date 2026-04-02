@@ -98,130 +98,101 @@ class ChageeOCRExtractor:
             box_img = img[by:by + bh, bx:bx + bw]
             self._save_image(os.path.join(debug_base, f"box_{i}_full.png"), box_img)
             
-            # User Rule: finalized cropping logic
-            sn_y_start = config.SN_CROP_Y_START 
-            sn_height = config.SN_CROP_HEIGHT 
-            # Out of bounds safety for partial/bottom boxes
-            y1, y2 = min(sn_y_start, bh-1), min(sn_y_start + sn_height, bh)
+            # --- Step A: Dual-Method OCR (Legacy & Full-Box) ---
+            # 1. Try Method 2 (Full Box Pattern Detection)
+            res2_name, res2_status, res2_count = self.extract_from_box_full(box_img)
+            valid2 = self.is_valid_result(res2_name, res2_status)
+            
+            # 2. Try Method 1 (Legacy Manual Crop)
+            sn_y_start, sn_h = config.SN_CROP_Y_START, config.SN_CROP_HEIGHT
+            os_y_start, os_h = config.OS_CROP_Y_START, config.OS_CROP_HEIGHT
+            y1, y2 = min(sn_y_start, bh-1), min(sn_y_start + sn_h, bh)
+            y3, y4 = min(os_y_start, bh-1), min(os_y_start + os_h, bh)
             sn_roi = box_img[y1:y2, 10 : int(bw * config.BOX_WIDTH_CUTOFF_PERCENT)]
-            if sn_roi.size == 0: continue
-            
-            # User Rule: Order status crop offset
-            os_y_start = config.OS_CROP_Y_START
-            os_height = config.OS_CROP_HEIGHT 
-            y3, y4 = min(os_y_start, bh-1), min(os_y_start + os_height, bh)
             os_roi = box_img[y3:y4, 10 : int(bw * config.BOX_WIDTH_CUTOFF_PERCENT)]
-            if os_roi.size == 0: os_roi = np.zeros((1, 1, 3), dtype=np.uint8) # Dummy for OCR skip
             
-            # Log for inspection as requested
-            self._save_image(os.path.join(debug_base, f"box_{i}_sn_crop.png"), sn_roi)
-            self._save_image(os.path.join(debug_base, f"box_{i}_os_crop.png"), os_roi)
-            
-            # OCR part using PaddleOCR
-            sn_proc = self._preprocess_for_ocr(sn_roi)
-            os_proc = self._preprocess_for_ocr(os_roi)
-            
-            # Use rec only (det=False) because we already cropped the ROI
-            # Format: [[(text, score)]]
-            sn_res = self.ocr.ocr(sn_proc, det=False, cls=True)
-            store_name_raw = sn_res[0][0][0] if sn_res and sn_res[0] else ""
-            
-            os_res = self.ocr.ocr(os_proc, det=False, cls=True)
-            order_status_raw = os_res[0][0][0] if os_res and os_res[0] else ""
-            
-            def clean_text(text):
-                # Aggressive cleaning for store names: mostly Chinese
-                text = "".join([c for c in text if '\u4e00' <= c <= '\u9fff' or c.isalnum()])
-                replacements = {
-                    '卜消': '上海', '一浪': '上海', '一津': '上海', '广海': '上海', 
-                    '门海': '上海', '一街': '上海', '卜海': '上海', '门浴': '上海',
-                    '卜浴': '上海', '一浪': '上海', '卜淡': '上海', '户海': '上海',
-                    '喜号': '壹号', '金英': '金茂', '志': '店', '庆': '店', '交': '店', '底': '店',
-                    '东一明珠': '东方明珠', '漫园': '漫圈', '芸': '荟'
-                }
-                for k, v in replacements.items():
-                    text = text.replace(k, v)
-                
-                # If it doesn't start with '上海', but looks like it might
-                if len(text) > 2 and text[0] in '广门卜一' and text[1] in '海浴淡浪':
-                    text = '上海' + text[2:]
-                
-                # Suffix fix: if ends in thing that's likely '店'
-                if len(text) > 4 and text[-1] in '志庆交底不面銀適影':
-                    text = text[:-1] + '店'
-                
-                # If '店' is second to last, remove the last character (likely OCR noise)
-                if len(text) >= 2 and text[-2] == '店':
-                    text = text[:-1]
+            res1_name, res1_status, res1_count = "", "", 0
+            valid1 = False
+            if sn_roi.size > 0 and os_roi.size > 0:
+                sn_res = self.ocr.ocr(self._preprocess_for_ocr(sn_roi), det=False, cls=True)
+                res1_name = self.clean_store_name(sn_res[0][0][0] if sn_res and sn_res[0] else "")
+                os_res = self.ocr.ocr(self._preprocess_for_ocr(os_roi), det=False, cls=True)
+                res1_status, res1_count = self.parse_status(os_res[0][0][0] if os_res and os_res[0] else "")
+                valid1 = self.is_valid_result(res1_name, res1_status)
 
-                return text.strip()
+            # --- Step B: Selection Logic ---
+            if valid2:
+                # Prefer Full Box if it succeeded
+                store_name, order_status, cup_count = res2_name, res2_status, res2_count
+                winning_method = 2
+            elif valid1:
+                # Fallback to Legacy if Full Box failed but Legacy succeeded
+                store_name, order_status, cup_count = res1_name, res1_status, res1_count
+                winning_method = 1
+            else:
+                # Both methods failed pattern checks
+                continue
 
-            store_name = clean_text(store_name_raw)
-            
-            # Strict Filtering to remove non-store boxes
-            if not ('上海' in store_name or '店' in store_name):
-                continue
-            if len(store_name) < 4:
-                continue
+            # General Anti-noise
             if any(k in store_name for k in ['外卖', '到店', '自取', '筛选', '搜索']):
                 continue
-            # Initial parse
-            order_status, cup_count = self.parse_status(order_status_raw)
-            
-            # 1. Verification for high cup counts: Check 4 times and take most common
+
+            # --- Step C: High Threshold Verification (4 Samples) ---
             threshold = getattr(config, 'CUP_COUNT_THRESHOLD', 80)
             if cup_count >= threshold:
-                print(f"  [?] High value detected for {store_name} ({cup_count}). Starting 4-sample verification...")
-                verified_counts = [cup_count]
+                print(f"  [?] High value ({cup_count}). Verifying with Method {winning_method}...")
+                samples = [cup_count]
                 
-                # Re-run OCR with 3 different upscale factors to ensure consistency
                 for scale in [3, 5, 2]:
-                    # Upscale original os_roi
-                    proc_alt = cv2.resize(os_roi, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-                    res_alt = self.ocr.ocr(proc_alt, det=False, cls=True)
-                    raw_alt = res_alt[0][0][0] if res_alt and res_alt[0] else ""
-                    _, count_alt = self.parse_status(raw_alt)
-                    verified_counts.append(count_alt)
+                    if winning_method == 2:
+                        _, _, count_alt = self.extract_from_box_full(box_img, scale=scale)
+                    else:
+                        proc_alt = cv2.resize(os_roi, (0,0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+                        ocr_alt = self.ocr.ocr(proc_alt, det=False, cls=True)
+                        raw_alt = ocr_alt[0][0][0] if ocr_alt and ocr_alt[0] else ""
+                        _, count_alt = self.parse_status(raw_alt)
+                    samples.append(count_alt)
                 
-                # Take the most common result (mode)
-                cup_count = Counter(verified_counts).most_common(1)[0][0]
-                # Re-sync the order_status text to match the final cup_count
-                if cup_count > 0:
-                    order_status = f"前方{cup_count}杯制作中"
-                else:
-                    order_status = "现在下单，立即制作"
-                
-                print(f"  [√] Verified result: {cup_count} (Samples: {verified_counts})")
+                cup_count = Counter(samples).most_common(1)[0][0]
+                order_status = f"前方{cup_count}杯制作中" if cup_count > 0 else "现在下单，立即制作"
+                print(f"  [√] Verified result: {cup_count} (Samples: {samples})")
 
-            # 2. Alignment: Save threshold screenshot ONLY if the verified result is still >= threshold
+            # --- Step D: Threshold Screenshots ---
             if getattr(config, 'SCREENSHOT_ON_THRESHOLD', False) and cup_count >= threshold:
                 try:
-                    project_dir = os.path.dirname(os.path.abspath(__file__))
-                    data_dir = os.path.join(project_dir, getattr(config, 'DATA_FOLDER', 'data'))
-                    if not os.path.exists(data_dir):
-                        os.makedirs(data_dir)
+                    p_dir = os.path.dirname(os.path.abspath(__file__))
+                    d_dir = os.path.join(p_dir, getattr(config, 'DATA_FOLDER', 'data'))
+                    if not os.path.exists(d_dir): os.makedirs(d_dir)
                     
-                    # Clean filename
-                    clean_name = "".join([c for c in store_name if c.isalnum() or c in (" ", "-", "_")])
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"{clean_name}_{cup_count}cups_{timestamp}.png"
-                    save_path = os.path.join(data_dir, filename)
-                    
-                    self._save_image(save_path, box_img)
-                    print(f"  [!] Threshold hit: Saved verified screenshot for {store_name} ({cup_count} cups) to {filename}")
+                    c_name = "".join([c for c in store_name if c.isalnum() or c in (" ", "-", "_")])
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    f_name = f"{c_name}_{cup_count}cups_{ts}.png"
+                    self._save_image(os.path.join(d_dir, f_name), box_img)
+                    print(f"  [!] Saved verified screenshot: {f_name}")
                 except Exception as e:
-                    print(f"  [!] Failed to save threshold screenshot: {e}")
+                    print(f"  [!] Screenshot failed: {e}")
 
             extracted_data.append({
                 "store_name": store_name,
                 "order_status": order_status,
                 "cup_count": cup_count,
-                "debug_sn": os.path.join(debug_base, f"box_{i}_sn_crop.png"),
-                "debug_os": os.path.join(debug_base, f"box_{i}_os_crop.png")
+                "debug_sn": os.path.join(debug_base, f"box_{i}_sn_crop.png") if winning_method == 1 else "",
+                "debug_os": os.path.join(debug_base, f"box_{i}_os_crop.png") if winning_method == 1 else ""
             })
 
         
         return extracted_data
+
+    def is_valid_result(self, name, status):
+        """Universal pattern check for store name and order status."""
+        # Rule 1: Store Name MUST end with '店' and be long enough
+        if not name.endswith('店') or len(name) < 4:
+            return False
+            
+        # Rule 2: Order Status MUST match the patterns
+        is_pattern = (status.endswith("制作中") and "前方" in status) or \
+                      (status == "现在下单，立即制作")
+        return is_pattern
 
     def parse_status(self, raw):
         """Parses order status text to extract cup count and normalized status."""
@@ -244,6 +215,70 @@ class ChageeOCRExtractor:
         # Fallback: Clean and return as 0
         cleaned = "".join([c for c in normalized if '\u4e00' <= c <= '\u9fff' or c.isalnum()])
         return cleaned if cleaned else "已休息", 0
+
+    def clean_store_name(self, text):
+        """Cleans and normalizes store names (Shared for Method 1 & 2)."""
+        text = "".join([c for c in text if '\u4e00' <= c <= '\u9fff' or c.isalnum()])
+        replacements = {
+            '卜消': '上海', '一浪': '上海', '一津': '上海', '广海': '上海', 
+            '门海': '上海', '一街': '上海', '卜海': '上海', '门浴': '上海',
+            '卜浴': '上海', '一浪': '上海', '卜淡': '上海', '户海': '上海',
+            '喜号': '壹号', '金英': '金茂', '志': '店', '庆': '店', '交': '店', '底': '店',
+            '东一明珠': '东方明珠', '漫园': '漫圈', '芸': '荟'
+        }
+        for k, v in replacements.items():
+            text = text.replace(k, v)
+        
+        # If it doesn't start with '上海', but looks like it might
+        if len(text) > 2 and text[0] in '广门卜一' and text[1] in '海浴淡浪':
+            text = '上海' + text[2:]
+        
+        # Suffix fix: if ends in thing that's likely '店'
+        if len(text) > 4 and text[-1] in '志庆交底不面銀適影':
+            text = text[:-1] + '店'
+        
+        # If '店' is second to last, remove the last character
+        if len(text) >= 2 and text[-2] == '店':
+            text = text[:-1]
+
+        return text.strip()
+
+    def extract_from_box_full(self, box_img, scale=4):
+        """Method 2: Full box pattern detection without manual cropping."""
+        # Preprocess
+        proc = cv2.resize(box_img, (0,0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        
+        # OCR with detection (det=True) to find parts
+        res_list = self.ocr.ocr(proc, det=True, cls=True)
+        if not res_list or not res_list[0]:
+            return "", "OCR Failed", 0
+            
+        store_name = ""
+        order_status = "已休息"
+        cup_count = 0
+        
+        # Sort results by Y coordinate to help identify store name vs status
+        # PaddleOCR format: [ [[ [x1,y1]... ], (text, score)] ... ]
+        boxes = res_list[0]
+        boxes.sort(key=lambda x: x[0][0][1]) # Sort by top-left y
+        
+        # 1. Look for store name (ends with '店')
+        for box in boxes:
+            text = box[1][0]
+            if text.endswith('店'):
+                store_name = self.clean_store_name(text)
+                break
+        
+        # 2. Look for order status (patterns)
+        for box in boxes:
+            text = box[1][0]
+            status_text, count = self.parse_status(text)
+            if count > 0 or any(k in status_text for k in ["前方", "杯", "制作", "下单"]):
+                order_status = status_text
+                cup_count = count
+                break
+                
+        return store_name, order_status, cup_count
 
     def ocr_full_image(self, image_path):
         img = self._load_image(image_path)
@@ -480,7 +515,19 @@ def scrape_city_stores(applet_window, extractor, target_count=None, city_name="D
         time.sleep(2)
 
     if consecutive_no_new >= max_no_new_scrolls:
-        print(f"  [!] Aborted {city_name}: Reached limit of {max_no_new_scrolls} scrolls without new data.")
+        # Note it as a BUG and save screenshot for debugging
+        print(f"  [!] BUG: Aborted {city_name}: Reached limit of {max_no_new_scrolls} scrolls without new data.")
+        try:
+            p_dir = os.path.dirname(os.path.abspath(__file__))
+            d_dir = os.path.join(p_dir, getattr(config, 'DATA_FOLDER', 'data'))
+            if not os.path.exists(d_dir): os.makedirs(d_dir)
+            
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            bug_screenshot = os.path.join(d_dir, f"BUG_scroll_limit_{city_name}_{ts}.png")
+            applet_window.CaptureToImage(bug_screenshot)
+            print(f"  [!] Saved bug debugging screenshot: {bug_screenshot}")
+        except Exception as e:
+            print(f"  [!] Bug screenshot capture failed: {e}")
 
     print(f"Scraped {len(city_results)} stores in {city_name}.")
     return list(city_results.values())

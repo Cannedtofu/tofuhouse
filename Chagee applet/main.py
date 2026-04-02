@@ -7,6 +7,7 @@ from scraping_logic import main_workflow
 from data_manager import calculate_daily_stats
 from email_sender import send_report_email
 from cleanup_manager import close_chagee_windows
+from analyze_stores import analyze_stores
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -52,11 +53,17 @@ def run_daily_automation(skip_init=False, skip_scrape=False, skip_report=False, 
             stats = calculate_daily_stats(output_file)
             if stats:
                 logger.info(f"Stats calculated: {stats['total_stores']} stores, {stats['total_cups']} cups.")
+                
+                # Perform Week-on-Week analysis
+                logger.info("Performing Week-on-Week analysis...")
+                wow_report = analyze_stores(output_file)
+                
                 send_report_email(
                     stats['total_stores'], 
                     stats['total_cups'], 
                     stats['stats_text'], 
-                    output_file
+                    output_file,
+                    wow_analysis=wow_report
                 )
             else:
                 logger.warning("No stats could be calculated (maybe no new data for today).")

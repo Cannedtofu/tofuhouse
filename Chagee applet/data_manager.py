@@ -91,14 +91,14 @@ def calculate_daily_stats(excel_path):
         cups_per_city = df_latest.groupby('City')['Cup Count'].sum().sort_values(ascending=False)
         
         # Format the city-specific stats text
-        stats_text = f"Summary for Date: {today_date}\n"
-        stats_text += "--- Stores Scrapped for Each City ---\n"
+        stats_text = f"数据日期: {today_date}\n"
+        stats_text += "--- 各城市已爬取门店数 ---\n"
         for city, count in stores_per_city.items():
             stats_text += f"  {city}: {count}\n"
             
-        stats_text += "\n--- Total Cup Count for Each City ---\n"
+        stats_text += "\n--- 各城市总制作杯数 ---\n"
         for city, count in cups_per_city.items():
-            stats_text += f"  {city}: {count}\n"
+            stats_text += f"  {city}: {int(count)}\n"
         
         return {
             "total_stores": total_stores,

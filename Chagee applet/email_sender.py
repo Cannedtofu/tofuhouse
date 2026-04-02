@@ -11,7 +11,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def send_report_email(total_stores: int, total_cups: int, stats_text: str, attachment_path: str) -> None:
+def send_report_email(total_stores: int, total_cups: int, stats_text: str, attachment_path: str, wow_analysis: str = "") -> None:
     """
     Sends the generated Excel report via QQ Mail SMTP.
     """
@@ -21,13 +21,19 @@ def send_report_email(total_stores: int, total_cups: int, stats_text: str, attac
     receiver_email = 'cuiyuan@maisoncapital.com, 396481139@qq.com, linhuaqiang@maisoncapital.com'
     
     current_date = datetime.now().strftime("%Y-%m-%d")
-    subject = f'霸王茶姬-门店数据 {current_date}'
+    subject = f'霸王茶姬-门店数据报告 {current_date}'
 
-    email_body = (
-        f"Total stores scrapped: {total_stores}\n"
-        f"Total cup count (combined): {total_cups}\n\n"
+    email_body = ""
+    
+    if wow_analysis:
+        email_body += f"{wow_analysis}\n\n"
+        email_body += "--------------------------------------------------\n\n"
+
+    email_body += (
+        f"今日已爬取门店总数: {total_stores}\n"
+        f"今日总制作杯数 (汇总): {total_cups}\n\n"
         f"{stats_text}\n"
-        f"The aggregated report is attached.\n"
+        f"详细汇总报告见附件。\n"
     )
 
     msg = MIMEMultipart()
