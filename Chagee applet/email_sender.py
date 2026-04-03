@@ -56,9 +56,8 @@ def send_report_email(total_stores: int, total_cups: int, stats_text: str, attac
         email_body += "\n[WARNING] Attachment file was missing!"
 
     try:
-        # Using QQ SMTP settings
-        with smtplib.SMTP('smtp.qq.com', 587) as smtp:
-            smtp.starttls()
+        # Using QQ SMTP SSL natively on Port 465
+        with smtplib.SMTP_SSL('smtp.qq.com', 465) as smtp:
             smtp.login(sender_email, sender_password)
             smtp.send_message(msg)
         logger.info('Email report sent successfully!')
