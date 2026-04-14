@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git ls-tree:*)",
+      "Bash(read commit:*)",
+      "Bash(python -c ':*)",
+      "Bash(findstr /V \"FutureWarning\\\\|warnings\\\\|end of life\\\\|google-auth\\\\|upgrade\\\\|Python version\")",
+      "Bash(ls /d/代码项目/news_agent/*.tsx /d/代码项目/news_agent/*.ts)",
+      "Bash(pip install:*)"
+    ]
+  }
+}

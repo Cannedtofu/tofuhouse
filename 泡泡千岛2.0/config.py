@@ -20,7 +20,7 @@ EMULATOR_POLL_INTERVAL: int = 5
 # ── mitmproxy ─────────────────────────────────────────────────────────────────
 MITM_HOST: str = "0.0.0.0"
 MITM_PORT: int = 8080
-MITM_ADDON_PATH: str = "proxy/addon.py"   # relative to project root
+MITM_ADDON_PATH: str = "proxy/addon_db.py"
 
 # URL substring the addon uses to identify the target API endpoint
 # Set to "" for discovery mode (captures ALL JSON responses).
@@ -57,5 +57,5 @@ TARGET_ACTIVITY: str = "tech.echoing.kuril.MainActivity"
 # ── Data Storage ──────────────────────────────────────────────────────────────
 OUTPUT_DIR: str = "output"
 JSONL_FILENAME: str = "results.jsonl"
-TARGET_SCRAPE_COUNT: int = 500
-PROCESS_SKUS_LIMIT: int = 300
+TARGET_SCRAPE_COUNT: int = 1000
+PROCESS_SKUS_LIMIT: int = 300 

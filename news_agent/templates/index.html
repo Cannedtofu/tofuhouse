@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block title %}News Feed{% endblock %}
+
+{% block content %}
+{# Pass article data to JS as JSON #}
+<script id="articles-data" type="application/json">{{ articles | tojson }}</script>
+
+<!-- Filter bar -->
+<form method="get" action="/" class="row g-2 align-items-end mb-3" id="filter-form">
+  <div class="col-auto">
+    <label class="form-label mb-1 small fw-semibold">From</label>
+    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+  </div>
+  <div class="col-auto">
+    <label class="form-label mb-1 small fw-semibold">To</label>
+    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+  </div>
+  <div class="col-auto">
+    <label class="form-label mb-1 small fw-semibold">Sources</label>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        {% if selected_source_ids %}{{ selected_source_ids|length }} selected{% else %}All sources{% endif %}
+      </button>
+      <ul class="dropdown-menu p-2" style="min-width:200px">
+        {% for s in all_sources %}
+        <li>
+          <label class="dropdown-item d-flex align-items-center gap-2 py-1">
+            <input type="checkbox" name="source_ids" value="{{ s.id }}"
+              {% if s.id in selected_source_ids %}checked{% endif %}>
+            <span>{{ s.name }} <small class="text-muted">({{ s.type }})</small></span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+    <a href="/" class="btn btn-sm btn-outline-secondary ms-1">Reset</a>
+  </div>
+  <div class="col-auto ms-auto d-flex gap-2">
+    <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary" onclick="generateDigest()">
+      <span id="digest-label">✦ AI Digest</span>
+      <span id="digest-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
+    </button>
+    <button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
+      <span id="fetch-label">⬇ Fetch Now</span>
+      <span id="fetch-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
+    </button>
+  </div>
+</form>
+<div id="fetch-toast" class="alert mb-2" style="display:none"></div>
+
+<!-- AI Digest panel (collapsed by default) -->
+<div id="digest-panel" class="card mb-3 border-primary" style="display:none">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <span class="fw-semibold small">✦ AI Digest</span>
+    <button type="button" class="btn-close btn-sm" onclick="closeDigest()"></button>
+  </div>
+  <div class="card-body py-3 px-4">
+    <div id="digest-spinner-panel" class="text-muted small text-center py-3" style="display:none">
+      <span class="spinner-border spinner-border-sm me-1"></span>Generating digest…
+    </div>
+    <div id="digest-text" style="font-size:.9rem; line-height:1.7"></div>
+  </div>
+</div>
+
+<!-- Two-panel layout -->
+<div class="row g-0" style="height: calc(100vh - 220px); min-height: 500px;">
+
+  <!-- LEFT: article list -->
+  <div class="col-4 border-end" style="overflow-y: auto; height: 100%;">
+    <div id="article-list">
+      {% if articles %}
+        {% set ns = namespace(current_source=None) %}
+        {% for a in articles %}
+          {% if a.source_name != ns.current_source %}
+            {% set ns.current_source = a.source_name %}
+            <div class="px-3 pt-3 pb-1">
+              <span class="badge bg-secondary">{{ a.source_name }}</span>
+            </div>
+          {% endif %}
+          <div class="article-list-item px-3 py-2 border-bottom"
+               data-id="{{ a.id }}"
+               onclick="selectArticle({{ a.id }})"
+               style="cursor:pointer">
+            <div class="fw-medium lh-sm" style="font-size:.88rem">{{ a.title or a.url }}</div>
+            <div class="text-muted" style="font-size:.75rem">
+              {% set pub = a.published_at or a.fetched_at %}
+              {% if pub %}{{ pub[:10] }}{% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-center text-muted p-4">
+          <p>No articles yet.</p>
+          <p><a href="/sources">Add sources</a> and click <strong>Fetch Now</strong>.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- RIGHT: article detail -->
+  <div class="col-8 p-4" style="overflow-y: auto; height: 100%;" id="detail-panel">
+    <div class="text-center text-muted mt-5" id="detail-placeholder">
+      <p class="fs-5">← Select an article to read it</p>
+    </div>
+
+    <div id="detail-content" style="display:none">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <h5 id="detail-title" class="mb-0 me-3"></h5>
+        <a id="detail-link" href="#" target="_blank" rel="noopener"
+           class="btn btn-sm btn-outline-secondary flex-shrink-0">Open ↗</a>
+      </div>
+      <div class="text-muted small mb-3" id="detail-meta"></div>
+
+      <!-- Article body -->
+      <div id="detail-body" style="font-size:.93rem; line-height:1.7; white-space:pre-wrap; word-break:break-word;"></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ARTICLES = JSON.parse(document.getElementById('articles-data').textContent);
+const byId = {};
+ARTICLES.forEach(a => byId[a.id] = a);
+
+let currentId = null;
+
+function selectArticle(id) {
+  currentId = id;
+
+  document.querySelectorAll('.article-list-item').forEach(el => {
+    el.classList.toggle('bg-primary-subtle', parseInt(el.dataset.id) === id);
+  });
+
+  const a = byId[id];
+  document.getElementById('detail-placeholder').style.display = 'none';
+  document.getElementById('detail-content').style.display = 'block';
+
+  document.getElementById('detail-title').textContent = a.title || a.url;
+  document.getElementById('detail-link').href = a.url;
+
+  const pub = (a.published_at || a.fetched_at || '').slice(0, 10);
+  document.getElementById('detail-meta').textContent =
+    [a.source_name, pub].filter(Boolean).join(' · ');
+
+  document.getElementById('detail-body').textContent = a.content || '(No content fetched)';
+  document.getElementById('detail-panel').scrollTop = 0;
+}
+
+// ---- AI Digest ----
+function generateDigest() {
+  const ids = ARTICLES.map(a => a.id);
+  if (ids.length === 0) {
+    alert('No articles to digest. Apply filters and fetch articles first.');
+    return;
+  }
+
+  const btn = document.getElementById('digest-btn');
+  const label = document.getElementById('digest-label');
+  const spinner = document.getElementById('digest-spinner');
+  const panel = document.getElementById('digest-panel');
+  const spinnerPanel = document.getElementById('digest-spinner-panel');
+  const textEl = document.getElementById('digest-text');
+
+  btn.disabled = true;
+  label.textContent = 'Generating…';
+  spinner.style.display = 'inline-block';
+  panel.style.display = 'block';
+  spinnerPanel.style.display = 'block';
+  textEl.textContent = '';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  fetch('/digest/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ article_ids: ids })
+  })
+    .then(r => r.json())
+    .then(data => {
+      spinnerPanel.style.display = 'none';
+      btn.disabled = false;
+      label.textContent = '✦ AI Digest';
+      spinner.style.display = 'none';
+      if (data.digest) {
+        textEl.innerHTML = renderDigest(data.digest);
+      } else {
+        textEl.textContent = data.error || 'Failed to generate digest.';
+      }
+    })
+    .catch(() => {
+      spinnerPanel.style.display = 'none';
+      btn.disabled = false;
+      label.textContent = '✦ AI Digest';
+      spinner.style.display = 'none';
+      textEl.textContent = 'Request failed.';
+    });
+}
+
+function renderDigest(md) {
+  // Escape HTML first
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return md.split('\n').map(line => {
+    const raw = line;
+    // Section divider
+    if (/^---+$/.test(raw.trim())) return '<hr class="my-3">';
+    // Bold: **text**
+    let html = esc(raw).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Bullet lines
+    if (/^[\*\-]\s/.test(raw)) {
+      html = '&bull; ' + html.replace(/^[\*\-]\s+/, '');
+      return `<div class="ms-2 mb-1">${html}</div>`;
+    }
+    // Blank line → spacing
+    if (!raw.trim()) return '<div class="mb-2"></div>';
+    return `<div>${html}</div>`;
+  }).join('');
+}
+
+function closeDigest() {
+  document.getElementById('digest-panel').style.display = 'none';
+}
+
+// ---- Fetch Now ----
+function triggerFetch() {
+  const btn = document.getElementById('fetch-btn');
+  const label = document.getElementById('fetch-label');
+  const spinner = document.getElementById('fetch-spinner');
+  btn.disabled = true;
+  label.textContent = 'Fetching…';
+  spinner.style.display = 'inline-block';
+
+  const dateFrom = document.querySelector('input[name="date_from"]').value;
+  fetch('/fetch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date_from: dateFrom || null })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'started') {
+        pollFetchStatus();
+      } else {
+        showToast('Already running, please wait.', 'warning');
+        resetFetchBtn();
+      }
+    })
+    .catch(() => { showToast('Fetch request failed.', 'danger'); resetFetchBtn(); });
+}
+
+function pollFetchStatus() {
+  const interval = setInterval(() => {
+    fetch('/fetch/status')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.running) {
+          clearInterval(interval);
+          resetFetchBtn();
+          const res = data.last_result;
+          if (res && res.status === 'ok') {
+            showFetchResult(res);
+            if (res.new_articles > 0) setTimeout(() => location.reload(), 2500);
+          } else if (res) {
+            showToast(`Error: ${res.message}`, 'danger');
+          }
+        }
+      });
+  }, 2000);
+}
+
+function resetFetchBtn() {
+  document.getElementById('fetch-btn').disabled = false;
+  document.getElementById('fetch-label').textContent = '⬇ Fetch Now';
+  document.getElementById('fetch-spinner').style.display = 'none';
+}
+
+function showToast(msg, type) {
+  const el = document.getElementById('fetch-toast');
+  el.className = `alert alert-${type} mb-2`;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function showFetchResult(res) {
+  const el = document.getElementById('fetch-toast');
+  const anyError = res.sources && res.sources.some(s => s.error);
+  el.className = `alert ${anyError ? 'alert-warning' : 'alert-success'} mb-2`;
+
+  let html = `<strong>Fetch complete — ${res.new_articles} new article(s)</strong>`;
+  if (res.sources && res.sources.length) {
+    html += '<ul class="mb-0 mt-1" style="font-size:.85rem">';
+    res.sources.forEach(s => {
+      if (s.error) {
+        html += `<li><strong>${s.name}</strong>: <span class="text-danger">Error — ${s.error}</span></li>`;
+      } else {
+        html += `<li><strong>${s.name}</strong>: ${s.fetched} fetched, ${s.new} new</li>`;
+      }
+    });
+    html += '</ul>';
+    if (res.new_articles > 0) html += '<div class="mt-1 small">Reloading…</div>';
+  }
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+</script>
+{% endblock %}

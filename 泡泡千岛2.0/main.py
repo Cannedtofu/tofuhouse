@@ -157,7 +157,7 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
         blocks = ocr.ocr_all_text(img_path)
         for b in blocks:
             text = b["text"]
-            if "玩具" in text and "系列" in text:
+            if "玩具" in text:
                 coords = b["center"]
                 logger.info("  → Found '%s' at pixel %s on attempt %d", text, coords, attempts)
                 found_coords = coords
@@ -167,7 +167,7 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
             break
             
         logger.info("  → Not found on attempt %d. Scrolling down gently...", attempts)
-        end_y_gentle = 1200 - int(h * random.uniform(0.15, 0.25))
+        end_y_gentle = 1200 - int(h * random.uniform(0.25, 0.35))
         start_x = (w // 2) + random.randint(-50, 50)
         end_x = start_x + random.randint(-20, 20)
         # Gentle slow swipe taking between 1.5 - 2.5 seconds
@@ -180,10 +180,8 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
         click_y = found_coords[1]
         
         import os
-        JSONL_PATH = os.path.join(config.OUTPUT_DIR, config.JSONL_FILENAME)
-        if os.path.exists(JSONL_PATH):
-            os.remove(JSONL_PATH)
-            logger.info("  [INFO] Cleared old results.jsonl cache before click.")
+        # DB is initialized by mitmproxy addon_db.py
+        logger.info("  [INFO] results.db is ready. muMu scraping will append/update records.")
 
         logger.info("  Tapping row action at pixel (%d, %d).", click_x, click_y)
         driver.tap([(click_x, click_y)])
@@ -192,84 +190,69 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
         time.sleep(5)
         driver.get_screenshot_as_file("output/after_phase5.png")
         
-        logger.info("  Retrieving information using mitmproxy logs...")
-        import json
-        
-        items = []
-        target_count = config.TARGET_SCRAPE_COUNT
-        prev_len = -1
-        stuck_count = 0
+        target_count = getattr(config, 'TARGET_SCRAPE_COUNT', 1000)
         scroll_count = 0
+        last_item_count = 0
+        stuck_scrolls = 0
         
-        while len(items) < target_count:
-            current_seen = set()
-            current_items = []
-            
-            if os.path.exists(JSONL_PATH):
-                with open(JSONL_PATH, "r", encoding="utf-8") as fh:
-                    for line in fh:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            record = json.loads(line)
-                            url = record.get("_url", "")
-                            if "api.qiandao.com/treasure/spus/feed" in url:
-                                list_data = record.get("data", {}).get("data", {}).get("list", [])
-                                for item in list_data:
-                                    item_id = item.get("id")
-                                    if item_id and item_id not in current_seen:
-                                        current_seen.add(item_id)
-                                        current_items.append(item)
-                        except json.JSONDecodeError:
-                            continue
-            
-            items = current_items
-            logger.info("  → Parsed %d/%d rows of data.", len(items), target_count)
-            if len(items) >= target_count:
-                break
+        logger.info("  Starting scrolling loop to trigger API traffic (Goal: %d unique items)...", target_count)
+        
+        while scroll_count < 110: # Safety cap: stop after 110 total scrolls
+            # Polling mitmproxy for the current count of unique items captured in memory
+            try:
+                import urllib.request
+                proxy_handler = urllib.request.ProxyHandler({'http': f'http://127.0.0.1:{config.MITM_PORT}'})
+                opener = urllib.request.build_opener(proxy_handler)
+                resp = opener.open('http://mitm.it/mitm_action=get_count', timeout=5)
+                current_item_count = int(resp.read().decode('utf-8').strip() or 0)
                 
-            if len(items) == prev_len:
-                stuck_count += 1
-                if stuck_count >= 10:
-                    logger.warning("  [WARN] No new items found for 10 consecutive scrolls. Assuming end of list.")
+                if current_item_count > last_item_count:
+                    logger.info("  [PROGRESS] %d unique items captured.", current_item_count)
+                    last_item_count = current_item_count
+                    stuck_scrolls = 0
+                else:
+                    stuck_scrolls += 1
+                    
+                if current_item_count >= target_count:
+                    logger.info("  [SUCCESS] Target count %d reached.", target_count)
                     break
-            else:
-                prev_len = len(items)
-                stuck_count = 0
-                
-            logger.info("  Scrolling to load more feed items...")
-            
+                    
+                if stuck_scrolls >= 20:
+                    logger.warning("  [STOP] No new items in 20 scrolls. End of feed reached.")
+                    break
+            except Exception as e:
+                logger.debug(f"Polling failed: {e}")
+
+            logger.info("  Scrolling (Scroll %d, Stuck: %d/20)...", scroll_count, stuck_scrolls)
             start_x = (w // 2) + random.randint(-50, 50)
             end_x = start_x + random.randint(-30, 30)
             distance = int(h * random.uniform(0.60, 0.85))
             swipe_duration = random.randint(300, 600)
             
-            for _retry in range(3):
-                try:
-                    driver.swipe(start_x, 1200, end_x, 1200 - distance, swipe_duration)
-                    break
-                except Exception as exc:
-                    logger.warning("  [WARN] Swipe failed (%s), retrying in 2 seconds...", exc)
-                    time.sleep(2)
-                    
+            try:
+                driver.swipe(start_x, 1200, end_x, 1200 - distance, swipe_duration)
+            except Exception as exc:
+                logger.warning("  [WARN] Swipe failed: %s", exc)
+                time.sleep(2)
+                continue
+            
             scroll_count += 1
-            if scroll_count % 10 == 0:
-                try:
-                    import subprocess
-                    import gc
-                    cmd = f'"{config.MUMU_ADB_PATH}" -s {config.ADB_ID} shell am send-trim-memory {config.TARGET_PACKAGE} RUNNING_CRITICAL'
-                    subprocess.run(cmd, shell=True, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    gc.collect()
-                    logger.info("  [INFO] 🧹 Triggered Android memory trim for %s and local python GC.", config.TARGET_PACKAGE)
-                except Exception:
-                    pass
-            
-            sleep_time = random.uniform(1.0, 2.0)
-            logger.info("  → Waiting %.1fs to mimic reading speed and respect server constraints...", sleep_time)
-            time.sleep(sleep_time)
-            
-        logger.info("  → Successfully scraped %d rows! (Records registered in storage: %d)", len(items), storage.record_count())
+            time.sleep(random.uniform(1.2, 2.2))
+
+        # After scrolling is done and successful, we commit.
+        logger.info("  [INFO] MuMu scraping loop finished. Sending COMMIT signal to mitmproxy...")
+        try:
+            # Send success signal to mitmproxy to flush memory to DB
+            import urllib.request
+            proxy_handler = urllib.request.ProxyHandler({'http': f'http://127.0.0.1:{config.MITM_PORT}'})
+            opener = urllib.request.build_opener(proxy_handler)
+            opener.open('http://mitm.it/mitm_action=commit_success', timeout=5)
+            logger.info("  [INFO] Persistence signal sent. results.db is now updated.")
+            logger.info(f"  [SUMMARY] Total SPUs logged from MuMu: {last_item_count}")
+        except Exception as e:
+            logger.error(f"  [ERROR] Failed to send commit signal: {e}")
+
+        logger.info("  → MuMu session completed successfully.")
     else:
         logger.error("  [ERROR] Could not find '玩具系列' within 3 minutes.")
 
@@ -277,6 +260,11 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--skip-mumu", action="store_true", help="Skip MuMu scraping and go straight to browser-based scraping using existing results.db")
+    args, unknown = parser.parse_known_args()
+    
     # Register signal handlers so Ctrl-C still triggers cleanup
     import signal
     import sys
@@ -331,12 +319,16 @@ def main() -> None:
         time.sleep(5)   # wait for initial screen to load
 
         # 6. Scrape
-        logger.info("=== Step 6: Run scrape loop ===")
-        run_scrape_loop(appium, storage)
-
-        import subprocess
-        logger.info("=== Step 7: Parse resulting JSON to SQLite ===")
-        subprocess.run([sys.executable, "parse_results.py"], check=True)
+        if not args.skip_mumu:
+            logger.info("=== Step 6: Run scrape loop ===")
+            run_scrape_loop(appium, storage)
+            # Step 7 (Parsing) is now handled live by mitmproxy
+            logger.info("=== Step 7: Completed (Captured directly to results.db) ===")
+        else:
+            logger.info("=== Step 6-7: Skipping MuMu scrap as requested. Using existing results.db ===")
+            if not os.path.exists("output/results.db"):
+                logger.error("Error: --skip-mumu requested but output/results.db does not exist!")
+                sys.exit(1)
         
         limit = getattr(config, 'PROCESS_SKUS_LIMIT', 5)
         logger.info("=== Step 8: Detail Scrape with process_skus (Limit: %s) ===", limit)
@@ -349,7 +341,12 @@ def main() -> None:
         
         import os
         attachment_path = "output/sku_lean_tracking.xlsx"
-        send_report_email(success_count=success_db, failed_count=(total_db - success_db), attachment_path=attachment_path)
+        # Only send email if we actually completed the process_skus successfully
+        if total_db > 0:
+            send_report_email(success_count=success_db, failed_count=(total_db - success_db), attachment_path=attachment_path)
+            logger.info("Email sent successfully.")
+        else:
+            logger.warning("No IDs were processed in this run, skipping email.")
 
     except Exception as exc:
         logger.exception("Fatal error during run: %s", exc)

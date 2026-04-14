@@ -1,45 +1,49 @@
-name: Daily News Report
+name: Daily News Digest
 
 on:
   schedule:
-    # Runs at 00:00 UTC every day
-    - cron: '0 0 * * *'
-  workflow_dispatch: # Allows manual triggering
+    - cron: "0 7 * * *"   # 07:00 UTC daily (adjust to your timezone)
+  workflow_dispatch:        # allow manual trigger from GitHub UI
 
 jobs:
-  build_and_send_report:
+  run-digest:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run script
+      - name: Restore database
+        # Download the persisted news.db from the previous run's artifact (if any)
+        uses: actions/download-artifact@v4
+        with:
+          name: news-db
+          path: .
+        continue-on-error: true   # first run won't have an artifact yet
+
+      - name: Run news agent
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         run: python main.py
 
-      - name: Commit and push history.json
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # Check if the file has changes
-          if git diff --quiet history.json; then
-            echo "No changes to history.json. Nothing to commit."
-          else
-            git add history.json
-            git commit -m "chore: Update processed articles history"
-            git push
-          fi
+      - name: Save database artifact
+        uses: actions/upload-artifact@v4
+        if: always()   # save even if the run failed, to preserve existing data
+        with:
+          name: news-db
+          path: news.db
+          retention-days: 30
+          overwrite: true

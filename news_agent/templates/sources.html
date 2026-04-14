@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Manage Sources{% endblock %}
+
+{% block content %}
+<div class="row">
+  <!-- Add source form -->
+  <div class="col-lg-4 mb-4">
+    <div class="card p-4">
+      <h5 class="mb-3">Add Source</h5>
+      {% if error %}
+      <div class="alert alert-danger py-2">{{ error }}</div>
+      {% endif %}
+      <form method="post" action="/sources">
+        <div class="mb-3">
+          <label class="form-label">Name</label>
+          <input type="text" name="name" class="form-control" placeholder="e.g. Karpathy Blog" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Type</label>
+          <select name="type" class="form-select" id="type-select" onchange="updateUrlLabel()">
+            <option value="rss">RSS / Atom feed</option>
+            <option value="nitter">X.com account (Nitter)</option>
+            <option value="web">Company news page (scrape)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" id="url-label">Feed URL</label>
+          <input type="text" name="url" class="form-control" id="url-input"
+                 placeholder="https://example.com/feed.xml" required>
+          <div class="form-text" id="url-hint">Paste the full RSS/Atom feed URL.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">URL Filter <span class="text-muted">(optional)</span></label>
+          <input type="text" name="url_filter" class="form-control"
+                 placeholder="e.g. openai.com/index/">
+          <div class="form-text">Only keep articles whose URL contains this string.</div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Add Source</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Existing sources -->
+  <div class="col-lg-8">
+    <h5 class="mb-3">Configured Sources ({{ sources|length }})</h5>
+    {% if sources %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle bg-white rounded shadow-sm">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>URL / Handle</th>
+            <th>URL Filter</th>
+            <th>Last Fetched</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sources %}
+          <tr>
+            <td class="fw-medium">{{ s.name }}</td>
+            <td>
+              <span class="badge {% if s.type == 'rss' %}bg-primary{% elif s.type == 'nitter' %}bg-dark{% else %}bg-secondary{% endif %}">
+                {{ s.type }}
+              </span>
+            </td>
+            <td class="text-muted small" style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+              {% if s.type == 'nitter' %}
+                @{{ s.url.replace('nitter:', '') }}
+              {% else %}
+                <a href="{{ s.url }}" target="_blank" rel="noopener" class="text-muted">{{ s.url }}</a>
+              {% endif %}
+            </td>
+            <td class="text-muted small font-monospace">
+              {{ s.url_filter or '—' }}
+            </td>
+            <td class="text-muted small">
+              {{ s.last_fetched[:16].replace('T', ' ') if s.last_fetched else '—' }}
+            </td>
+            <td>
+              <form method="post" action="/sources/{{ s.id }}/delete"
+                    onsubmit="return confirm('Delete {{ s.name }} and all its articles?')">
+                <button class="btn btn-sm btn-outline-danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <p>No sources yet. Add one using the form on the left.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const hints = {
+  rss:    ['Feed URL', 'Paste the full RSS/Atom feed URL.', 'https://example.com/feed.xml'],
+  nitter: ['Twitter / X Handle', 'Enter the username without @.', 'elonmusk'],
+  web:    ['News Page URL', 'Paste the URL of the news/press release index page.', 'https://company.com/news'],
+};
+function updateUrlLabel() {
+  const type = document.getElementById('type-select').value;
+  const [label, hint, placeholder] = hints[type];
+  document.getElementById('url-label').textContent = label;
+  document.getElementById('url-hint').textContent = hint;
+  document.getElementById('url-input').placeholder = placeholder;
+}
+</script>
+{% endblock %}

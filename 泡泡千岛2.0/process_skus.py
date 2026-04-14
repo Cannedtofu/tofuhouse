@@ -169,117 +169,81 @@ def main():
             if not matching_row.empty:
                 main_tag_display_name = matching_row.iloc[0].get('mainTagDisplayName', 'N/A')
 
-            a_tags = soup.find_all('a', {'data-v-ba00a76c': "", 'aria-current': "page"})
-            print(f"  → Detected {len(a_tags)} sub-SKUs in series UI.")
+            # 2. Extract SPU-level metrics (formerly sub-SKU logic)
+            # Find listing price on series page
+            div_tag = soup.find('div', {'class': 'spu-price'})
+            div_text = div_tag.get_text(strip=True) if div_tag else "N/A"
+            listing_price = parse_generic_number(div_text, is_float=True)
 
-            series_records = []
+            # Find Stats (Views, Wants, Owns)
+            p_tag = soup.find('div', class_='want_info')
+            p_text = p_tag.get_text(strip=True) if p_tag else "N/A"
+            views, wants, owns = parse_want_info(p_text)
+            print(f"  → Want info: '{p_text}' (Views: {views}, Wants: {wants}, Owns: {owns})")
 
-            for tag_idx, tag in enumerate(a_tags, 1):
-                try:
-                    href = tag.get('href')
-                    full_url = base_url + href
-                    
-                    h3_tag = tag.find('h3', {'data-v-ba00a76c': "", 'class': 'name u-otext2'})
-                    h3_text = h3_tag.get_text(strip=True) if h3_tag else "N/A"
-                    
-                    div_tag = tag.find('div', {'data-v-ba00a76c': "", 'class': 'spu-price text-center font-num text-n6'})
-                    div_text = div_tag.get_text(strip=True) if div_tag else "N/A"
+            # Find Transaction stats (Paid, Selling, Buying)
+            # Based on the structure of the wrapper/number span used previously on sub-pages
+            # Often these are present in summary form on the SPU page too. 
+            wrapper_div = soup.find('div', {'class': 'wrapper'})
+            sku_price = sku_personpaid = sku_personselling = sku_personbuying = "N/A"
+            if wrapper_div:
+                span_elements = wrapper_div.find_all('span', {'class': 'number'})
+                if len(span_elements) >= 4:
+                    sku_price = span_elements[0].get_text(strip=True)
+                    sku_personpaid = span_elements[1].get_text(strip=True)
+                    sku_personselling = span_elements[2].get_text(strip=True)
+                    sku_personbuying = span_elements[3].get_text(strip=True)
 
-                    print(f"    ({tag_idx}/{len(a_tags)}) Fetching SKU: {h3_text}")
-                    sku_page_source = robust_get(driver, full_url, wait_time=1.5)
-                    soup_sku = BeautifulSoup(sku_page_source, 'html.parser')
-                    
-                    wrapper_div = soup_sku.find('div', {'class': 'wrapper'})
-                    if wrapper_div:
-                        span_elements = wrapper_div.find_all('span', {'class': 'number'})
-                        if len(span_elements) >= 4:
-                            sku_price = span_elements[0].get_text(strip=True)
-                            sku_personpaid = span_elements[1].get_text(strip=True)
-                            sku_personselling = span_elements[2].get_text(strip=True)
-                            sku_personbuying = span_elements[3].get_text(strip=True)
-                        else:
-                            sku_price = sku_personpaid = sku_personselling = sku_personbuying = "N/A"
-                    else:
-                        sku_price = sku_personpaid = sku_personselling = sku_personbuying = "N/A"
+            # Create a single record for this series
+            record = {
+                'spu_id': str(spu_id),
+                'series_name': series_name,
+                'sku_name': series_name, # Treating SPU as the name
+                'raw_want_info': p_text,
+                'views': views,
+                'wants': wants,
+                'owns': owns,
+                'price_listing': listing_price,
+                'full_url': series_url,
+                'query_date': current_date,
+                'curr_avg_price': parse_generic_number(sku_price, is_float=True),
+                'num_paid': parse_generic_number(sku_personpaid, is_float=False),
+                'num_selling': parse_generic_number(sku_personselling, is_float=False),
+                'num_buying': parse_generic_number(sku_personbuying, is_float=False),
+                'mainTagDisplayName': main_tag_display_name
+            }
 
-                    p_tag2 = soup_sku.find('div', class_='want_info')
-                    p_text2 = p_tag2.get_text(strip=True) if p_tag2 else "N/A"
-                    
-                    views, wants, owns = parse_want_info(p_text2)
-                    is_hidden = 1 if '隐藏' in h3_text else 0
+            series_records = [record]
 
-                    series_records.append({
-                        'spu_id': str(spu_id),
-                        'series_name': series_name,
-                        'sku_name': h3_text,
-                        'raw_want_info': p_text2,
-                        'views': views,
-                        'wants': wants,
-                        'owns': owns,
-                        'price_listing': parse_generic_number(div_text, is_float=True),
-                        'full_url': full_url,
-                        'query_date': current_date,
-                        'curr_avg_price': parse_generic_number(sku_price, is_float=True),
-                        'num_paid': parse_generic_number(sku_personpaid, is_float=False),
-                        'num_selling': parse_generic_number(sku_personselling, is_float=False),
-                        'num_buying': parse_generic_number(sku_personbuying, is_float=False),
-                        'is_hidden': is_hidden,
-                        'mainTagDisplayName': main_tag_display_name
-                    })
-                    
-                except Exception as e:
-                    print(f"    [ERROR] Failed to parse SKU component: {e}")
-                    continue
-
-            # == 3. Incremental Saving (Saves per series) ==
+            # == 3. Incremental Saving (Saves per record) ==
             if series_records:
                 df_series = pd.DataFrame(series_records)
 
                 # SQLite Dump
                 try:
                     conn = sqlite3.connect(db_file)
-                    df_db = df_series.drop(columns=['is_hidden'])
-                    df_db.to_sql('sku_raw_records', conn, if_exists='append', index=False)
+                    # We'll keep the same table name 'sku_raw_records' for compatibility
+                    df_series.to_sql('sku_raw_records', conn, if_exists='append', index=False)
                     conn.close()
                 except Exception as e:
                     print(f"  [ERROR] Database save failed for series: {e}")
 
-                # Lean Excel processing
-                lean_rows = []
-                total_skus = len(df_series)
-                hidden_skus = df_series['is_hidden'].sum()
-
-                filters = [
-                    ("全部", df_series),
-                    ("隐藏款", df_series[df_series['is_hidden'] == 1]),
-                    ("常规款", df_series[df_series['is_hidden'] == 0])
-                ]
-
-                for filter_cat, subset in filters:
-                    if subset.empty:
-                        lean_rows.append([
-                            series_name, filter_cat, total_skus, hidden_skus,
-                            0, 0, 0, 0, 0, 0, 0.0, 0.0, current_date, f"https://qiandao.com/spu?id={spu_id}",
-                            main_tag_display_name
-                        ])
-                    else:
-                        lean_rows.append([
-                            series_name, filter_cat, total_skus, hidden_skus,
-                            subset['views'].sum() if not subset['views'].isna().all() else 0,
-                            subset['wants'].sum() if not subset['wants'].isna().all() else 0,
-                            subset['owns'].sum() if not subset['owns'].isna().all() else 0,
-                            subset['num_paid'].sum() if not subset['num_paid'].isna().all() else 0,
-                            subset['num_selling'].sum() if not subset['num_selling'].isna().all() else 0,
-                            subset['num_buying'].sum() if not subset['num_buying'].isna().all() else 0,
-                            subset['price_listing'].mean() if not subset['price_listing'].isna().all() else 0.0,
-                            subset['curr_avg_price'].mean() if not subset['curr_avg_price'].isna().all() else 0.0,
-                            current_date, f"https://qiandao.com/spu?id={spu_id}",
-                            main_tag_display_name
-                        ])
+                # Lean Excel processing (Single row per series)
+                lean_rows = [[
+                    series_name, "全部", 1, 0,
+                    views, wants, owns, 
+                    parse_generic_number(sku_personpaid, is_float=False),
+                    parse_generic_number(sku_personselling, is_float=False),
+                    parse_generic_number(sku_personbuying, is_float=False),
+                    listing_price,
+                    parse_generic_number(sku_price, is_float=True),
+                    current_date, series_url,
+                    main_tag_display_name
+                ]]
 
                 all_lean_data.extend(lean_rows)
                 processed_series_count += 1
-                print(f"  [OK] Series {idx} (ID: {spu_id}) records secured successfully.")
+                print(f"  [OK] Series {idx} (ID: {spu_id}) recorded successfully.")
             else:
                 print(f"  [WARN] No SKU data extracted for series ID: {spu_id}")
         

@@ -1,0 +1,5 @@
+{
+  "name": "FeedDigest",
+  "description": "A personalized news and RSS feed reader with AI-powered summaries.",
+  "requestFramePermissions": []
+}

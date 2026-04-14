@@ -44,23 +44,23 @@ BASE_URL = "https://arcteryx.locally.com/stores/conversion_data"
 
 
 
-# US Canada boundaries
-LAT_MIN, LAT_MAX = 24.5, 83
-LNG_MIN, LNG_MAX = -170, -52
-# Grid step: smaller step = more zoomed in
-LAT_STEP = 1.1751/2
-LNG_STEP = 3.0185/2
-ZOOM_LEVEL = 8.4736  # More zoomed-in than the default site (5–6)
-
-
-# # Europe Boundaries
-# LAT_MIN, LAT_MAX = 34.5, 71
-# LNG_MIN, LNG_MAX = -10, 30
-
+# # US Canada boundaries
+# LAT_MIN, LAT_MAX = 24.5, 83
+# LNG_MIN, LNG_MAX = -170, -52
 # # Grid step: smaller step = more zoomed in
-# LAT_STEP = 0.871/2
-# LNG_STEP = 3.019/2
+# LAT_STEP = 1.1751/2
+# LNG_STEP = 3.0185/2
 # ZOOM_LEVEL = 8.4736  # More zoomed-in than the default site (5–6)
+
+
+# Europe Boundaries
+LAT_MIN, LAT_MAX = 34.5, 71
+LNG_MIN, LNG_MAX = -10, 30
+
+# Grid step: smaller step = more zoomed in
+LAT_STEP = 0.871/2
+LNG_STEP = 3.019/2
+ZOOM_LEVEL = 8.4736  # More zoomed-in than the default site (5–6)
 
 
 # #test boundaries
