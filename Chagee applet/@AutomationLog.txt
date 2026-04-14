@@ -1,11 +1,11 @@
 ---------------------------------------- 
-[周五 2026/04/03 17:21:39.15] Starting Daily Automation 
-[周五 2026/04/03 17:21:39.15] Running main.py (Reorganized)... 
+[周二 2026/04/14 14:00:01.73] Starting Daily Automation 
+[周二 2026/04/14 14:00:01.74] Running main.py (Reorganized)... 
 INFO: Could not find files for the given pattern(s).
 C:\Users\Jason\AppData\Roaming\Python\Python39\site-packages\paddle\utils\cpp_extension\extension_utils.py:718: UserWarning: No ccache found. Please be aware that recompiling all source files may be required. You can download and install ccache from: https://github.com/ccache/ccache/blob/master/doc/INSTALL.md
   warnings.warn(warning_message)
 WARNING: Logging before InitGoogleLogging() is written to STDERR
-W0403 17:22:22.631352 70780 gpu_resources.cc:114] Please NOTE: device: 0, GPU Compute Capability: 8.6, Driver API Version: 13.1, Runtime API Version: 12.9
+W0414 14:00:53.016834 106916 gpu_resources.cc:114] Please NOTE: device: 0, GPU Compute Capability: 8.6, Driver API Version: 13.1, Runtime API Version: 12.9
 Looking for WeChat main window...
 Clicking search bar...
 UI-based search bar not found. Attempting keyboard shortcut (Ctrl+F)...
@@ -25,280 +25,59 @@ Applet window detected: '霸王茶姬'
 Clicking at relative (120, 600) -> Global (865, 722)
 Resetting scroll to top of list...
 Detected 3 boxes in temp_scrape.png
-  [+] 上海: 上海新邻生活站店
-  [+] 上海: 上海LuOne凯德晶萃广场店
-  [+] 上海: 上海新天地东台里店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海无限极荟购物中心店
-  [+] 上海: 上海上海广场店
-  [+] 上海: 上海打浦桥日月光二店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海黄浦融创壹号店
-  [+] 上海: 上海豫园店
-  [+] 上海: 上海漫圈邻里店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海博荟广场店
-  [+] 上海: 上海黄浦浙江中路店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海黄浦区世茂店
-  [+] 上海: 上海第一百货商业中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海玖时活力中心1儿店
-  [+] 上海: 上海恒基名人店
-  [+] 上海: 上海吴江路店
+  [+] 上海: 海新天地东台里店
 Detected 3 boxes in temp_scrape.png
+  [+] 上海: 海无限极荟购物中心店
+Detected 4 boxes in temp_scrape.png
+  [+] 上海: 漫圈邻里店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海玖时活力中心1儿店
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海昊江路店
   [+] 上海: 上海正大广场店
-  [+] 上海: 上海金鹰国际购物广场店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海苏河湾万象天地店
-  [+] 上海: 上海金茂大厦店
-  [+] 上海: 上海东方明珠店
-Detected 5 boxes in temp_scrape.png
-  [+] 上海: 上海环球金融中心店
-  [+] 上海: 上海静安大悦城店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
   [+] 上海: 上海百联临沂店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海华润时代广场店
-  [+] 上海: 上海浦建路巴黎春天店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海静安晶品店
-  [+] 上海: 上海陆家嘴中心店
-  [+] 上海: 上海凯德星贸店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 海凯德星贸店
   [+] 上海: 上海静安1788广场店
-  [+] 上海: 上海世博源店
 Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海徐汇正大乐城无声门店
   [+] 上海: 上海乐荟天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海今潮8弄店
-  [+] 上海: 上海白玉兰广场店
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 田玉兰广场店
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海徐汇绿地缤纷城店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海静安国际中心店
   [+] 上海: 上海漫乐城店
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海武康路店
 Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海世纪汇广场店
-  [+] 上海: 上海火车站店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海美罗城店
   [+] 上海: 上海浦东三钢里店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海北外滩来福士店
+  [+] 上海: 上海美罗城店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海长寿路巴黎春天店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海环球都会广场店
-  [+] 上海: 上海合新里店
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海长寿路旭辉里店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 海新微智谷店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海海莱又化场店
 Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海金融街购物中心店
-  [+] 上海: 上海龙华会店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海宏慧新里店
-  [+] 上海: 上海飞洲国际广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海远洋星帆广场店
-  [+] 上海: 上海新微智谷店
-  [+] 上海: 上海瑞虹天地月亮湾店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海高科西路山姆店
-  [+] 上海: 上海海粟文化广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海长宁国际店
   [+] 上海: 上海徐汇西岸凤巢店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海浦东亿丰时代广场店
-  [+] 上海: 上海我格广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海光启城时尚购物中心店
-  [+] 上海: 上海中山公园龙之梦店
-  [+] 上海: 上海长宁凯德来福士店
-Detected 3 boxes in temp_scrape.png
-  [+] 上海: 上海晋陀区融创香溢天地店
-  [+] 上海: 上海丁香国际商业中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海叁宸里购物中心店
-  [+] 上海: 上海徐汇日月光店
-  [+] 上海: 上海前滩公园巷店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海控江旭辉店
-  [+] 上海: 上海环球港1层店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海环球港店
-  [+] 上海: 上海田尚坊店
-  [+] 上海: 上海虹桥南丰城店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海龙阳广场店
-  [+] 上海: 上海大宁国际广场店
-  [+] 上海: 上海FOR天物空间店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海大宁久光中心店
-  [+] 上海: 上海紫荆广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海金虹桥国际中心店
-  [+] 上海: 上海天山路巴黎春天店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海百联滨江购物中心店
-  [+] 上海: 上海高岛屋百货店
-  [+] 上海: 上海杨浦互联宝地店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海徐汇万科中心店
-  [+] 上海: 上海中星城店
-  [+] 上海: 上海虹口区曲阳百联店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海合乐里店
-  [+] 上海: 上海鑫耀光环店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海大宁音乐广场店
-  [+] 上海: 上海虹口今雨荟店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海长风大悦城宠物友好店
-  [+] 上海: 上海新曹杨商务区店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海金谊广场店
-  [+] 上海: 上海静安大融城店
-  [+] 上海: 上海桃源T店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海桃源π店
-  [+] 上海: 上海新达汇三林店
-  [+] 上海: 上海缤谷广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海大华巴黎春天店
-  [+] 上海: 上海复旦大学邯郸路校区店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海浦东金杨陆悦坊店
-  [+] 上海: 上海静安协信星光广场店
-  [+] 上海: 上海大华第一坊店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海宝山向阳900店
-  [+] 上海: 上海杨浦时尚中心店
-  [+] 上海: 上海徐汇金谷里店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海漕河泾总部店
-  [+] 上海: 上海徐汇区漕河泾印象城店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海近铁城市广场店
-  [+] 上海: 上海星邻生活荟店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海市同济大学附属肺科医院店
-  [+] 上海: 上海复地活力城店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海品域凌云里店
-  [+] 上海: 上海中环百联店
-  [+] 上海: 上海五角场万达步行街店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海百联又一城店
-  [+] 上海: 上海杨浦区大学路店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海金桥国际店
-  [+] 上海: 上海太平洋森活天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海百联西郊购物中心店
-  [+] 上海: 上海合川大厦店
-  [+] 上海: 上海宝山日月光店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海华泾龙湖天街店
-  [+] 上海: 上海虹口彩虹湾店
-  [+] 上海: 上海闵行力波九坊店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海国华广场1F店
-  [+] 上海: 上海闵行区爱琴海购物公园店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海汇智商业中心店
-  [+] 上海: 上海长泰广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海韩国街店
-  [+] 上海: 上海宝山新业坊店
-  [+] 上海: 上海长宁大融城店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海中原城市广场店
-  [+] 上海: 上海文峰广场店
-  [+] 上海: 上海荟聚店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海宏慧新汇园店
-  [+] 上海: 上海长宁尚品都汇店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海百联南方购物中心店
-  [+] 上海: 上海中庚漫游城店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海万象城店
-  [+] 上海: 上海浦东新启汇店
-  [+] 上海: 上海国和1000店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海凌空soho店
-  [+] 上海: 上海金桥啦啦宝都宠物友好店
-  [+] 上海: 上海十尚坊店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海宝山万达店
-  [+] 上海: 上海TOP金光汇店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海康桥新田360店
-  [+] 上海: 上海浦东新区澜庭里店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海悠方购物中心店
-  [+] 上海: 上海金桥太茂店
-  [+] 上海: 上海浦江欢乐颂店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海七宝宝龙城店
-  [+] 上海: 上海葫芦斗生活汇店
-  [+] 上海: 上海周浦万达店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海东方万国店
-  [+] 上海: 上海金桥日月光中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海宝山红太阳广场店
-  [+] 上海: 上海嘉定江桥老街店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海海梦一方店
-  [+] 上海: 上海环桥路店
-  [+] 上海: 上海莘庄维璟印象城店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海经纬汇店
-  [+] 上海: 上海新邻天地店
-  [+] 上海: 上海宝山聚丰园路山姆店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海闵行浦江城市生活广场店
-  [+] 上海: 上海张江大橘天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海莘庄仲盛店
-  [+] 上海: 上海万嘉商业广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海宝山智慧湾科创园店
-  [+] 上海: 上海森兰花园城店
-  [+] 上海: 上海虹丰生活广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海江桥万达店
-  [+] 上海: 上海凯德闵行商业中心店
-  [+] 上海: 上海周浦绿地缤纷广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海中骏广场店
-  [+] 上海: 上海虹桥新天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海虹桥龙湖天街店
-  [+] 上海: 上海唐镇阳光天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海天物有所店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海浦东绿地乐和城店
-  [+] 上海: 上海宝山花园城店
-  [+] 上海: 上海北上海广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海九亭贝尚坊店
-  [+] 上海: 上海颛桥万达1F店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海曹路花园城店
-  [+] 上海: 上海九亭金地广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海中冶祥腾城市广场店
-  [+] 上海: 上海宝山正大乐城店
-  [+] 上海: 上海首位奥莱店
-Detected 4 boxes in temp_scrape.png
-  [+] 上海: 上海亚繁亚乐城店
-  [+] 上海: 上海东海岸商业广场店
-  [+] 上海: 上海航头浦乐汇店
-Detected 3 boxes in temp_scrape.png
-  [+] 上海: 上海南翔古镇店
 Detected 3 boxes in temp_scrape.png
   [!] No new stores found (1/4).
 Detected 3 boxes in temp_scrape.png
@@ -306,10 +85,65 @@ Detected 3 boxes in temp_scrape.png
 Detected 3 boxes in temp_scrape.png
   [!] No new stores found (3/4).
 Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海徐汇日月光店
+  [+] 上海: 上海控江旭辉店
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海环球港店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海金虹桥国际中心店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海中星城店
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海虹口区曲阳百联店
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海大宁音乐广场店
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海虹口今雨荟店
+  [+] 上海: 上海长风大悦城宠物友好店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海桃源T店
+Detected 4 boxes in temp_scrape.png
+  [+] 上海: 上海缤谷广场店
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海浦东金杨陆悦坊店
+  [+] 上海: 上海静安协信星光广场店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海徐汇金谷里店
+  [+] 上海: 海漕河泾总部店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (3/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海百联又一城店
+Detected 4 boxes in temp_scrape.png
+  [+] 上海: 上海金桥国际店
+Detected 4 boxes in temp_scrape.png
+  [+] 上海: 上海百联西郊购物中心店
+  [+] 上海: 上海合川大厦店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (3/4).
+Detected 3 boxes in temp_scrape.png
   [!] No new stores found (4/4).
   [!] BUG: Aborted 上海: Reached limit of 4 scrolls without new data.
-  [!] Saved bug debugging screenshot: D:\代码项目\Chagee applet\data\BUG_scroll_limit_上海_20260403_172842.png
-Scraped 195 stores in 上海.
+  [!] Saved bug debugging screenshot: D:\代码项目\Chagee applet\data\BUG_scroll_limit_上海_20260414_140457.png
+Scraped 42 stores in 上海.
 
 --- Initiating Switch to 杭州 ---
 OCR found '搜索门店' at relative (140.0, 126.5). Trigger global coordinate: (796, 248)
@@ -321,383 +155,224 @@ OCR found city '杭州市'. Clicking absolute: (784, 747).
 --- Scraping City: 杭州 (Target: 150) ---
 Skipping entry click (120, 600) as requested.
 Resetting scroll to top of list...
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州临平蜗牛广场店
-  [+] 杭州: 浙江杭州钱塘希宾乐潮城店
-  [+] 杭州: 浙江杭州萧山党湾政和路店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州钱塘义蓬永旺梦乐城店
-  [+] 杭州: 浙江杭州临平北大街店
-  [+] 杭州: 浙江杭州钱塘圈圈里商业中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州临平万达广场店
-  [+] 杭州: 浙江杭州临平银泰店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州临平宝龙广场店
-  [+] 杭州: 浙江杭州临平余之城店
 Detected 4 boxes in temp_scrape.png
   [+] 杭州: 浙江工商大学校园店
-  [+] 杭州: 浙江杭州南阳德信之翼店
-  [+] 杭州: 浙江杭州下沙宝龙广场店
+  [+] 杭州: 折江杭州南阳德信之翼店
 Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山靖江空港新天地店
-  [+] 杭州: 浙江杭州临平银泰inPARK店
   [+] 杭州: 浙江杭州钱塘新区东东城店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州钱塘科技园路店
-  [+] 杭州: 浙江杭州临平百联奥特莱斯店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州钱塘福雷德店
-  [+] 杭州: 浙江杭州翁梅谋立方店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州星桥七彩城店
-  [+] 杭州: 浙江杭州临平塘栖古镇店
-  [+] 杭州: 浙江杭州下沙吾角龙湖天街店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州下沙金隅金座店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州金沙龙湖天街店
-  [+] 杭州: 浙江杭州钱塘上沙路店
-  [+] 杭州: 浙江杭州金沙湖湖畔中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州下沙银泰店
-  [+] 杭州: 浙江杭州萧山瓜沥之心店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州上城龙湖天街店
-  [+] 杭州: 24小时门店
-  [+] 杭州: 浙江杭州丁兰广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州龙湖国芳天街店
-  [+] 杭州: 浙江杭州新禾联创店
-  [+] 杭州: 浙江杭州上城东尚城店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州上城晋大福地店
-  [+] 杭州: 浙江杭州西子丁兰山姆店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州拱墅吾悦广场店
-  [+] 杭州: 浙江杭州萧山魔方城店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州宽爱小马路生活广场店
-  [+] 杭州: 浙江杭州临平城北招商花园城店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山新街融创乐融荟店
-  [+] 杭州: 浙江杭州上城三花国际店
-  [+] 杭州: 浙江杭州拱墅宝龙店
 Detected 4 boxes in temp_scrape.png
   [!] No new stores found (1/4).
 Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州余杭仁和启航城店
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州星桥七彩城店
+  [+] 杭州: 浙江杭州临平塘栖古镇店
+  [+] 杭州: 浙江杭州下沙音角龙胡大街店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 亢州下沙金隅金座店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州金沙龙湖天街店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州上城龙湖天街店
+  [+] 杭州: 浙江杭州上城国际服装城店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州丁兰广场店
+  [+] 杭州: 浙江杭州龙湖国芳天街店
+  [+] 杭州: 浙江杭州新禾联创店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州上城东尚城店
+Detected 4 boxes in temp_scrape.png
+  [+] 杭州: 折江杭州拱墅吾悦广场店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州上城三花国际店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州拱墅宝龙店
+  [+] 杭州: 浙江杭州东站万象汇店
+Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州中大银泰店
 Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山明彩城店
-  [+] 杭州: 浙江杭州拱墅新天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州东站西广场负一楼店
-  [+] 杭州: 浙江杭州浙数文化科技园店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州拱墅顺丰创新中心店
-  [+] 杭州: 浙江杭州萧山归谷国际中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山农业大厦店
-  [+] 杭州: 浙江杭州余杭良渚勾庄上亿店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州上城江河时代店
-  [+] 杭州: 浙江杭州拱墅香积寺路店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州天城商业中心店
-  [+] 杭州: 浙江杭州奥体印象城店
-  [+] 杭州: 浙江杭州天虹店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州店春银泰店
-  [+] 杭州: 浙江杭州运河上街店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州城北万象城店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州滨江奥体中心莲荷里店
-  [+] 杭州: 浙江杭州上城高德置地广场店
-  [+] 杭州: 浙江杭州余杭杭行荟MoMall店
+  [!] No new stores found (1/4).
 Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州天阳D32购物中心店
-  [+] 杭州: 浙江杭州拱墅滨河广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州上城四季青佳宝店
-  [+] 杭州: 浙江杭州萧山万象汇金街店
-  [+] 杭州: 浙江杭州上城尊宝大厦店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州拱墅万达店
-  [+] 杭州: 浙江杭州乐堤港店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山宝龙店
-  [+] 杭州: 浙江杭州萧山无忧传媒店
-  [+] 杭州: 浙江杭州上城四季青常青店
+  [!] No new stores found (2/4).
 Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西湖文化广场店
+  [!] No new stores found (3/4).
 Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州拱墅红石中央大厦店
-  [+] 杭州: 浙江杭州星澜里店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 24小厨门店
-  [+] 杭州: 浙江杭州萧山众安广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州国大城市广场店
-  [+] 杭州: 浙江杭州萧山银隆百货B座店
-  [+] 杭州: 浙江杭州西田城店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山加州阳光店
-  [+] 杭州: 浙江杭州大悦城店
-  [+] 杭州: 浙江杭州滨江星耀城店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州凤起路地铁站店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州滨江银泰店
-  [+] 杭州: 浙江杭州拱墅武林夜市D11店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州万泰城店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山银泰店
-  [+] 杭州: 浙江杭州上城工联CC店
-  [+] 杭州: 浙江杭州余杭良渚广场店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州东坡路店
-  [+] 杭州: 浙江杭州上城in77C区店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州余杭金地广场店
-  [+] 杭州: 浙江杭州上城河坊街三店
-  [+] 杭州: 浙江杭州上城江城路店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西湖EAC欧美中心店
-  [+] 杭州: 浙江杭州文一汇和城店
-  [+] 杭州: 浙江杭州上城河坊街二店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州上城西湖银泰店
-  [+] 杭州: 浙江杭州萧山潘水路店
-  [+] 杭州: 浙江杭州三墩紫荆龙湖天街店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州余杭良渚永旺梦乐城店
-  [+] 杭州: 浙江杭州西湖303生活广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州城西银泰城店
-  [+] 杭州: 浙江杭州西湖黄龙万科店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州滨江龙湖天街店
-  [+] 杭州: 浙江杭州萧山湘湖都会艺境店
-  [+] 杭州: 浙江杭州西湖星光城店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西湖柳浪闻莺店
-  [+] 杭州: 浙江杭州西湖浙大望月店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州古墩印象城店
-  [+] 杭州: 浙江杭州萧山开元广场店
-  [+] 杭州: 浙江杭州滨江中南乐游城店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州滨江保利天汇店
-  [+] 杭州: 浙江杭州萧山韵动城乐巷店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西溪西港店
-  [+] 杭州: 浙江杭州滨江博邑商业中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西湖紫创店
-  [+] 杭州: 浙江杭州西溪银泰城店
-  [+] 杭州: 浙江杭州西湖蚂蚁A空间店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州滨江英冠滨悦广场店
-  [+] 杭州: 浙江杭州西溪龙湖店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州滨江宝龙一楼店
-  [+] 杭州: 浙江杭州西溪壹号店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西湖阿里云谷园区店
-  [+] 杭州: 浙江杭州西湖灵隐商业街店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州余杭瓶窑嘉凯城店
-  [+] 杭州: 浙江杭州滨江啦喜街店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州亲橙里店
-  [+] 杭州: 浙江杭州滨江开元广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州余杭阿里巴巴西溪A区店
-  [+] 杭州: 浙江杭州萧山闻堰物美店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州阿里西溪C区店
-  [+] 杭州: 浙江杭州余杭西溪印象城店
-  [+] 杭州: 浙江杭州华夏之心店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西站出发层店
-  [+] 杭州: 浙江杭州铂悦城店
-  [+] 杭州: 浙江杭州余杭仓南里MEET636店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山临浦潮人汇店
-  [+] 杭州: 浙江杭州余杭西溪天虹店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西湖宋城店
-  [+] 杭州: 浙江杭州余杭浙大校友企业店
-Detected 4 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山义桥镇店
-  [+] 杭州: 浙江杭州未来科技城宝龙店
-  [+] 杭州: 浙江杭州西投银泰店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西湖小和山店
-  [+] 杭州: 浙江杭州西湖杭荟城店
-Scraped 150 stores in 杭州.
+  [!] No new stores found (4/4).
+  [!] BUG: Aborted 杭州: Reached limit of 4 scrolls without new data.
+  [!] Saved bug debugging screenshot: D:\代码项目\Chagee applet\data\BUG_scroll_limit_杭州_20260414_140636.png
+Scraped 19 stores in 杭州.
 
 --- Initiating Switch to 深圳 ---
-OCR found '搜索门店' at relative (140.0, 126.5). Trigger global coordinate: (796, 248)
+OCR found '搜索门店' at relative (140.5, 126.5). Trigger global coordinate: (796, 248)
 Navigating to index 'S' for city '深圳'...
 OCR found initial 'S' in sidebar box. Clicking absolute: (1142, 649)
 Searching for city '深圳' inside view...
 City '深圳' not in view, scrolling...
-OCR found city '深圳市'. Clicking absolute: (783, 696).
+OCR found city '深圳市'. Clicking absolute: (784, 697).
 
 --- Scraping City: 深圳 (Target: 100) ---
 Skipping entry click (120, 600) as requested.
 Resetting scroll to top of list...
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳龙岗仁恒梦中心店
-  [+] 深圳: 广东深圳龙岗龙新天虹店
-  [+] 深圳: 广东深圳龙岗天光城店
-  [+] 深圳: 广东深圳龙岗大运天地旗舰店
 Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 2 boxes in temp_scrape.png
+  [+] 深圳: SL217号铺I南区二层亲爱的茶友们门店
   [+] 深圳: 广东深圳横岗松柏天虹店
+Detected 4 boxes in temp_scrape.png
   [+] 深圳: 广东深圳融湖广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳龙岗万达广场店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳平湖华南城店
-  [+] 深圳: 广东深圳盐田鹏广达店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳龙岗深铁汇里店
-  [+] 深圳: 广东深圳观澜百佳华店
-  [+] 深圳: 广东深圳龙华观澜富士康店
 Detected 3 boxes in temp_scrape.png
   [!] No new stores found (1/4).
 Detected 3 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳龙华观澜天虹店
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳福城天虹店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳龙岗甘坑古镇店
-  [+] 深圳: 广东深圳龙岗星悦天地永旺店
-  [+] 深圳: 广东深圳盐田广富里店
 Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳公明百佳华店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳龙岗OMG星都里店
-  [+] 深圳: 广东深圳龙岗天安云谷店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳光明大仟里店
 Detected 3 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳光明万达广场店
+  [+] 深圳: 乐府万达商场1036哈喽茶友们门店
   [+] 深圳: 广东深圳光明蓝鲸世界店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳光明宏发嘉域荟店
-  [+] 深圳: 广东深圳龙岗布吉天虹店
-  [+] 深圳: 广东深圳龙华益田假日天地店
 Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳光明宏发嘉域荟店
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳龙华益田假日天地店
   [+] 深圳: 广东深圳龙岗布吉景华汇店
-  [+] 深圳: 广东深圳凯旋荟购物中心店
 Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳杨美和悦荟店
-  [+] 深圳: 广东深圳龙华星河iCO店
-  [+] 深圳: 广东深圳布吉万象汇店
+  [!] No new stores found (1/4).
 Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳光明N次方公园店
   [+] 深圳: 广东深圳罗湖莲塘岁宝店
 Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳坂田万科广场店
-  [+] 深圳: 广东深圳龙华东环天虹店
-  [+] 深圳: 广东深圳龙岗坂田天虹店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 403醒用容山系列全国回店
-  [+] 深圳: 广东深圳龙华后浪新天地店
-  [+] 深圳: 广东深圳宝安石岩汇邦中心店
+  [!] No new stores found (1/4).
 Detected 3 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳大浪商业中心店
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳松岗满纷天地店
 Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳龙岗坂田湾畔店
   [+] 深圳: 广东深圳龙华壹方天地A区店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳罗湖天河城店
-  [+] 深圳: 广东深圳龙华壹方天地D区店
-  [+] 深圳: 广东深圳罗湖福安购物广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳罗湖喜荟城店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳宝安东方新天地店
+Detected 2 boxes in temp_scrape.png
   [+] 深圳: 广东深圳松岗天虹店
-Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳水贝IBC店
-  [+] 深圳: 广东深圳宝安松岗喜港城店
-Detected 3 boxes in temp_scrape.png
+Detected 2 boxes in temp_scrape.png
   [+] 深圳: 广东深圳龙华八号仓店
-  [+] 深圳: 广东深圳龙华港铁颂荟店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳罗湖水贝KKTIIME店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳罗湖水贝KKTIME店
-  [+] 深圳: 广东深圳龙华ATMALL上塘荟店
+Detected 2 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
 Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳罗湖益田假日广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳罗湖深业东岭店
-  [+] 深圳: 广东深圳民治天虹店
-  [+] 深圳: 广东深圳龙华天虹购物中心店
 Detected 3 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳龙华民治壹方里店
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳罗湖万象食家店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳l龙华COCOCity店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳北站缤果空间店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳罗湖华润湖贝里店
 Detected 3 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳罗湖HALO广场店
-  [+] 深圳: 广东深圳福田八卦岭安吉尔店
-Detected 4 boxes in temp_scrape.png
   [+] 深圳: 广东深圳罗湖深南广场翎汇店
-  [+] 深圳: 广东深圳罗湖东门茂业店
-  [+] 深圳: 广东深圳宝安石岩宏发大世界店
 Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳罗湖春风路萬家店
-  [+] 深圳: 广东深圳罗湖鸿翔时尚广场店
-Detected 4 boxes in temp_scrape.png
+  [+] 深圳: 乐深罗湖鸿翔时尚广场店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳太阳广场店
   [+] 深圳: 广东深圳金光华广场店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳罗湖地王星荟店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳沙井百佳华店
   [+] 深圳: 广东深圳福田卓悦汇一楼旗舰店
 Detected 3 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳福田卓悦汇负二层店
-  [+] 深圳: 广东深圳沙井卓悦时光店
+  [+] 深圳: 东深圳福田卓悦汇负二层店
 Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳福田华强北宝树台店
-  [+] 深圳: 广东深圳宝安沙井天虹店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳梅林新世界汇店
-  [+] 深圳: 广东深圳中航城君尚旗舰店
-  [+] 深圳: 广东深圳沙井京基百纳店
+  [!] No new stores found (1/4).
 Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 2 boxes in temp_scrape.png
   [+] 深圳: 广东深圳新沙天虹购物中心店
-  [+] 深圳: 广东深圳石岩创维创新谷广场店
 Detected 3 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳宝安沙井万丰海岸城店
-  [+] 深圳: 广东深圳西丽宝能环球汇店
-Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳福田佐险虹湾店
   [+] 深圳: 广东深圳中心书城店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
 Detected 4 boxes in temp_scrape.png
   [+] 深圳: 广东深圳福田卓越intown店
-Detected 5 boxes in temp_scrape.png
   [+] 深圳: 广东深圳领展中心城店
-  [+] 深圳: 广东深圳宝安华强广场店
-  [+] 深圳: 广东深圳福田星河COCOPark店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳福田侨香华润万家店
-  [+] 深圳: 广东深圳南山西丽益田假日里店
-Detected 4 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳宝安华发冰雪世界店
-  [+] 深圳: 广东深圳福田石厦时代广场店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳宝安彩虹缤纷城店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳西丽天虹店
-Scraped 100 stores in 深圳.
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳南山龙珠罗宝店
+  [+] 深圳: 圳福田中洲湾店
+Detected 4 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳福保福年广场店
+Detected 4 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳南山智谷店
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳南山万科云城店
+Detected 2 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳南山益田假日广场店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (3/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳海雅缤纷城店
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳宝安创业天虹店
+Detected 4 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳南山欢乐颂店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳南山茂业百货店
+  [+] 深圳: 广东深圳宝安前海科兴天地店
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳南山君尚3019店
+Detected 4 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳欢乐港湾店
+  [+] 深圳: 深圳来福士店
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 东深圳南山前海壹方汇店
+  [+] 深圳: 广东深圳永新场店
+Detected 3 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳南山立桥城购物中心店
+Detected 4 boxes in temp_scrape.png
+  [+] 深圳: 广东深圳南山花园城店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (3/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (4/4).
+  [!] BUG: Aborted 深圳: Reached limit of 4 scrolls without new data.
+  [!] Saved bug debugging screenshot: D:\代码项目\Chagee applet\data\BUG_scroll_limit_深圳_20260414_141143.png
+Scraped 59 stores in 深圳.
 
 --- Initiating Switch to 成都 ---
 OCR found '搜索门店' at relative (140.5, 126.5). Trigger global coordinate: (796, 248)
@@ -705,231 +380,202 @@ Navigating to index 'C' for city '成都'...
 OCR found initial 'C' in sidebar box. Clicking absolute: (1142, 382)
 Searching for city '成都' inside view...
 City '成都' not in view, scrolling...
-OCR found city '成都市'. Clicking absolute: (784, 847).
+OCR found city '成都市'. Clicking absolute: (783, 847).
 
 --- Scraping City: 成都 (Target: 150) ---
 Skipping entry click (120, 600) as requested.
 Resetting scroll to top of list...
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都金堂大学城店
-  [+] 成都: 四川成都金堂万达店
-  [+] 成都: 四川成都金堂华地财富广场店
-Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都天府东航中心店
-  [+] 成都: 四川成都青日江凤凰新天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都青白江美程广场店
-  [+] 成都: 四川成都青白江万达店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都东部新区林栖活力城店
-  [+] 成都: 四川成都龙泉驿万达店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都龙泉音乐广场店
+Detected 2 boxes in temp_scrape.png
   [+] 成都: 四川成都东方华大广场店
-Detected 4 boxes in temp_scrape.png
   [+] 成都: 四川成都龙湖东安天街店
-  [+] 成都: 四川成都龙泉吾悦广场店
-  [+] 成都: 四川成都龙泉驿都汇店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都龙泉驿杉杉奥特莱斯店
+  [!] No new stores found (1/4).
+Detected 2 boxes in temp_scrape.png
   [+] 成都: 四川成都新都苏宁广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都新都旭辉广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都新都七一广场店
-  [+] 成都: 四川成都新都超线公园店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都川师成龙店
+  [+] 成都: 四川成都新都七一广场店
+Detected 4 boxes in temp_scrape.png
   [+] 成都: 四川成都十陵成都大学店
 Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都新都懿润百货店
-  [+] 成都: 四川成都新都海乐荟店
-  [+] 成都: 四川成都龙泉驿世茂广场店
-Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都上古天地店
-  [+] 成都: 四川成都华宇旭辉锦绣广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都新都拾光里店
-  [+] 成都: 四川成都锦江大融城店
-  [+] 成都: 四川成都凯德魅力城店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 川成都锦江大融城店
 Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都铁建广场店
-  [+] 成都: 四川成都龙腾广场店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都大熊猫研究基地店
   [+] 成都: 四川成都东站候车层店
 Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都创意山店
-  [+] 成都: 四川成都华熙528店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都成华招商花园城店
-  [+] 成都: 四川成都火车东站到达层店
-  [+] 成都: 四川成都卓锦曼购中心店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都龙湖滨江店
-  [+] 成都: 四川成都东郊记忆店
-Detected 4 boxes in temp_scrape.png
+  [+] 成都: 四川成都火车东站到达层店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都锦江华宇广场店
-  [+] 成都: 四川成都青龙广场店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都COSMO天廊店
-  [+] 成都: 四川成都万象城店
-  [+] 成都: 四川成都SM广场成华店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都中粮鸿云店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都新华公园店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都成华建设路店
-  [+] 成都: 四川成都成华建设路第五大道店
-  [+] 成都: 四川成都泛悦广场店
+  [+] 成都: 成都成华建设路店
 Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都文华广场店
-  [+] 成都: 四川l成都王府井Discovery店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都金牛招商花园城店
-  [+] 成都: 四川成都东立国际店
-Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都建设路公元荟店
-  [+] 成都: 四川成都财富又一城店
-  [+] 成都: 四川成都瑞安城中汇店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都未来中心店
-  [+] 成都: 四川成都新希望D10天府店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都339店
-  [+] 成都: 四川成都锦华万达店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都曹家巷恒大广场店
-  [+] 成都: 四川成都望平街店
-  [+] 成都: 四川成都保利大都汇店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都龙湖锦宸天街店
-Detected 4 boxes in temp_scrape.png
+  [+] 成都: 9川成都新希望D10天府店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 2 boxes in temp_scrape.png
+  [!] No new stores found (3/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都高新合生广场店
   [+] 成都: 四川成都翡翠天地店
-Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都兰桂坊店
-  [+] 成都: 四川成都晶融汇店
 Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都新希望中鼎国际店
+  [+] 成都: 四川成都兰桂坊店
+  [+] 成都: 都新希望中鼎国际店
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都春熙时代百盛店
   [+] 成都: 四川成都金牛万达店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都春熙店
   [+] 成都: 四川成都春熙REX春台店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都春熙中山广场teabar店
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都大丰汇融广场店
-  [+] 成都: 四川成都文殊坊店
-Detected 4 boxes in temp_scrape.png
+Detected 2 boxes in temp_scrape.png
   [+] 成都: 四川成都龙湖上城天街店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都KBC潮玩广场店
-Detected 4 boxes in temp_scrape.png
+Detected 2 boxes in temp_scrape.png
   [+] 成都: 四川成都川大望江校区店
-  [+] 成都: 四川成都富力店
-  [+] 成都: 四川成都王府井科华路店
-Detected 4 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都东原中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都沁园世纪广场店
 Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都天府公馆店
-  [+] 成都: 四川成都保利中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都天府红购物中心店
-  [+] 成都: 四川成都天府广场店
-  [+] 成都: 四川成都金牛沐府汇店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 成都金牛沐府汇店
 Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都来福士店
-  [+] 成都: 四川成都航空路店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都凯德天府店
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都明日巴适店
-Detected 4 boxes in temp_scrape.png
   [+] 成都: 四川成都银泰in99店
-  [+] 成都: 四川成都新城市广场店
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都苏宁广场店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都天府大悦城店
   [+] 成都: 四川成都长顺中街店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都凯德新南店
-  [+] 成都: 四川成都和悦广场店
-  [+] 成都: 四川成都天祥广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都远大购物中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都环球中心店
-  [+] 成都: 四川成都宽窄巷子国宾teabar店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都环球购物中心B馆店
-  [+] 成都: 四川成都甲高工坊店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都环球广场店
-  [+] 成都: 四川成都金牛凯德店
+  [+] 成都: 四川成都天祥广场店
+  [+] 成都: 四川成都远大购物中心店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都宽窄巷子国宾teabar店
+Detected 2 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都锦城万达店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都福年广场店
-  [+] 成都: 四川成都蓝润置地广场店
+  [!] No new stores found (1/4).
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都保利时光里店
-  [+] 成都: 四川成都沙湾印象汇店
-Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都秦皇帝锦锦街店
-  [+] 成都: 四川成都武侯祠店
-  [+] 成都: 四川成都悠方店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都三利爱琴海店
+  [+] 成都: 四川成都悠方店
+  [+] 成都: 2栋1层1号三利爱琴海F1007号商铺本店
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都仁和春天国际花园店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都欢乐谷店
   [+] 成都: 四川成都吉泰壹号店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都高新银泰城店
-  [+] 成都: 四川成都仁和新城购物中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都青羊宫店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 戈都青羊宫店
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都兴隆湖方圆荟店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都锦绣映画中心店
-  [+] 成都: 四川成都复城国际店
-  [+] 成都: 四川成都国际城市设计中心店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都龙湖西宸天街店
-  [+] 成都: 四川成都圣沅益州国际店
+  [+] 成都: 川成都龙湖西宸天街店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都铁像寺水街店
-  [+] 成都: 四川成都麓坊中心生态城店
-Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都世豪二期店
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都莱蒙都会店
-  [+] 成都: 四川成都天府111艺术公园店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都建发鹭洲里店
-  [+] 成都: 四川成都双楠置信广场店
-Detected 4 boxes in temp_scrape.png
   [+] 成都: 四川成都华阳大润发店
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都合景臻林天地店
-  [+] 成都: 四川成都红牌楼广场店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都双楠锦街店
-  [+] 成都: 四川成都西源集店
-Detected 4 boxes in temp_scrape.png
-  [+] 成都: 四川成都国宾上林栖店
-Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都光华里方店
-  [+] 成都: 四川成都中海天府环宇坊店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都中海大布于防店
-  [+] 成都: 四川成都中海右岸环宇坊店
-  [+] 成都: 四川成都城西优品道广场店
-Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都武侯大悦城店
   [+] 成都: 四川成都蜀道云上城店
   [+] 成都: 四川成都彭州万达广场店
-Scraped 150 stores in 成都.
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 9川成都爱琴海店
+  [+] 成都: 四川成都彭州置信广场店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都龙湖金楠天街店
+  [+] 成都: 四川成都凡米里店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都金牛熙悦中心店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 川成都彭州龙兴集店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都武侯欢肆店
+  [+] 成都: 四川成都壹方里店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都金色校园广场店
+Detected 4 boxes in temp_scrape.png
+  [+] 成都: 四川成都中坝店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都青羊鹏瑞利店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都双流机场T1航站楼店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都蜀都万达店
+Detected 4 boxes in temp_scrape.png
+  [+] 成都: 四川成都双流万达广场店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都双流海滨城店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都香楠国际店
+  [+] 成都: 四川成都合生汇店
+  [+] 成都: 9川成都温江新光天地店
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川成都温江新光天地店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (3/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (4/4).
+  [!] BUG: Aborted 成都: Reached limit of 4 scrolls without new data.
+  [!] Saved bug debugging screenshot: D:\代码项目\Chagee applet\data\BUG_scroll_limit_成都_20260414_141758.png
+Scraped 77 stores in 成都.
 
 --- Initiating Switch to 重庆 ---
 OCR found '搜索门店' at relative (140.5, 126.5). Trigger global coordinate: (796, 248)
@@ -943,152 +589,192 @@ OCR found city '重庆市'. Clicking absolute: (784, 797).
 Skipping entry click (120, 600) as requested.
 Resetting scroll to top of list...
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店万州长江之星店
-  [+] 重庆: 重店万州鸿鸥广场店
-  [+] 重庆: 重店万州万达广场店
-  [+] 重庆: 重店万州万达4号门店
+  [+] 重庆: 重店奉节新世纪店
+  [+] 重庆: 重店奉节万达广场店
+  [+] 重庆: 重店云阳滨江购物公园店
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店万州重百店
-  [+] 重庆: 重店万州天生天城店
-Detected 5 boxes in temp_scrape.png
+  [+] 重庆: 重店黔江大十字广场店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店开州步行街店
+  [+] 重庆: 重店万州长江之星店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店酉阳鸿程商都店
   [+] 重庆: 重店石柱康德中央大街店
-Detected 5 boxes in temp_scrape.png
+Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店忠县重百店
   [+] 重庆: 重店忠县万达店
   [+] 重庆: 重店彭水鸿程商都店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店梁平重百店
-  [+] 重庆: 重店丰都龙城天街店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
 Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店丰都重百店
   [+] 重庆: 重店武隆鸿程商都店
-  [+] 重庆: 重店垫江重百店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店陵五桂堂店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店培陵五桂堂店
-  [+] 重庆: 重店焙陵泽胜中央广场A馆店
-  [+] 重庆: 重店培陵长江师范学院店
-  [+] 重庆: 重店长寿新城重百商场店
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店长寿金科美邻汇店
+  [+] 重庆: 重店滘陵五桂堂店
+  [+] 重庆: 场A馆I店
+Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店南川万达店
 Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店渝北两江总部城店
   [+] 重庆: 重店万盛国能天街店
-  [+] 重庆: 重店渝北港莲广场店
 Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店渝北茂宸广场店
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店渝北桃源天地店
-  [+] 重庆: 重店江北五里坪店
+  [+] 重庆: 号TCITY桃源天地店
 Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店渝北林里3000店
-  [+] 重庆: 重店南岸城南家园店
-  [+] 重庆: 重店南岸茶园奥园店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店渝北喜悦汇店
-  [+] 重庆: 重店渝北兰亭新都汇店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店南岸茶园悦地店
-  [+] 重庆: 重店渝北香港置地光环花园城店
-  [+] 重庆: 重店渝北西政店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店渝北龙湖公园天街B馆店
-  [+] 重庆: 重店渝北大悦城店
-  [+] 重庆: 重店南岸国际社区店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店南岸邮电大学店
-  [+] 重庆: 重店南岸弹子石长嘉汇店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店渝中来福士朝天门中庭店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店东原1891店
-  [+] 重庆: 重店渝北N37月光之城店
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店渝北龙湖爱加两江星悦荟店
+  [+] 重庆: 重店渝北喜悦汇店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店南岸邮电大学店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重大前中米福士朝大门中庭店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店渝中复悦荟店
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店渝中解放碑协信星光店
-  [+] 重庆: 重店渝中洪崖洞1楼店
-Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店潮中供星洞1废店
   [+] 重庆: 重店江北IFS国金中心店
   [+] 重庆: 重店渝中戴家巷店
-  [+] 重庆: 重店渝中鲁祖庙店
 Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店江北嘴金融街店
   [+] 重庆: 重店渝北仁安N店
   [+] 重庆: 重店渝中山城步道店
 Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店渝北爱琴海店
-  [+] 重庆: 重店南坪协信星光商场店
   [+] 重庆: 重店南岸工商大学店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店渝中罗宾森广场店
-  [+] 重庆: 重店南岸南坪万达广场金街店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店南坪万达新馆店
-  [+] 重庆: 重店北站北广场店
-  [+] 重庆: 重店渝北狮子坪轻轨站店
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店南岸上海城店
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 重庆: 重店渝北师子坪轻轨站店
   [+] 重庆: 重店渝北光环购物中心店
-  [+] 重庆: 重店江北龙湖春森星悦荟店
 Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店南岸万科新街里店
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店渝北人和协信星光天地店
   [+] 重庆: 重店渝北金科中心店
-  [+] 重庆: 重店綦江红星步行街店
+  [+] 重庆: 重店基江红星步行街店
 Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店綦江爱琴海店
   [+] 重庆: 重店渝北黄泥磅紫荆广场店
   [+] 重庆: 重店渝中鹅岭二厂店
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店江北红鼎国际店
   [+] 重庆: 重店江北大融城店
   [+] 重庆: 重店江北星光68店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店江北芯赛博店
   [+] 重庆: 重店江北方圆LIVE店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店南岸金辉广场店
   [+] 重庆: 重店江北新壹街店
+Detected 3 boxes in temp_scrape.png
   [+] 重庆: 重店渝北嘉州路SKLP店
-Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店綦江新世纪店
-Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店基江新世纪店
-  [+] 重庆: 重店渝北财富MALL店
+Detected 3 boxes in temp_scrape.png
   [+] 重庆: 重店巴南都和广场重百店
-  [+] 重庆: 重店渝北天琴座店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店渝北龙湖礼嘉天街A馆店
-Detected 5 boxes in temp_scrape.png
-  [+] 重庆: 重店渝北龙湖礼嘉天街店
+  [+] 重庆: 重大潮制HG可不器大街A官店
   [+] 重庆: 重店渝中嘉陵中心店
+Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店渝中企业天地店
-Detected 5 boxes in temp_scrape.png
   [+] 重庆: 重店渝中大坪英利大融城店
   [+] 重庆: 重店九龙坡华润万象里店
-  [+] 重庆: 重店渝中龙湖时代天街E馆店
-Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店渝北龙湖MOCO店
+Detected 3 boxes in temp_scrape.png
   [+] 重庆: 重店巴南万达金街店
-  [+] 重庆: 重店渝中重店新天地店
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店巴南理工大学店
-Detected 5 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店杨家坪龙湖西城天街店
-  [+] 重庆: 重店巴南万达店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
 Detected 4 boxes in temp_scrape.png
-  [+] 重庆: 重店九龙坡喜盈门范城店
-  [+] 重庆: 重店渝中龙湖时代天街A馆店
-Scraped 101 stores in 重庆.
+  [+] 重庆: 重店九龙坡瑞成商都店
+Detected 3 boxes in temp_scrape.png
+  [+] 重庆: 重店渝北凯德九章店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店江北悦荟宠物友好店
+  [+] 重庆: 重店江北龙湖源著天街店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店渝北大竹林金科乐方店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店巴南商社汇店
+  [+] 重庆: 重店九龙坡盘龙奥园广场店
+Detected 3 boxes in temp_scrape.png
+  [+] 重庆: 重店北碚天生丽街店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 重庆: 重店沙坪坝南开中学店
+  [+] 重庆: 重店大渡口新世纪商都店
+  [+] 重庆: 重店大渡口新天泽店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 重庆: 重店沙坪坝磁器口店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店沙坪坝双碑轻轨站店
+  [+] 重庆: 重店大渡口万达广场店
+  [+] 重庆: 重店北碚嘉陵风情步行街店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店九龙坡龙湖云领天街店
+  [+] 重庆: 重店沙坪坝万科金色悦城店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店沙坪坝融汇店
+  [+] 重庆: 重店九龙坡中治时光里店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店九龙坡中冶时光里店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店合川财富广场店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店合川涉外学院店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店江津双福爱琴海店
+Detected 3 boxes in temp_scrape.png
+  [+] 重庆: 重店蟹山瀛嘉邻里荟店
+Detected 3 boxes in temp_scrape.png
+  [+] 重庆: 重店江津港龙购物中心店
+  [+] 重庆: 重店铜梁万达店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店铜梁吾悦店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店潼南隆鑫中央大街店
+  [+] 重庆: 重店永川吾悦广场店
+Detected 3 boxes in temp_scrape.png
+  [+] 重庆: 重店永川华茂重百店
+  [+] 重庆: 重店永川万达店
+Detected 4 boxes in temp_scrape.png
+  [+] 重庆: 重店永川城市科技学院店
+  [+] 重庆: 重店大足吾悦广场店
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (2/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (3/4).
+Detected 4 boxes in temp_scrape.png
+  [!] No new stores found (4/4).
+  [!] BUG: Aborted 重庆: Reached limit of 4 scrolls without new data.
+  [!] Saved bug debugging screenshot: D:\代码项目\Chagee applet\data\BUG_scroll_limit_重庆_20260414_142321.png
+Scraped 87 stores in 重庆.
 
 --- Initiating Switch to 北京 ---
-OCR found '搜索门店' at relative (140.5, 126.5). Trigger global coordinate: (796, 248)
+OCR found '搜索门店' at relative (140.0, 126.5). Trigger global coordinate: (796, 248)
 Navigating to index 'B' for city '北京'...
 OCR found initial 'B' in sidebar box. Clicking absolute: (1142, 363)
 Searching for city '北京' inside view...
@@ -1098,35 +784,49 @@ OCR found city '北京市'. Clicking absolute: (783, 297).
 Skipping entry click (120, 600) as requested.
 Resetting scroll to top of list...
 Detected 4 boxes in temp_scrape.png
+  [+] 北京: 北京次渠信创园店
+  [+] 北京: 北京大兴龙湖天街店
+  [+] 北京: 京东北京1号园区店
+Detected 4 boxes in temp_scrape.png
+  [+] 北京: 北京市通州区京东总部1号楼D座1层门店
+  [+] 北京: 北京瀛海环宇坊店
+  [+] 北京: 北京湾里王府井奥莱店
+  [+] 北京: 北京亦庄大族广场店
+Detected 4 boxes in temp_scrape.png
+  [+] 北京: 北京亦庄龙玥城店
+  [+] 北京: 北京大兴大悦春风里店
+Detected 4 boxes in temp_scrape.png
+  [+] 北京: 北京亦庄华联购物中心店
+  [+] 北京: 北京大兴新辰天地店
   [+] 北京: 北京通州万象汇店
+Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京通州莲花荟店
   [+] 北京: 北京通州梨园贵友店
-Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京住总万科广场店
+Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京上德银泰城店
   [+] 北京: 北京通州领展广场店
-Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京惠多港购物中心店
+Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京阳光新生活广场店
-Detected 5 boxes in temp_scrape.png
   [+] 北京: 北京航天万源广场店
+Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京通州运河商务区店
   [+] 北京: 北京通州爱琴海购物公园店
-Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京王府井奥莱UPTOWN店
+Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京通州苏宁百货店
   [+] 北京: 北京荟聚购物中心店
-Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京房山龙湖熙悦天街店
-  [+] 北京: 北京弯里中心店
 Detected 4 boxes in temp_scrape.png
+  [+] 北京: 北京弯里中心店
   [+] 北京: 北京房山印象城店
+Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京汇琴购物中心店
-Detected 5 boxes in temp_scrape.png
   [+] 北京: 北京宋家庄首开福茂购物中心店
   [+] 北京: 北京双桥万达店
-  [+] 北京: 北京十里河瑞安大厦店
 Detected 4 boxes in temp_scrape.png
+  [+] 北京: 北京十里河瑞安大厦店
   [+] 北京: 北京公益西桥华联店
   [+] 北京: 北京龙湖长楹天街购物中心店
 Detected 4 boxes in temp_scrape.png
@@ -1146,7 +846,6 @@ Detected 4 boxes in temp_scrape.png
 Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京南站2店
   [+] 北京: 北京南站1店
-[2026-04-03 17:52:20,081] [   ERROR] email_sender.py:66 - Failed to send email: Connection unexpectedly closed
   [+] 北京: 北京新城市广场店
 Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京房山北关美廉美店
@@ -1169,7 +868,7 @@ Detected 5 boxes in temp_scrape.png
   [+] 北京: 北京平谷华联店
   [+] 北京: 北京长辛店老镇店
   [+] 北京: 北京中央公园广场店
-Detected 4 boxes in temp_scrape.png
+Detected 5 boxes in temp_scrape.png
   [+] 北京: 北京平谷万达店
   [+] 北京: 北京东方新天地店
   [+] 北京: 北京云岗物美店
@@ -1197,12 +896,12 @@ Detected 5 boxes in temp_scrape.png
   [+] 北京: 北京来福士中心店
   [+] 北京: 北京光耀东方广场店
   [+] 北京: 北京北新桥街店
-Detected 4 boxes in temp_scrape.png
+Detected 5 boxes in temp_scrape.png
   [+] 北京: 北京新辰里酒仙桥店
   [+] 北京: 北京北锣鼓巷店
   [+] 北京: 北京市后海银锭桥店
 Detected 4 boxes in temp_scrape.png
-  [+] 北京: 北京电子城T产业园店
+  [+] 北京: 北京电子城IT产业园店
   [+] 北京: 北京751时尚设计广场店
   [+] 北京: 北京凯德晶品店
 Detected 5 boxes in temp_scrape.png
@@ -1224,21 +923,7 @@ Detected 4 boxes in temp_scrape.png
 Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京霸王茶姬高德总部店
   [+] 北京: 北京枫蓝国际购物中心店
-Detected 5 boxes in temp_scrape.png
-  [+] 北京: 北京顺义国泰生活广场店
-  [+] 北京: 北京首都机场T3航站楼到达层店
-  [+] 北京: 北京石景山万达广场店
-Detected 5 boxes in temp_scrape.png
-  [+] 北京: 北京华堂新辰汇店
-  [+] 北京: 北京鼎成中心店
-  [+] 北京: 北京魏公村芳华里店
-Detected 5 boxes in temp_scrape.png
-  [+] 北京: 北京新辰里购物中心店
-Detected 5 boxes in temp_scrape.png
-  [+] 北京: 北京1733商业中心店
-  [+] 北京: 北京阿里巴巴朝阳科技园店
-  [+] 北京: 北京翠微百货牡丹园店
-Scraped 100 stores in 北京.
+Scraped 101 stores in 北京.
 
 --- Initiating Switch to 广州 ---
 OCR found '搜索门店' at relative (140.0, 126.5). Trigger global coordinate: (796, 248)
@@ -1251,166 +936,44 @@ OCR found city '广州市'. Clicking absolute: (783, 347).
 Skipping entry click (120, 600) as requested.
 Resetting scroll to top of list...
 Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州新塘永旺梦乐城店
   [+] 广州: 广东广州花都融创茂店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州增城新塘大润发店
+Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州增城新塘广场店
-  [+] 广州: 广东广州花都丽莎广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州花都合成广场店
-  [+] 广州: 广东广州花都骏壹万邦永旺店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州花都广百广场店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州花都拉丁茂广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州花都美泰广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州萝岗敏捷广场店
-  [+] 广州: 广东广州白云华通广场店
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (1/4).
+Detected 3 boxes in temp_scrape.png
+  [+] 广州: 广东广州日云华通广场店
   [+] 广州: 广东广州萝岗锐丰中心店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州花都雅乐城店
-  [+] 广州: 广东广州花都茶园新天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州花都万民店
-  [+] 广州: 广东广州黄埔合生花厅坊店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州黄埔时代城店
-  [+] 广州: 广东广州黄埔佳纷天地店
-  [+] 广州: 广东广州白云悦和方店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州日云大源时代广场店
-  [+] 广州: 广东广州日云龙归万民店
-  [+] 广州: 广东广州黄埔融悦汇店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州白云龙归万民店
-  [+] 广州: 广东广州黄埔大悦汇店
-  [+] 广州: 广东广州白云龙归金铂店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州白云粤宝中心店
-  [+] 广州: 广东广州日云方圆荟店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州白云方圆荟店
-  [+] 广州: 广东广州智慧城广百店
-  [+] 广州: 广东广州天河海悦城店
-  [+] 广州: 广东广州黄埔东园邻里店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州黄埔沃尔玛店
-  [+] 广州: 广东广州白云清湖金铂店
-  [+] 广州: 广东广州云门NEWPARK店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州白云嘉禾金铂店
-  [+] 广州: 广东广州白云学山生活广场店
-Detected 5 boxes in temp_scrape.png
-  [+] 广州: 广东广州白云江鼎广场店
-  [+] 广州: 广东广州奥体优托邦店
-  [+] 广州: 广东广州雄资购物城店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州白云同和金铂店
-  [+] 广州: 广东广州安华汇店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州设计之都时光汇店
-  [+] 广州: 广东广州华润欢乐颂店
-  [+] 广州: 广东广州白云嘉裕太阳城广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州日云嘉裕太阳城广场店
-  [+] 广州: 广东广州天河新天地店
-  [+] 广州: 广东广州东圃天银广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州白云宇太汇店
-  [+] 广州: 广东广州天河车陂利丰天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州京溪佳润广场店
-  [+] 广州: 广东广州白云江夏新天地店
-  [+] 广州: 广东广州日云湖金铂天地店
 Detected 3 boxes in temp_scrape.png
-  [+] 广州: 广东广州黄埔保利鱼珠时光店
-  [+] 广州: 广东广州美林天地店
+  [!] No new stores found (1/4).
 Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州五山广场店
-  [+] 广州: 广东广州天河信达金茂店
-  [+] 广州: 广东广州东方新世界广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州白云汇广场店
-  [+] 广州: 广东广州东方宝泰永旺店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州天娱广场店
-  [+] 广州: 广东广州海珠琶洲保利店
-  [+] 广州: 广东广州白云万象汇店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州保利中辰广场店
-  [+] 广州: 广东广州天河中信广场店
-Detected 5 boxes in temp_scrape.png
-  [+] 广州: 广东广州海珠万胜广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州凯德云尚店
-  [+] 广州: 广东广州白云石井万民店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州正佳广场店
-  [+] 广州: 广东广州维多利广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州白云万达广场店
-Detected 5 boxes in temp_scrape.png
-  [+] 广州: 广东广州南丰汇店
-  [+] 广州: 广东广州海珠国美智慧城店
-Detected 5 boxes in temp_scrape.png
-  [+] 广州: 广东广州天德广场店
-  [+] 广州: 广东广州高德置地春广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州天河花城汇店
-  [+] 广州: 广东广州越秀外商新天地店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州星辰大厦店
-  [+] 广州: 广东广州番禺gogo新天地店
-  [+] 广州: 广东广州聚龙慧谷店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州海珠财大创谷店
-  [+] 广州: 广东广州白云三元里中心店
-Detected 5 boxes in temp_scrape.png
-  [+] 广州: 广东广州日云三元里中心店
-  [+] 广州: 广东广州越秀东山口广百店
-  [+] 广州: 广东广州塔广场店
+  [!] No new stores found (2/4).
 Detected 3 boxes in temp_scrape.png
-  [+] 广州: 广东广州越秀保利时光里店
-  [+] 广州: 广东广州白云龙骏广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州中华广场店
-  [+] 广州: 广东广州海珠丽影广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州学山同德里店
-  [+] 广州: 广东广州番禺石楼万佳汇店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州悦汇城店
-  [+] 广州: 广东广州海珠新港路店
-Detected 5 boxes in temp_scrape.png
-  [+] 广州: 广东广州西村店
-  [+] 广州: 广东广州海珠万达广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州荔湾西门口广场店
-Detected 4 boxes in temp_scrape.png
-  [+] 广州: 广东广州海珠合悦Heypark店
-  [+] 广州: 广东广州陈家祠店
-Detected 5 boxes in temp_scrape.png
-  [+] 广州: 广东广州万国奥特莱斯店
-  [+] 广州: 广东广州碧乐时光亚运城店
-  [+] 广州: 广东广州荔湾圣地新天地店
-Scraped 101 stores in 广州.
+  [!] No new stores found (3/4).
+Detected 3 boxes in temp_scrape.png
+  [!] No new stores found (4/4).
+  [!] BUG: Aborted 广州: Reached limit of 4 scrolls without new data.
+  [!] Saved bug debugging screenshot: D:\代码项目\Chagee applet\data\BUG_scroll_limit_广州_20260414_142715.png
+Scraped 5 stores in 广州.
 
-Appended 897 new results to existing 8012 records.
-Total records in historical file: 8909. Saved to D:\代码项目\Chagee applet\multi_city_stores.xlsx
+Appended 390 new results to existing 16117 records.
+Total records in historical file: 16507. Saved to D:\代码项目\Chagee applet\multi_city_stores.xlsx
 Starting cleanup: Closing applet and search windows...
 Attempt 1: Found Applet Window: '霸王茶姬' (PID: 22360)
   - Standard button '关闭' found but has no size. Skipping Method 1.
   - Attempting capsule coordinate click at (1135, 152)...
   - Window successfully closed via coordinate click.
   - All target applet windows closed.
-Closing specific Search Result Window (Handle: 8653064) used during init...
+Closing specific Search Result Window (Handle: 6751276) used during init...
 Search Result Window closed precisely.
 Starting cleanup: Closing applet and search windows...
   - No more applet windows matching '霸王茶姬' found.
 No saved search window handle found. Skipping generic search window cleanup to protect your other WeChat windows.
-[周五 2026/04/03 17:52:21.39] Success: Process completed with exit code 0. 
-[周五 2026/04/03 17:52:21.40] Daily Automation Finished. 
+[周二 2026/04/14 14:27:30.46] Success: Process completed with exit code 0. 
+[周二 2026/04/14 14:27:30.46] Daily Automation Finished. 
 ---------------------------------------- 
  
