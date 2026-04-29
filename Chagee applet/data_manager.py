@@ -138,7 +138,7 @@ def export_results_to_excel_from_samples():
         for img_file in image_files:
             img_path = os.path.join(base_path, img_file)
             print(f"Processing {img_file}...")
-            results = extractor.extract_data(img_path)
+            results, _ = extractor.extract_data(img_path)
             for res in results:
                 all_results.append({
                     "Store Name": res['store_name'],

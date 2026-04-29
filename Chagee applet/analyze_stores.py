@@ -117,6 +117,55 @@ def analyze_stores(file_path, input_date_str=None):
     final_report = pd.concat([final_report, total_row], ignore_index=True)
 
     report_text = header + "门店对比分析结果 (按城市分):\n" + final_report.to_string(index=False)
+
+    # === 新增：所有可用日期的整体周同比趋势 ===
+    unique_dates = sorted(df['Date'].dropna().unique())
+    long_term_data = []
+
+    for dt in unique_dates:
+        last_week_dt = dt - datetime.timedelta(days=7)
+        df_curr = df[df['Date'] == dt]
+        df_prev = df[df['Date'] == last_week_dt]
+
+        if df_prev.empty:
+            continue
+
+        stores_curr = set(df_curr['Store Name'].unique())
+        stores_prev = set(df_prev['Store Name'].unique())
+        common = stores_curr.intersection(stores_prev)
+
+        if not common:
+            continue
+
+        df_curr_common = df_curr[df_curr['Store Name'].isin(common)]
+        df_prev_common = df_prev[df_prev['Store Name'].isin(common)]
+
+        curr_agg = df_curr_common.groupby(['City', 'Store Name'])['Cup Count'].mean().reset_index()
+        prev_agg = df_prev_common.groupby(['City', 'Store Name'])['Cup Count'].mean().reset_index()
+
+        merged_agg = pd.merge(prev_agg, curr_agg, on=['City', 'Store Name'], suffixes=('_Last', '_Curr'))
+        
+        if merged_agg.empty:
+            continue
+
+        total_stores = merged_agg['Store Name'].count()
+        total_cups_curr = merged_agg['Cup Count_Curr'].sum()
+        total_cups_prev = merged_agg['Cup Count_Last'].sum()
+
+        wow_change = ((total_cups_curr - total_cups_prev) / total_cups_prev * 100) if total_cups_prev != 0 else 0
+
+        long_term_data.append({
+            '日期': dt,
+            '对比门店数': int(total_stores),
+            '对比门店总杯数': int(total_cups_curr),
+            '整体周同比 %': round(wow_change, 2)
+        })
+
+    if long_term_data:
+        long_term_df = pd.DataFrame(long_term_data)
+        report_text += "\n\n--- 历史整体 WoW 趋势表 ---\n"
+        report_text += long_term_df.to_string(index=False)
+
     return report_text
 
 if __name__ == "__main__":

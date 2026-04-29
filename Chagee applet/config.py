@@ -48,17 +48,17 @@ ROI_TOP_IGNORE_PERCENT = 0.12
 # Store Box Constraints (Detection)
 BOX_MIN_WIDTH = 320
 BOX_MAX_WIDTH = 450
-BOX_MIN_HEIGHT = 50
+BOX_MIN_HEIGHT = 140
 BOX_MAX_HEIGHT = 500
 
 # Text Cropping Offsets (Inside each store box)
 # Store Name vertical range
-SN_CROP_Y_START = 22
-SN_CROP_HEIGHT = 24
+SN_CROP_Y_START = 27
+SN_CROP_HEIGHT = 22
 
 # Order Status vertical range
-OS_CROP_Y_START = 46
-OS_CROP_HEIGHT = 24
+OS_CROP_Y_START = 49
+OS_CROP_HEIGHT = 19
 
 # Horizontal Cutoff (% of box width to keep from left)
 BOX_WIDTH_CUTOFF_PERCENT = 0.7
@@ -70,3 +70,6 @@ DATA_FOLDER = "data"           # Folder to store threshold screenshots
 
 # --- OCR Method Toggle ---
 OCR_METHOD = 2  # 1: Crop-based OCR (Legacy), 2: Full-box OCR (Pattern-based)
+
+# --- Email Toggle ---
+SEND_EMAIL = True  # Set to False to skip sending the email report

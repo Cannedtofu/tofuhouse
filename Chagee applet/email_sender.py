@@ -18,7 +18,7 @@ def send_report_email(total_stores: int, total_cups: int, stats_text: str, attac
     # Same credentials and recipients as the original automate_and_email.py
     sender_email = '396481139@qq.com'
     sender_password = 'mocjzkhznmudbghf'
-    receiver_email = 'cuiyuan@maisoncapital.com, 396481139@qq.com, linhuaqiang@maisoncapital.com, zengleshi@maisoncapital.com'
+    receiver_email = 'cuiyuan@maisoncapital.com, 396481139@qq.com, linhuaqiang@maisoncapital.com, zengleshi@maisoncapital.com, wangziyuan@maisoncapital.com'
     
     current_date = datetime.now().strftime("%Y-%m-%d")
     subject = f'霸王茶姬-门店数据报告 {current_date}'
@@ -60,8 +60,10 @@ def send_report_email(total_stores: int, total_cups: int, stats_text: str, attac
         with smtplib.SMTP_SSL('smtp.qq.com', 465) as smtp:
             smtp.login(sender_email, sender_password)
             smtp.send_message(msg)
+        print('Email report sent successfully!')
         logger.info('Email report sent successfully!')
     except Exception as e:
+        print(f'Failed to send email: {e}')
         logger.error(f'Failed to send email: {e}')
 
 if __name__ == "__main__":

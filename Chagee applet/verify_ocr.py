@@ -39,7 +39,7 @@ def verify_ocr():
         expected = ground_truth[img_name]
         total_expected += len(expected)
         
-        results = extractor.extract_data(img_path)
+        results, _ = extractor.extract_data(img_path)
         total_found += len(results)
         
         print(f"Expected: {len(expected)}, Found: {len(results)}")

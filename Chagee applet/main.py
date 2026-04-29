@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import argparse
+import config
 from wechat_interaction import search_and_open_applet
 from scraping_logic import main_workflow
 from data_manager import calculate_daily_stats
@@ -58,13 +59,16 @@ def run_daily_automation(skip_init=False, skip_scrape=False, skip_report=False, 
                 logger.info("Performing Week-on-Week analysis...")
                 wow_report = analyze_stores(output_file)
                 
-                send_report_email(
-                    stats['total_stores'], 
-                    stats['total_cups'], 
-                    stats['stats_text'], 
-                    output_file,
-                    wow_analysis=wow_report
-                )
+                if config.SEND_EMAIL:
+                    send_report_email(
+                        stats['total_stores'],
+                        stats['total_cups'],
+                        stats['stats_text'],
+                        output_file,
+                        wow_analysis=wow_report
+                    )
+                else:
+                    logger.info("Email skipped (SEND_EMAIL=False in config).")
             else:
                 logger.warning("No stats could be calculated (maybe no new data for today).")
         else:

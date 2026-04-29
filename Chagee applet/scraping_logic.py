@@ -22,7 +22,7 @@ class ChageeOCRExtractor:
         self.lang = lang
         # Initialize PaddleOCR
         # use_angle_cls=True helps with slightly rotated text
-        self.ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False)
+        self.ocr = PaddleOCR(use_angle_cls=True, lang=lang, show_log=False, use_gpu=False)
 
     def _load_image(self, path):
         with open(path, 'rb') as f:
@@ -38,7 +38,7 @@ class ChageeOCRExtractor:
     def extract_data(self, image_path):
         img = self._load_image(image_path)
         if img is None:
-            return []
+            return [], []
 
         h_full, w_full = img.shape[:2]
         # Ignore top static elements (search/map)
@@ -64,8 +64,8 @@ class ChageeOCRExtractor:
                 # Store (area, box) to help deduplication prefer smaller boxes
                 boxes.append((w * h, (x, y + roi_y, w, h)))
         
-        # Sort by area ascending so we process smaller boxes first in deduplication
-        boxes.sort(key=lambda x: x[0])
+        # Sort by area descending so we process larger boxes first in deduplication
+        boxes.sort(key=lambda x: x[0], reverse=True)
         
         final_boxes = []
         for area, b in boxes:
@@ -88,8 +88,9 @@ class ChageeOCRExtractor:
         final_boxes.sort(key=lambda b: b[1])
         
         print(f"Detected {len(final_boxes)} boxes in {os.path.basename(image_path)}")
-        
+
         extracted_data = []
+        ocr_debug_log = []
         debug_base = os.path.join(os.path.dirname(image_path), f"debug_{os.path.basename(image_path)}")
         if not os.path.exists(debug_base):
             os.makedirs(debug_base)
@@ -97,12 +98,13 @@ class ChageeOCRExtractor:
         for i, (bx, by, bw, bh) in enumerate(final_boxes):
             box_img = img[by:by + bh, bx:bx + bw]
             self._save_image(os.path.join(debug_base, f"box_{i}_full.png"), box_img)
-            
+
             # --- Step A: Dual-Method OCR (Legacy & Full-Box) ---
             # 1. Try Method 2 (Full Box Pattern Detection)
             res2_name, res2_status, res2_count = self.extract_from_box_full(box_img)
             valid2 = self.is_valid_result(res2_name, res2_status)
-            
+            ocr_debug_log.append(f"  [Box {i}] Method2 OCR: name='{res2_name}' status='{res2_status}' count={res2_count} valid={valid2}")
+
             # 2. Try Method 1 (Legacy Manual Crop)
             sn_y_start, sn_h = config.SN_CROP_Y_START, config.SN_CROP_HEIGHT
             os_y_start, os_h = config.OS_CROP_Y_START, config.OS_CROP_HEIGHT
@@ -110,7 +112,7 @@ class ChageeOCRExtractor:
             y3, y4 = min(os_y_start, bh-1), min(os_y_start + os_h, bh)
             sn_roi = box_img[y1:y2, 10 : int(bw * config.BOX_WIDTH_CUTOFF_PERCENT)]
             os_roi = box_img[y3:y4, 10 : int(bw * config.BOX_WIDTH_CUTOFF_PERCENT)]
-            
+
             res1_name, res1_status, res1_count = "", "", 0
             valid1 = False
             if sn_roi.size > 0 and os_roi.size > 0:
@@ -119,6 +121,7 @@ class ChageeOCRExtractor:
                 os_res = self.ocr.ocr(self._preprocess_for_ocr(os_roi), det=False, cls=True)
                 res1_status, res1_count = self.parse_status(os_res[0][0][0] if os_res and os_res[0] else "")
                 valid1 = self.is_valid_result(res1_name, res1_status)
+                ocr_debug_log.append(f"  [Box {i}] Method1 OCR: name='{res1_name}' status='{res1_status}' count={res1_count} valid={valid1}")
 
             # --- Step B: Selection Logic ---
             if valid2:
@@ -131,10 +134,14 @@ class ChageeOCRExtractor:
                 winning_method = 1
             else:
                 # Both methods failed pattern checks
+                ocr_debug_log.append(f"  [Box {i}] Skipped — both methods invalid")
                 continue
+
+            ocr_debug_log.append(f"  [Box {i}] Using Method{winning_method}: '{store_name}' | '{order_status}' | {cup_count} cups")
 
             # General Anti-noise
             if any(k in store_name for k in ['外卖', '到店', '自取', '筛选', '搜索']):
+                ocr_debug_log.append(f"  [Box {i}] Skipped — noise keyword in name")
                 continue
 
             # --- Step C: High Threshold Verification (4 Samples) ---
@@ -181,7 +188,7 @@ class ChageeOCRExtractor:
             })
 
         
-        return extracted_data
+        return extracted_data, ocr_debug_log
 
     def is_valid_result(self, name, status):
         """Universal pattern check for store name and order status."""
@@ -492,7 +499,7 @@ def scrape_city_stores(applet_window, extractor, target_count=None, city_name="D
         screenshot_path = os.path.join(project_dir, "temp_scrape.png")
         applet_window.CaptureToImage(screenshot_path)
         
-        results = extractor.extract_data(screenshot_path)
+        results, ocr_debug_log = extractor.extract_data(screenshot_path)
         new_found = 0
         for res in results:
             name = res['store_name']
@@ -501,12 +508,14 @@ def scrape_city_stores(applet_window, extractor, target_count=None, city_name="D
                 city_results[name] = res
                 new_found += 1
                 print(f"  [+] {city_name}: {name}")
-        
+
         if new_found > 0:
             consecutive_no_new = 0
         else:
             consecutive_no_new += 1
             print(f"  [!] No new stores found ({consecutive_no_new}/{max_no_new_scrolls}).")
+            for line in ocr_debug_log:
+                print(line)
             
         if len(city_results) >= target_count: break
             

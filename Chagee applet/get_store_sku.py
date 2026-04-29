@@ -35,7 +35,7 @@ def main():
     time.sleep(0.5)
 
     print("Initializing PaddleOCR...")
-    ocr = PaddleOCR(use_angle_cls=True, lang='ch', show_log=False)
+    ocr = PaddleOCR(use_angle_cls=True, lang='ch', show_log=False, use_gpu=False)
     
     # Menu crop region (relative to the window top-left)
     roi_x1, roi_y1 = 93, 224
@@ -100,28 +100,44 @@ def main():
             
         print("Scrolling down...")
         auto.MoveTo(mouse_x, mouse_y)
-        auto.WheelDown(wheelTimes=3, interval=0.1)
+        auto.WheelDown(wheelTimes=2, interval=0.1)
         time.sleep(2)
         
     print("\n--- Phase 2: Processing and Pairing SKUs ---")
     
-    # Based on offline analysis, 20.0 is the optimal threshold to filter out description text
+    # Based on offline analysis, 17.5 is the optimal threshold to filter out description text
     # while keeping the larger SKU titles.
-    OPTIMAL_THRESHOLD = 21.0
+    OPTIMAL_THRESHOLD = 20
     print(f"Using Optimal Font Size Threshold: {OPTIMAL_THRESHOLD}")
     
     final_raw_texts = []
     sku_set = set()
     
     for page_data in extracted_pages:
-        prices = [b for b in page_data if '￥' in b['text']]
+        prices = [b for b in page_data if '￥' in b['text'] or '¥' in b['text']]
         # Ignore UI buttons that often share the same font size
         ignore_words = ['选规格', '加购', '去结算']
-        texts = [b for b in page_data if '￥' not in b['text'] and not any(w in b['text'] for w in ignore_words)]
+        texts = [b for b in page_data if '￥' not in b['text'] and '¥' not in b['text'] and not any(w in b['text'] for w in ignore_words)]
         
-        # Left-side decorative column sits at cx ≈ 25; actual menu content starts ~cx > 80
-        LEFT_COL_CX = 80
-        MIN_FALLBACK_HEIGHT = 16  # below this, text is too small to be a SKU title
+        # To only do OCR on x > 200 of the original window, since our crop starts at x=93, 
+        # we filter for cx > 200 - 93 = 107.
+        LEFT_COL_CX = 107
+
+        # Ensure cut-off items at the top of the screen don't pair incorrectly
+        prices.sort(key=lambda x: x['cy'])
+        texts.sort(key=lambda x: x['cy'])
+        if prices:
+            sku_texts = [t for t in texts if t['h'] >= OPTIMAL_THRESHOLD]
+            first_price_cy = prices[0]['cy']
+            if sku_texts:
+                sku_texts.sort(key=lambda x: x['cy'])
+                first_sku_cy = sku_texts[0]['cy']
+            else:
+                first_sku_cy = float('inf')
+            
+            # If the first price sits higher on screen than the first valid SKU title, its title is missing
+            if first_price_cy < first_sku_cy:
+                prices.pop(0)
 
         for pb in prices:
             # Exclude the far-left decorative column to avoid false title matches
@@ -129,23 +145,21 @@ def main():
             if not candidates:
                 continue
 
-            # Primary: among large-font candidates, take the closest one above the price
+            # Strict constraint: only consider texts that meet the height requirement
             filtered = [t for t in candidates if t['h'] >= OPTIMAL_THRESHOLD]
-            if filtered:
-                filtered.sort(key=lambda t: pb['cy'] - t['cy'])
-                store_sku = filtered[0]['text']
-            else:
-                # Fallback: take the largest-font text (most title-like) above the price
-                candidates.sort(key=lambda t: -t['h'])
-                best = candidates[0]
-                if best['h'] < MIN_FALLBACK_HEIGHT:
-                    continue  # No credible SKU title visible (likely scrolled off)
-                store_sku = best['text']
+            if not filtered:
+                continue
+
+            # Take the closest valid text above the price
+            filtered.sort(key=lambda t: pb['cy'] - t['cy'])
+            store_sku = filtered[0]['text']
 
             if len(store_sku) > 12:
                 continue
 
             clean_price = pb['text'].replace('起', '').strip()
+            clean_price = clean_price.replace('￥', '').replace('¥', '')
+            
             sku_key = f"{store_sku}_{clean_price}"
 
             if sku_key not in sku_set:
