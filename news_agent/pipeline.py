@@ -15,15 +15,20 @@ from summarizer import summarize_new_articles
 logger = logging.getLogger(__name__)
 
 
-def run_fetch_and_summarize(summarize: bool = False, date_from: str | None = None) -> dict:
+def run_fetch_and_summarize(
+    summarize: bool = False,
+    date_from: str | None = None,
+    source_ids: list[int] | None = None,
+) -> dict:
     """
-    For every source in the DB, fetch new articles and store them.
-    date_from: ISO date string (e.g. '2026-04-10'); articles older than this are skipped.
-               Falls back to DATE_RANGE_DAYS from config when not provided.
-    Already-known article URLs are passed to fetchers so they skip redundant HTTP calls.
+    Fetch new articles for all sources (or a specific subset) and store them.
+    date_from:  ISO date string; articles older than this are skipped.
+    source_ids: list of source IDs to fetch; None means all sources.
     Returns a dict: {"total_new": int, "sources": [{"name", "type", "new", "fetched", "error"}]}
     """
     sources = db.get_all_sources()
+    if source_ids:
+        sources = [s for s in sources if s["id"] in source_ids]
     if not sources:
         logger.warning("No sources configured.")
         return {"total_new": 0, "sources": []}

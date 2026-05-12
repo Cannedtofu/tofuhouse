@@ -6,7 +6,26 @@
       "Bash(python -c ':*)",
       "Bash(findstr /V \"FutureWarning\\\\|warnings\\\\|end of life\\\\|google-auth\\\\|upgrade\\\\|Python version\")",
       "Bash(ls /d/代码项目/news_agent/*.tsx /d/代码项目/news_agent/*.ts)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.browser-use.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pypi.org)",
+      "Bash(py --list)",
+      "PowerShell(Invoke-WebRequest -Uri \"https://www.python.org/ftp/python/3.12.9/python-3.12.9-amd64.exe\" -OutFile \"$env:TEMP\\\\python312.exe\" -UseBasicParsing; Write-Host \"Downloaded OK\")",
+      "PowerShell(Start-Process -FilePath \"$env:TEMP\\\\python312.exe\" -ArgumentList \"/quiet InstallAllUsers=0 PrependPath=1 Include_launcher=1\" -Wait -PassThru | Select-Object ExitCode)",
+      "PowerShell(py --list)",
+      "PowerShell(py -3.12 -m venv \"d:\\\\������Ŀ\\\\news_agent\\\\.venv\")",
+      "PowerShell($py = \"d:\\\\代码项目\\\\news_agent\\\\.venv\\\\Scripts\\\\python.exe\"; & $py -m pip install --upgrade pip 2>&1 | Select-String \"Successfully|already\")",
+      "PowerShell($py = \"d:\\\\代码项目\\\\news_agent\\\\.venv\\\\Scripts\\\\python.exe\"; & $py -m pip install -r \"d:\\\\代码项目\\\\news_agent\\\\requirements.txt\" 2>&1)",
+      "PowerShell($py = \"d:\\\\代码项目\\\\news_agent\\\\.venv\\\\Scripts\\\\python.exe\"; & $py -c \"import browser_use; import langchain_openai; print\\('OK'\\)\")",
+      "PowerShell($env:Path = \"d:\\\\代码项目\\\\news_agent\\\\.venv\\\\Scripts;\" + $env:Path; playwright install chromium 2>&1)",
+      "PowerShell($py = \"d:\\\\代码项目\\\\news_agent\\\\.venv\\\\Scripts\\\\python.exe\"; & $py -m playwright install chromium 2>&1)",
+      "PowerShell($py = \"d:\\\\代码项目\\\\news_agent\\\\.venv\\\\Scripts\\\\python.exe\"; & $py -m pip show playwright 2>&1)",
+      "PowerShell($py = \"d:\\\\代码项目\\\\news_agent\\\\.venv\\\\Scripts\\\\python.exe\"; & $py -m pip install playwright 2>&1 | Select-String \"Successfully|already|error\" -CaseSensitive:$false)",
+      "WebFetch(domain:semianalysis.com)",
+      "WebFetch(domain:newsletter.semianalysis.com)",
+      "Bash(.venv/Scripts/python.exe -c ' *)"
     ]
   }
 }

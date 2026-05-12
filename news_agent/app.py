@@ -111,11 +111,12 @@ def fetch():
 
     data = request.get_json(silent=True) or {}
     date_from = data.get("date_from") or None
+    source_ids = data.get("source_ids") or None  # None = all sources
 
     def _run():
         _fetch_status["running"] = True
         try:
-            result = run_fetch_and_summarize(summarize=False, date_from=date_from)
+            result = run_fetch_and_summarize(summarize=False, date_from=date_from, source_ids=source_ids)
             _fetch_status["last_result"] = {"status": "ok", "new_articles": result["total_new"], "sources": result["sources"]}
         except Exception as exc:
             logging.exception("Fetch error")

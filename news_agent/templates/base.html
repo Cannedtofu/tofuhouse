@@ -16,6 +16,14 @@
     .summary-text { color: #495057; font-size: .92rem; }
     #fetch-btn { min-width: 130px; }
     #fetch-spinner { display: none; }
+    /* Article body rendered as Markdown */
+    #detail-body img { max-width: 100%; height: auto; border-radius: 4px; margin: .75rem 0; }
+    #detail-body h1, #detail-body h2, #detail-body h3 { margin-top: 1.25rem; font-size: 1.1rem; font-weight: 600; }
+    #detail-body p { margin-bottom: .75rem; }
+    #detail-body pre { background: #f1f3f5; padding: .75rem; border-radius: 4px; overflow-x: auto; font-size: .82rem; }
+    #detail-body code { background: #f1f3f5; padding: .1rem .3rem; border-radius: 3px; font-size: .85rem; }
+    #detail-body blockquote { border-left: 3px solid #dee2e6; padding-left: 1rem; color: #6c757d; }
+    #detail-body a { color: #0d6efd; }
   </style>
 </head>
 <body>
@@ -32,6 +40,7 @@
     {% block content %}{% endblock %}
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

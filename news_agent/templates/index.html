@@ -114,8 +114,8 @@
       </div>
       <div class="text-muted small mb-3" id="detail-meta"></div>
 
-      <!-- Article body -->
-      <div id="detail-body" style="font-size:.93rem; line-height:1.7; white-space:pre-wrap; word-break:break-word;"></div>
+      <!-- Article body (rendered as Markdown; images included inline) -->
+      <div id="detail-body" style="font-size:.93rem; line-height:1.7; word-break:break-word;"></div>
     </div>
   </div>
 
@@ -148,7 +148,14 @@ function selectArticle(id) {
   document.getElementById('detail-meta').textContent =
     [a.source_name, pub].filter(Boolean).join(' · ');
 
-  document.getElementById('detail-body').textContent = a.content || '(No content fetched)';
+  const raw = a.content || '(No content fetched)';
+  // Render as Markdown if marked.js is available; plain text fallback otherwise
+  const bodyEl = document.getElementById('detail-body');
+  if (typeof marked !== 'undefined') {
+    bodyEl.innerHTML = marked.parse(raw, { breaks: true });
+  } else {
+    bodyEl.textContent = raw;
+  }
   document.getElementById('detail-panel').scrollTop = 0;
 }
 
@@ -235,10 +242,12 @@ function triggerFetch() {
   spinner.style.display = 'inline-block';
 
   const dateFrom = document.querySelector('input[name="date_from"]').value;
+  const sourceIds = Array.from(document.querySelectorAll('input[name="source_ids"]:checked'))
+                         .map(el => parseInt(el.value));
   fetch('/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date_from: dateFrom || null })
+    body: JSON.stringify({ date_from: dateFrom || null, source_ids: sourceIds.length ? sourceIds : null })
   })
     .then(r => r.json())
     .then(data => {

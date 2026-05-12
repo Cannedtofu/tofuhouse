@@ -1,27 +1,19 @@
 """Fetcher for company press release / news index pages (no RSS)."""
 
+from __future__ import annotations
+
+import asyncio
 import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin, urlparse
 
-import requests
-import trafilatura
 from bs4 import BeautifulSoup
 
 from config import MIN_ARTICLE_DATE
 
 logger = logging.getLogger(__name__)
 
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0 Safari/537.36"
-    )
-}
-
-# CSS class/id fragments that typically indicate article link containers
 _ARTICLE_HINTS = re.compile(
     r"(news|post|article|blog|press|release|story|update)", re.I
 )
@@ -38,7 +30,6 @@ def _candidate_links(soup: BeautifulSoup, base_url: str) -> list[str]:
     seen: set[str] = set()
     results: list[str] = []
 
-    # Look for <a> tags inside likely containers first
     for tag in soup.find_all(True):
         cls = " ".join(tag.get("class", []))
         tag_id = tag.get("id", "")
@@ -49,7 +40,6 @@ def _candidate_links(soup: BeautifulSoup, base_url: str) -> list[str]:
                     seen.add(href)
                     results.append(href)
 
-    # Fallback: all <a> tags with meaningful href (not anchors / js)
     if not results:
         for a in soup.find_all("a", href=True):
             href = urljoin(base_url, a["href"])
@@ -66,33 +56,52 @@ def _candidate_links(soup: BeautifulSoup, base_url: str) -> list[str]:
     return results
 
 
-def _fetch_article_content(url: str) -> str:
-    try:
-        downloaded = trafilatura.fetch_url(url)
-        if downloaded:
-            text = trafilatura.extract(downloaded, include_comments=False, include_tables=False)
-            if text:
-                return text
-    except Exception as exc:
-        logger.warning("trafilatura failed for %s: %s", url, exc)
-    return ""
+async def _fetch_index_html(index_url: str) -> str:
+    """Load the news index page with a real browser to handle JS-rendered content."""
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=False,
+            args=["--lang=en-US"],
+        )
+        context = await browser.new_context(
+            locale="en-US",
+            extra_http_headers={"Accept-Language": "en-US,en;q=0.9"},
+        )
+        page = await context.new_page()
+        try:
+            await page.goto(index_url, wait_until="domcontentloaded", timeout=60_000)
+            await page.wait_for_timeout(2_000)
+            html = await page.content()
+            logger.info("[web] index page HTML: %d chars from %s", len(html), index_url)
+        except Exception as exc:
+            logger.warning("[web] failed to load index %s: %s", index_url, exc)
+            html = ""
+        finally:
+            await browser.close()
+    return html
 
 
 def fetch_web(index_url: str, known_urls: set[str]) -> list[dict]:
     """
     Scrape a company news/press release index page.
-    known_urls: set of article URLs already in the DB (skip them).
+    Uses Playwright to render the index (handles JS-heavy pages), then fetches
+    each article URL via browser_use_fetcher.fetch_article() (Playwright first,
+    browser-use agent as last resort).
+
+    known_urls: set of article URLs already in the DB (skip them entirely).
     Returns list of article dicts.
     """
+    from fetchers.browser_use_fetcher import fetch_article
+
     logger.info("Fetching web index: %s", index_url)
-    try:
-        resp = requests.get(index_url, headers=_HEADERS, timeout=15)
-        resp.raise_for_status()
-    except Exception as exc:
-        logger.error("Failed to fetch %s: %s", index_url, exc)
+
+    html = asyncio.run(_fetch_index_html(index_url))
+    if not html:
         return []
 
-    soup = BeautifulSoup(resp.text, "html.parser")
+    soup = BeautifulSoup(html, "html.parser")
     links = _candidate_links(soup, index_url)
     logger.info("  Found %d candidate links", len(links))
 
@@ -100,24 +109,34 @@ def fetch_web(index_url: str, known_urls: set[str]) -> list[dict]:
     for link in links:
         if link in known_urls:
             continue
-        content = _fetch_article_content(link)
+
+        try:
+            content = fetch_article(link)
+        except Exception as exc:
+            logger.warning("  fetch_article failed for %s: %s", link, exc)
+            continue
+
         if not content:
             continue
 
-        # Try to extract a title from the page
+        # Extract title from the rendered page cheaply via BeautifulSoup on the
+        # same HTML we already have from the index, or fall back to the URL.
+        title = link
         try:
-            page_resp = requests.get(link, headers=_HEADERS, timeout=10)
-            page_soup = BeautifulSoup(page_resp.text, "html.parser")
-            title_tag = page_soup.find("h1") or page_soup.find("title")
-            title = title_tag.get_text(strip=True) if title_tag else link
+            # Re-use the index soup only if the link appears as an <a> with text
+            a_tag = soup.find("a", href=True, string=True)
+            page_soup = BeautifulSoup(content[:2000], "html.parser")
+            h1 = page_soup.find("h1")
+            if h1:
+                title = h1.get_text(strip=True)
         except Exception:
-            title = link
+            pass
 
         articles.append({
             "title": title,
             "url": link,
             "content": content,
-            "published_at": None,  # press release pages rarely expose structured dates
+            "published_at": None,
         })
 
     logger.info("  → %d new articles from %s", len(articles), index_url)
