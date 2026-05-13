@@ -18,17 +18,22 @@ logger = logging.getLogger(__name__)
 def run_fetch_and_summarize(
     summarize: bool = False,
     date_from: str | None = None,
+    date_to: str | None = None,
     source_ids: list[int] | None = None,
+    source_types: list[str] | None = None,
 ) -> dict:
     """
-    Fetch new articles for all sources (or a specific subset) and store them.
-    date_from:  ISO date string; articles older than this are skipped.
-    source_ids: list of source IDs to fetch; None means all sources.
+    Fetch new articles for all sources (or a filtered subset) and store them.
+    date_from:    ISO date string; articles older than this are skipped.
+    source_ids:   list of source IDs to fetch; None means all sources.
+    source_types: list of types to include, e.g. ["nitter"]; None means all types.
     Returns a dict: {"total_new": int, "sources": [{"name", "type", "new", "fetched", "error"}]}
     """
     sources = db.get_all_sources()
     if source_ids:
         sources = [s for s in sources if s["id"] in source_ids]
+    if source_types:
+        sources = [s for s in sources if s["type"] in source_types]
     if not sources:
         logger.warning("No sources configured.")
         return {"total_new": 0, "sources": []}
@@ -56,16 +61,12 @@ def run_fetch_and_summarize(
                 for row in all_stored
                 if len((row["content"] or "").split()) >= MIN_CONTENT_WORDS
             }
-            thin_urls = {
-                row["url"]
-                for row in all_stored
+            thin_count = sum(
+                1 for row in all_stored
                 if len((row["content"] or "").split()) < MIN_CONTENT_WORDS
-            }
-            if thin_urls:
-                logger.info(
-                    "  %d existing article(s) have thin content (<200 words) — will re-fetch",
-                    len(thin_urls),
-                )
+            )
+            if thin_count:
+                logger.info("  %d existing article(s) have thin content — will re-fetch", thin_count)
 
             if source_type == "rss":
                 articles = fetch_rss(source_url, known_urls=existing_urls, date_from=date_from)
@@ -75,7 +76,7 @@ def run_fetch_and_summarize(
                 articles = fetch_nitter(handle, known_urls=existing_urls, date_from=date_from)
 
             elif source_type == "web":
-                articles = fetch_web(source_url, known_urls=existing_urls)
+                articles = fetch_web(source_url, known_urls=existing_urls, date_from=date_from, date_to=date_to)
 
             else:
                 result["error"] = f"Unknown source type '{source_type}'"

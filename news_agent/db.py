@@ -1,5 +1,6 @@
 """SQLite database layer for news_agent."""
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -46,14 +47,30 @@ def init_db():
                 summary      TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS fetch_log (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                started_at   TEXT    NOT NULL,
+                finished_at  TEXT,
+                trigger      TEXT    NOT NULL DEFAULT 'manual',
+                total_new    INTEGER NOT NULL DEFAULT 0,
+                total_fetched INTEGER NOT NULL DEFAULT 0,
+                sources_json TEXT,
+                error        TEXT
+            );
+
             CREATE INDEX IF NOT EXISTS idx_articles_source   ON articles(source_id);
             CREATE INDEX IF NOT EXISTS idx_articles_pub_date ON articles(published_at);
+            CREATE INDEX IF NOT EXISTS idx_fetch_log_started ON fetch_log(started_at);
         """)
-        # Migration: add url_filter to existing databases that predate this column
+        # Migrations for older databases
         try:
             conn.execute("ALTER TABLE sources ADD COLUMN url_filter TEXT")
         except Exception:
-            pass  # column already exists
+            pass
+        try:
+            conn.execute("ALTER TABLE fetch_log ADD COLUMN total_fetched INTEGER NOT NULL DEFAULT 0")
+        except Exception:
+            pass
 
 
 def seed_default_sources():
@@ -214,3 +231,40 @@ def get_articles(
 
     with get_conn() as conn:
         return conn.execute(query, params).fetchall()
+
+
+# ---------------------------------------------------------------------------
+# Fetch log
+# ---------------------------------------------------------------------------
+
+def log_fetch_start(trigger: str = "manual") -> int:
+    """Record the start of a fetch run; returns the log entry id."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO fetch_log (started_at, trigger) VALUES (?, ?)",
+            (now, trigger),
+        )
+        return cur.lastrowid
+
+
+def log_fetch_finish(log_id: int, result: dict, error: Optional[str] = None):
+    """Update a fetch log entry with the final result."""
+    now = datetime.now(timezone.utc).isoformat()
+    sources_json = json.dumps(result.get("sources", []))
+    total_new = result.get("total_new", 0)
+    total_fetched = sum(s.get("fetched", 0) for s in result.get("sources", []))
+    with get_conn() as conn:
+        conn.execute(
+            """UPDATE fetch_log
+               SET finished_at=?, total_new=?, total_fetched=?, sources_json=?, error=?
+               WHERE id=?""",
+            (now, total_new, total_fetched, sources_json, error, log_id),
+        )
+
+
+def get_fetch_log(limit: int = 50) -> list[sqlite3.Row]:
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT * FROM fetch_log ORDER BY started_at DESC LIMIT ?", (limit,)
+        ).fetchall()

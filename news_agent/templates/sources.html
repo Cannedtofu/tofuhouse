@@ -10,33 +10,53 @@
       {% if error %}
       <div class="alert alert-danger py-2">{{ error }}</div>
       {% endif %}
-      <form method="post" action="/sources">
+
+      <!-- Step 1: URL input + Detect -->
+      <div id="step-url">
         <div class="mb-3">
-          <label class="form-label">Name</label>
-          <input type="text" name="name" class="form-control" placeholder="e.g. Karpathy Blog" required>
+          <label class="form-label">URL</label>
+          <input type="text" id="detect-url-input" class="form-control"
+                 placeholder="https://example.com  or  x.com/username">
         </div>
-        <div class="mb-3">
-          <label class="form-label">Type</label>
-          <select name="type" class="form-select" id="type-select" onchange="updateUrlLabel()">
-            <option value="rss">RSS / Atom feed</option>
-            <option value="nitter">X.com account (Nitter)</option>
-            <option value="web">Company news page (scrape)</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label" id="url-label">Feed URL</label>
-          <input type="text" name="url" class="form-control" id="url-input"
-                 placeholder="https://example.com/feed.xml" required>
-          <div class="form-text" id="url-hint">Paste the full RSS/Atom feed URL.</div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">URL Filter <span class="text-muted">(optional)</span></label>
-          <input type="text" name="url_filter" class="form-control"
-                 placeholder="e.g. openai.com/index/">
-          <div class="form-text">Only keep articles whose URL contains this string.</div>
-        </div>
-        <button type="submit" class="btn btn-primary w-100">Add Source</button>
-      </form>
+        <button type="button" class="btn btn-outline-primary w-100" onclick="detectSource()">
+          <span id="detect-label">🔍 Detect Source Type</span>
+          <span id="detect-spinner" class="spinner-border spinner-border-sm ms-1" style="display:none"></span>
+        </button>
+        <div id="detect-error" class="text-danger small mt-2" style="display:none"></div>
+      </div>
+
+      <!-- Step 2: Confirm & save (shown after detection) -->
+      <div id="step-confirm" style="display:none">
+        <hr class="my-3">
+        <div id="detect-result" class="alert alert-success py-2 small mb-3"></div>
+        <form method="post" action="/sources">
+          <input type="hidden" name="url"  id="confirm-url">
+          <input type="hidden" name="type" id="confirm-type">
+          <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input type="text" name="name" class="form-control" id="confirm-name"
+                   placeholder="e.g. SemiAnalysis" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Type <span class="text-muted small">(auto-detected)</span></label>
+            <select name="type" id="confirm-type-select" class="form-select">
+              <option value="rss">RSS / Atom feed</option>
+              <option value="nitter">X.com account (Nitter)</option>
+              <option value="web">Website (scrape)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">URL Filter <span class="text-muted">(optional)</span></label>
+            <input type="text" name="url_filter" class="form-control"
+                   placeholder="e.g. /p/ to keep only article pages">
+            <div class="form-text">Only keep articles whose URL contains this string.</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-grow-1">Add Source</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="resetDetect()">Back</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -65,16 +85,14 @@
                 {{ s.type }}
               </span>
             </td>
-            <td class="text-muted small" style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+            <td class="text-muted small" style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
               {% if s.type == 'nitter' %}
                 @{{ s.url.replace('nitter:', '') }}
               {% else %}
                 <a href="{{ s.url }}" target="_blank" rel="noopener" class="text-muted">{{ s.url }}</a>
               {% endif %}
             </td>
-            <td class="text-muted small font-monospace">
-              {{ s.url_filter or '—' }}
-            </td>
+            <td class="text-muted small font-monospace">{{ s.url_filter or '—' }}</td>
             <td class="text-muted small">
               {{ s.last_fetched[:16].replace('T', ' ') if s.last_fetched else '—' }}
             </td>
@@ -100,17 +118,65 @@
 
 {% block scripts %}
 <script>
-const hints = {
-  rss:    ['Feed URL', 'Paste the full RSS/Atom feed URL.', 'https://example.com/feed.xml'],
-  nitter: ['Twitter / X Handle', 'Enter the username without @.', 'elonmusk'],
-  web:    ['News Page URL', 'Paste the URL of the news/press release index page.', 'https://company.com/news'],
-};
-function updateUrlLabel() {
-  const type = document.getElementById('type-select').value;
-  const [label, hint, placeholder] = hints[type];
-  document.getElementById('url-label').textContent = label;
-  document.getElementById('url-hint').textContent = hint;
-  document.getElementById('url-input').placeholder = placeholder;
+function detectSource() {
+  const url = document.getElementById('detect-url-input').value.trim();
+  if (!url) { showDetectError('Please enter a URL.'); return; }
+
+  const label   = document.getElementById('detect-label');
+  const spinner = document.getElementById('detect-spinner');
+  label.textContent = 'Detecting…';
+  spinner.style.display = 'inline-block';
+  document.getElementById('detect-error').style.display = 'none';
+
+  fetch('/sources/detect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      label.textContent = '🔍 Detect Source Type';
+      spinner.style.display = 'none';
+      if (!data.ok) { showDetectError(data.error || 'Detection failed.'); return; }
+
+      // Populate confirm step
+      document.getElementById('confirm-url').value = data.url;
+      document.getElementById('confirm-type').value = data.type;
+      const sel = document.getElementById('confirm-type-select');
+      sel.value = data.type;
+
+      document.getElementById('detect-result').textContent = '✓ ' + data.display;
+      document.getElementById('step-url').style.display = 'none';
+      document.getElementById('step-confirm').style.display = 'block';
+      document.getElementById('confirm-name').focus();
+    })
+    .catch(() => {
+      label.textContent = '🔍 Detect Source Type';
+      spinner.style.display = 'none';
+      showDetectError('Request failed. Check your connection.');
+    });
 }
+
+function resetDetect() {
+  document.getElementById('step-url').style.display = 'block';
+  document.getElementById('step-confirm').style.display = 'none';
+  document.getElementById('detect-error').style.display = 'none';
+}
+
+function showDetectError(msg) {
+  const el = document.getElementById('detect-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// Allow Enter key in URL input to trigger detect
+document.getElementById('detect-url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); detectSource(); }
+});
+
+// Keep hidden url/type in sync when user overrides type via dropdown
+document.getElementById('confirm-type-select').addEventListener('change', function() {
+  document.getElementById('confirm-type').value = this.value;
+});
 </script>
 {% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Activity Log{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0 fw-semibold">Activity Log</h5>
+  <a href="/" class="btn btn-sm btn-outline-secondary">← Feed</a>
+</div>
+
+<!-- Fetch history table -->
+<div class="card mb-4">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center">
+    <span class="fw-semibold small">Fetch History</span>
+    <span class="text-muted small">Last {{ fetch_log|length }} runs</span>
+  </div>
+  <div class="card-body p-0">
+    {% if fetch_log %}
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0" style="font-size:.82rem">
+        <thead class="table-light">
+          <tr>
+            <th>Started (UTC)</th>
+            <th>Trigger</th>
+            <th class="text-end">Fetched</th>
+            <th class="text-end">New</th>
+            <th>Duration</th>
+            <th>Sources</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in fetch_log %}
+          <tr class="{% if entry.error %}table-danger{% endif %}">
+            <td class="text-nowrap">{{ (entry.started_at or '')[:19].replace('T',' ') }}</td>
+            <td>
+              {% if entry.trigger == 'scheduled' %}
+                <span class="badge bg-secondary">scheduled</span>
+              {% else %}
+                <span class="badge bg-primary">manual</span>
+              {% endif %}
+            </td>
+            <td class="text-end">{{ entry.total_fetched }}</td>
+            <td class="text-end fw-semibold {% if entry.total_new > 0 %}text-success{% endif %}">
+              {{ entry.total_new }}
+            </td>
+            <td class="text-nowrap text-muted">
+              {% if entry.started_at and entry.finished_at %}
+                {# JS will fill in the duration #}
+                <span class="duration-cell"
+                      data-start="{{ entry.started_at }}"
+                      data-end="{{ entry.finished_at }}">—</span>
+              {% else %}
+                <span class="text-warning">running…</span>
+              {% endif %}
+            </td>
+            <td>
+              {% for s in entry.sources_parsed %}
+                <span class="me-2 text-nowrap">
+                  <strong>{{ s.name }}</strong>:
+                  {% if s.error %}
+                    <span class="text-danger">err</span>
+                  {% else %}
+                    {{ s.new }}/{{ s.fetched }}
+                  {% endif %}
+                </span>
+              {% endfor %}
+            </td>
+            <td class="text-danger" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                title="{{ entry.error or '' }}">
+              {{ entry.error or '' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="text-muted p-3 mb-0">No fetch runs recorded yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Raw log tail -->
+<div class="card">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center">
+    <span class="fw-semibold small">Raw Log <span class="text-muted fw-normal">(last {{ raw_lines|length }} lines of logs/app.log)</span></span>
+    <button class="btn btn-sm btn-outline-secondary" onclick="scrollLogBottom()">↓ Bottom</button>
+  </div>
+  <div class="card-body p-0">
+    <div id="log-box" style="height:400px;overflow-y:auto;background:#1e1e1e;border-radius:0 0 .375rem .375rem">
+      <pre style="color:#d4d4d4;font-size:.75rem;line-height:1.5;margin:0;padding:.75rem 1rem;white-space:pre-wrap;word-break:break-all">{% if raw_lines %}{% for line in raw_lines %}{{ line }}{% endfor %}{% else %}No log file found yet. Start a fetch run to generate logs.{% endif %}</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Fill in durations
+document.querySelectorAll('.duration-cell').forEach(el => {
+  const start = new Date(el.dataset.start);
+  const end = new Date(el.dataset.end);
+  const secs = Math.round((end - start) / 1000);
+  if (secs < 60) el.textContent = secs + 's';
+  else el.textContent = Math.floor(secs / 60) + 'm ' + (secs % 60) + 's';
+});
+
+function scrollLogBottom() {
+  const box = document.getElementById('log-box');
+  box.scrollTop = box.scrollHeight;
+}
+// Auto-scroll to bottom on load
+scrollLogBottom();
+</script>
+{% endblock %}

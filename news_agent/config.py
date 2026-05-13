@@ -11,9 +11,12 @@ NITTER_INSTANCES = [
     "https://nitter.1d4.us",
 ]
 
-# --- LLM ---
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = "gemini-2.5-flash-lite-preview-09-2025"
+# --- LLM (Qwen via Alibaba Cloud DashScope, OpenAI-compatible) ---
+QWEN_API_KEY = os.getenv("QWEN_API_KEY", "")
+QWEN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+QWEN_SUMMARY_MODEL = "qwen-plus"        # fast + cheap, used for article summaries
+QWEN_VISION_MODEL = "qwen-vl-max"       # vision model, used for browser-use fallback only
+MIN_BROWSER_FALLBACK_CHARS = 300        # Playwright result shorter than this triggers agent fallback
 
 # --- Database ---
 DB_PATH = os.getenv("DB_PATH", "news.db")

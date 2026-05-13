@@ -1,21 +1,36 @@
-"""LLM summarization via Google Gemini API."""
+"""LLM summarization via Qwen (OpenAI-compatible API)."""
+
+from __future__ import annotations
 
 import logging
 
-import google.generativeai as genai
-from google.generativeai.types import HarmBlockThreshold, HarmCategory
+from openai import OpenAI
 
 import db
-from config import GEMINI_API_KEY, GEMINI_MODEL
+from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL
 
 logger = logging.getLogger(__name__)
 
-_SAFETY = {
-    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-}
+_BATCH_SIZE = 10
+
+
+def _get_client() -> OpenAI:
+    return OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL)
+
+
+def _chat(client: OpenAI, prompt: str, label: str, max_tokens: int = 512) -> str:
+    try:
+        resp = client.chat.completions.create(
+            model=QWEN_SUMMARY_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=max_tokens,
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception as exc:
+        logger.warning("Qwen error (%s): %s", label, exc)
+        return f"(Summary unavailable for {label}: {exc})"
+
 
 _PROMPT_TEMPLATE = """Please summarize the following article in 2-3 concise sentences. \
 Focus on the key facts or announcements. Do not include filler phrases like "This article discusses...".
@@ -26,60 +41,6 @@ Content:
 {content}
 
 Summary:"""
-
-_BATCH_SIZE = 10
-
-
-def _get_model():
-    genai.configure(api_key=GEMINI_API_KEY)
-    return genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        generation_config=genai.types.GenerationConfig(
-            temperature=0.2,
-            max_output_tokens=256,
-        ),
-        safety_settings=_SAFETY,
-    )
-
-
-def summarize_new_articles() -> int:
-    """
-    Summarize all articles in the DB that have no summary yet.
-    Returns the number of articles summarized.
-    """
-    articles = db.get_unsummarized_articles()
-    if not articles:
-        logger.info("No articles to summarize.")
-        return 0
-
-    logger.info("Summarizing %d articles...", len(articles))
-    model = _get_model()
-    count = 0
-
-    for i in range(0, len(articles), _BATCH_SIZE):
-        batch = articles[i : i + _BATCH_SIZE]
-        for article in batch:
-            title = article["title"] or ""
-            content = (article["content"] or "")[:4000]  # cap to avoid token overflow
-            if not content.strip():
-                db.update_summary(article["id"], "(No content available)")
-                continue
-
-            prompt = _PROMPT_TEMPLATE.format(title=title, content=content)
-            try:
-                response = model.generate_content(prompt)
-                summary = response.text.strip()
-            except Exception as exc:
-                logger.warning("Gemini error for article %d: %s", article["id"], exc)
-                summary = "(Summary unavailable)"
-
-            db.update_summary(article["id"], summary)
-            count += 1
-            logger.debug("  Summarized: %s", title[:60])
-
-    logger.info("Done summarizing. %d articles processed.", count)
-    return count
-
 
 _TWEET_PROMPT = """Summarize the following posts from {source_name} on X.com. Identify the main topics discussed and the overall attitude/opinion/input of the account.
 Format:
@@ -112,26 +73,43 @@ Articles:
 {items}"""
 
 
-def _call_gemini(model, prompt: str, label: str) -> str:
-    try:
-        response = model.generate_content(prompt)
-        return response.text.strip()
-    except Exception as exc:
-        logger.warning("Gemini error (%s): %s", label, exc)
-        return f"(Summary unavailable for {label}: {exc})"
+def summarize_new_articles() -> int:
+    """Summarize all DB articles that have no summary yet. Returns count processed."""
+    articles = db.get_unsummarized_articles()
+    if not articles:
+        logger.info("No articles to summarize.")
+        return 0
+
+    logger.info("Summarizing %d articles...", len(articles))
+    client = _get_client()
+    count = 0
+
+    for i in range(0, len(articles), _BATCH_SIZE):
+        for article in articles[i : i + _BATCH_SIZE]:
+            title = article["title"] or ""
+            content = (article["content"] or "")[:4000]
+            if not content.strip():
+                db.update_summary(article["id"], "(No content available)")
+                continue
+            prompt = _PROMPT_TEMPLATE.format(title=title, content=content)
+            summary = _chat(client, prompt, label=f"article {article['id']}")
+            db.update_summary(article["id"], summary)
+            count += 1
+
+    logger.info("Done summarizing. %d articles processed.", count)
+    return count
 
 
 def generate_batch_digest(article_ids: list[int]) -> str:
     """
     Generate a structured digest grouped by source.
-    X.com (nitter) sources get separate tweet and retweet summaries.
+    Nitter sources get separate tweet / retweet summaries.
     RSS/web sources get per-article abstracts.
-    Returns a combined string with sections separated by '---'.
+    Sections are separated by '---'.
     """
     if not article_ids:
         return "(No articles to summarize.)"
 
-    # Group articles by source, preserving insertion order
     sources: dict[int, dict] = {}
     for aid in article_ids:
         a = db.get_article_by_id(aid)
@@ -139,87 +117,58 @@ def generate_batch_digest(article_ids: list[int]) -> str:
             continue
         sid = a["source_id"]
         if sid not in sources:
-            sources[sid] = {
-                "name": a["source_name"],
-                "type": a["source_type"],
-                "articles": [],
-            }
+            sources[sid] = {"name": a["source_name"], "type": a["source_type"], "articles": []}
         sources[sid]["articles"].append(dict(a))
 
     if not sources:
         return "(No content available for the selected articles.)"
 
-    model = _get_model()
+    client = _get_client()
     sections: list[str] = []
 
     for src in sources.values():
         source_name = src["name"]
-        source_type = src["type"]
         articles = src["articles"]
 
-        if source_type == "nitter":
+        if src["type"] == "nitter":
             tweets = [a for a in articles if not (a.get("title") or "").startswith("RT by @")]
             retweets = [a for a in articles if (a.get("title") or "").startswith("RT by @")]
-
             parts: list[str] = []
-
             if tweets:
                 items_text = "\n\n".join(
-                    f"- {a['title'] or ''}\n{(a['content'] or '')[:500]}"
-                    for a in tweets[:20]
+                    f"- {a['title'] or ''}\n{(a['content'] or '')[:500]}" for a in tweets[:20]
                 )
-                prompt = _TWEET_PROMPT.format(source_name=source_name, items=items_text)
-                parts.append(_call_gemini(model, prompt, f"{source_name} tweets"))
-
+                parts.append(_chat(client, _TWEET_PROMPT.format(source_name=source_name, items=items_text), f"{source_name} tweets"))
             if retweets:
                 items_text = "\n\n".join(
-                    f"- {a['title'] or ''}\n{(a['content'] or '')[:500]}"
-                    for a in retweets[:20]
+                    f"- {a['title'] or ''}\n{(a['content'] or '')[:500]}" for a in retweets[:20]
                 )
-                prompt = _RETWEET_PROMPT.format(source_name=source_name, items=items_text)
-                parts.append(_call_gemini(model, prompt, f"{source_name} retweets"))
-
+                parts.append(_chat(client, _RETWEET_PROMPT.format(source_name=source_name, items=items_text), f"{source_name} retweets"))
             if parts:
                 sections.append("\n\n".join(parts))
-
-        else:  # rss or web
+        else:
             items_text = "\n\n".join(
                 f"Title: {a['title'] or '(no title)'}\nContent: {(a['content'] or '')[:800]}"
                 for a in articles[:20]
             )
-            prompt = _ARTICLE_PROMPT.format(source_name=source_name, items=items_text)
-            sections.append(_call_gemini(model, prompt, source_name))
+            sections.append(_chat(client, _ARTICLE_PROMPT.format(source_name=source_name, items=items_text), source_name, max_tokens=1024))
 
-    if not sections:
-        return "(No digest could be generated.)"
-
-    return "\n\n---\n\n".join(sections)
+    return "\n\n---\n\n".join(sections) if sections else "(No digest could be generated.)"
 
 
 def summarize_single_article(article_id: int) -> str:
-    """
-    Generate and store a summary for one article by ID.
-    Returns the summary text (or an error string if it fails).
-    """
+    """Generate and store a summary for one article. Returns the summary text."""
     article = db.get_article_by_id(article_id)
     if not article:
         return "(Article not found)"
-
     title = article["title"] or ""
     content = (article["content"] or "")[:4000]
     if not content.strip():
         summary = "(No content available)"
         db.update_summary(article_id, summary)
         return summary
-
-    model = _get_model()
+    client = _get_client()
     prompt = _PROMPT_TEMPLATE.format(title=title, content=content)
-    try:
-        response = model.generate_content(prompt)
-        summary = response.text.strip()
-    except Exception as exc:
-        logger.warning("Gemini error for article %d: %s", article_id, exc)
-        summary = f"(Summary unavailable: {exc})"
-
+    summary = _chat(client, prompt, label=f"article {article_id}")
     db.update_summary(article_id, summary)
     return summary

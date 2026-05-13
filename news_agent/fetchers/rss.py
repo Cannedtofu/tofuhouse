@@ -74,13 +74,27 @@ def _parse_cutoff(date_from: Optional[str]) -> Optional[datetime]:
 # RSS entry → article dict (basic parse, no HTTP calls)
 # ---------------------------------------------------------------------------
 
+def _body_to_content(body_html: str, has_images: bool) -> str:
+    """
+    Convert an RSS body to storable content.
+    - With images: convert HTML → Markdown (preserves <img> tags from the feed).
+    - Text-only: strip HTML tags and return plain text.
+    """
+    if has_images:
+        from bs4 import BeautifulSoup
+        from fetchers.browser_use_fetcher import _soup_to_markdown
+        soup = BeautifulSoup(body_html, "html.parser")
+        return _soup_to_markdown(soup).strip()
+    return re.sub(r"<[^>]+>", " ", body_html).strip()
+
+
 def _entry_to_article_basic(entry) -> dict:
     """
     Parse RSS entry fields.
 
     Deciding whether to visit the original URL via Playwright:
-    - If the RSS body contains images (<img tags): always fetch the full page
-      so images are captured in the right positions alongside the text.
+    - If the RSS body contains images (<img tags): convert HTML→Markdown inline;
+      no browser visit needed — images come from the feed itself.
     - If the RSS body is text-only: use it directly when it meets the length
       threshold; fall back to Playwright only if the text is too short.
     """
@@ -94,18 +108,18 @@ def _entry_to_article_basic(entry) -> dict:
         body = entry.summary or ""
 
     has_images = bool(link) and "<img" in body.lower()
+    content = _body_to_content(body, has_images)
     body_plain = re.sub(r"<[^>]+>", " ", body).strip()
     published_at = _parse_published(entry)
 
-    if has_images:
-        needs_full = True
-    else:
-        needs_full = len(body_plain) < CONTENT_LENGTH_THRESHOLD and bool(link)
+    # Only needs browser enrichment for text-only short feeds; image feeds are
+    # already fully converted from the RSS body HTML above.
+    needs_full = (not has_images) and len(body_plain) < CONTENT_LENGTH_THRESHOLD and bool(link)
 
     return {
         "title": title,
         "url": link,
-        "content": body_plain,
+        "content": content,
         "published_at": published_at,
         "needs_full_content": needs_full,
     }

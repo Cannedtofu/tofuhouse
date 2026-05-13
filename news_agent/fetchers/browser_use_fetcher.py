@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import tempfile
 
 import trafilatura
@@ -33,10 +32,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+from config import MIN_BROWSER_FALLBACK_CHARS, QWEN_API_KEY, QWEN_BASE_URL, QWEN_VISION_MODEL
 
-# Minimum extracted characters before falling back to the agent
-MIN_EXTRACTED_CHARS = 300
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -159,18 +157,52 @@ def _soup_to_markdown(el: Tag) -> str:
     return "".join(parts)
 
 
+_CONTENT_SELECTORS = [
+    "main", "article", '[role="main"]',
+    "#content", "#main-content", "#article-content",
+    ".article-body", ".post-content", ".entry-content", ".content-body",
+]
+_MIN_BS_CHARS = 300
+
+
+def _bs_extract_main_content(html: str) -> str:
+    """
+    BeautifulSoup fallback when trafilatura returns too little text.
+    Tries common article container selectors, then falls back to <body>.
+    Returns plain text (no images) — good enough to clear the agent threshold.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside", "noscript"]):
+        tag.decompose()
+
+    for selector in _CONTENT_SELECTORS:
+        el = soup.select_one(selector)
+        if el:
+            text = el.get_text(separator="\n", strip=True)
+            if len(text) >= _MIN_BS_CHARS:
+                logger.info("[extract] BS fallback via '%s': %d chars", selector, len(text))
+                return text
+
+    body = soup.find("body")
+    if body:
+        text = body.get_text(separator="\n", strip=True)
+        logger.info("[extract] BS fallback via <body>: %d chars", len(text))
+        return text
+
+    return ""
+
+
 def _extract_with_images(html: str) -> str:
     """
     Extract article text as Markdown with images in their correct positions.
 
     Strategy:
-    1. Ask trafilatura for clean article HTML (output_format='html') — this
-       gives us the article body with noise stripped.
-    2. Convert that HTML to Markdown via _soup_to_markdown, which handles
-       <img>, <figure>, lazy-load data-src attributes, etc.
-    3. If trafilatura's HTML output contains no images (common on Substack),
-       fall back to scanning the original full-page HTML for <img> tags and
-       distributing them evenly between paragraphs.
+    1. trafilatura clean HTML → _soup_to_markdown (images preserved).
+    2. trafilatura markdown + manual image injection from raw HTML.
+    3. trafilatura with favor_recall=True when precision mode returns too little.
+    4. BeautifulSoup direct extraction from common article containers (<main>,
+       <article>, etc.) — used when trafilatura's heuristics fail entirely on
+       a page whose HTML is already fully loaded (avoids unnecessary agent call).
     """
     # Step 1: trafilatura clean HTML
     article_html = trafilatura.extract(
@@ -189,13 +221,32 @@ def _extract_with_images(html: str) -> str:
             logger.info("[extract] trafilatura HTML contained images — using direct conversion")
             return md
 
-    # Step 2: trafilatura text + manual image injection from original HTML
+    # Step 2: trafilatura markdown + manual image injection from original HTML
     text_md = trafilatura.extract(
         html,
         include_comments=False,
         include_tables=True,
         output_format="markdown",
     ) or ""
+
+    # Step 3: if trafilatura still returned too little, retry with favor_recall
+    if len(text_md.strip()) < _MIN_BS_CHARS:
+        recall_md = trafilatura.extract(
+            html,
+            include_comments=False,
+            include_tables=True,
+            output_format="markdown",
+            favor_recall=True,
+        ) or ""
+        if len(recall_md.strip()) > len(text_md.strip()):
+            logger.info("[extract] trafilatura recall mode: %d chars", len(recall_md))
+            text_md = recall_md
+
+    # Step 4: BeautifulSoup fallback when trafilatura still can't find the article
+    if len(text_md.strip()) < _MIN_BS_CHARS:
+        bs_text = _bs_extract_main_content(html)
+        if len(bs_text) > len(text_md.strip()):
+            text_md = bs_text
 
     # Collect content images from original HTML (filter out icons/trackers)
     raw_soup = BeautifulSoup(html, "html.parser")
@@ -282,14 +333,13 @@ async def _playwright_fetch(url: str) -> str:
 def _make_qwen_llm():
     from browser_use.llm.openai.like import ChatOpenAILike
 
-    api_key = os.getenv("QWEN_API_KEY")
-    if not api_key:
+    if not QWEN_API_KEY:
         raise RuntimeError("QWEN_API_KEY is not set in .env — needed for browser-use fallback")
 
     return ChatOpenAILike(
-        model="qwen-vl-max",
-        api_key=api_key,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        model=QWEN_VISION_MODEL,
+        api_key=QWEN_API_KEY,
+        base_url=QWEN_BASE_URL,
         add_schema_to_system_prompt=True,
     )
 
@@ -310,12 +360,15 @@ async def _agent_fetch(url: str) -> str:
         "Call done() with the full article text as your final answer."
     )
     agent = Agent(task=task, llm=_make_qwen_llm(), use_vision=True, browser_profile=profile)
-    result = await agent.run()
+    result = await agent.run(max_steps=2)
 
-    text = result.final_result()
+    # Prefer the explicit done() result; fall back to the longest single extracted chunk.
+    # Do NOT join all extracted_content() parts — the agent loops and re-extracts the same
+    # content multiple times before calling done(), producing duplicates if joined.
+    text = result.final_result() or ""
     if not text:
-        parts = result.extracted_content()
-        text = "\n\n".join(parts) if parts else ""
+        parts = result.extracted_content() or []
+        text = max(parts, key=len) if parts else ""
 
     logger.info("[browser-use agent] extracted: %d chars", len(text))
     return text
@@ -329,12 +382,12 @@ async def _fetch_async(url: str) -> str:
     """Tier 1 first; fall back to Tier 2 only if content is too short."""
     text = await _playwright_fetch(url)
 
-    if len(text) >= MIN_EXTRACTED_CHARS:
+    if len(text) >= MIN_BROWSER_FALLBACK_CHARS:
         return text
 
     logger.warning(
         "[playwright] only %d chars — below threshold (%d), trying browser-use agent…",
-        len(text), MIN_EXTRACTED_CHARS,
+        len(text), MIN_BROWSER_FALLBACK_CHARS,
     )
     try:
         agent_text = await _agent_fetch(url)
@@ -402,6 +455,7 @@ if __name__ == "__main__":
     content = fetch_article(target_url)
 
     if content:
+        import os
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".txt", delete=False, dir=project_root, encoding="utf-8"

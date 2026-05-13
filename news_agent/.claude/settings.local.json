@@ -25,7 +25,8 @@
       "PowerShell($py = \"d:\\\\代码项目\\\\news_agent\\\\.venv\\\\Scripts\\\\python.exe\"; & $py -m pip install playwright 2>&1 | Select-String \"Successfully|already|error\" -CaseSensitive:$false)",
       "WebFetch(domain:semianalysis.com)",
       "WebFetch(domain:newsletter.semianalysis.com)",
-      "Bash(.venv/Scripts/python.exe -c ' *)"
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv\\\\Scripts\\\\python.exe -c \"import app; print\\('OK'\\)\")"
     ]
   }
 }

@@ -38,7 +38,10 @@
     <button type="submit" class="btn btn-sm btn-primary">Apply</button>
     <a href="/" class="btn btn-sm btn-outline-secondary ms-1">Reset</a>
   </div>
-  <div class="col-auto ms-auto d-flex gap-2">
+  <div class="col-auto ms-auto d-flex align-items-center gap-2">
+    <span id="scheduler-badge" class="badge bg-success" style="display:none" title="Nitter sources auto-fetch every hour">
+      ⏱ Auto-fetch on
+    </span>
     <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary" onclick="generateDigest()">
       <span id="digest-label">✦ AI Digest</span>
       <span id="digest-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
@@ -68,26 +71,43 @@
 <!-- Two-panel layout -->
 <div class="row g-0" style="height: calc(100vh - 220px); min-height: 500px;">
 
-  <!-- LEFT: article list -->
+  <!-- LEFT: article list grouped by source -->
   <div class="col-4 border-end" style="overflow-y: auto; height: 100%;">
     <div id="article-list">
-      {% if articles %}
-        {% set ns = namespace(current_source=None) %}
-        {% for a in articles %}
-          {% if a.source_name != ns.current_source %}
-            {% set ns.current_source = a.source_name %}
-            <div class="px-3 pt-3 pb-1">
-              <span class="badge bg-secondary">{{ a.source_name }}</span>
+      {% if grouped_articles %}
+        {% for group in grouped_articles %}
+          {% set grp_id = "src-grp-" ~ loop.index %}
+          {% set is_nitter = group.type == 'nitter' %}
+          <div class="source-group">
+            <!-- Source header (toggle) -->
+            <div class="source-group-header px-3 py-2 d-flex align-items-center gap-2 border-bottom"
+                 data-bs-toggle="collapse"
+                 data-bs-target="#{{ grp_id }}"
+                 aria-expanded="{{ 'false' if is_nitter else 'true' }}"
+                 style="cursor:pointer; background:#f1f3f5; user-select:none;">
+              <span class="fw-semibold" style="font-size:.82rem">{{ group.name }}</span>
+              <span class="badge rounded-pill ms-1
+                {% if group.type == 'nitter' %}bg-info text-dark
+                {% elif group.type == 'rss' %}bg-warning text-dark
+                {% else %}bg-success{% endif %}"
+                style="font-size:.65rem">{{ group.type }}</span>
+              <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
+              <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
             </div>
-          {% endif %}
-          <div class="article-list-item px-3 py-2 border-bottom"
-               data-id="{{ a.id }}"
-               onclick="selectArticle({{ a.id }})"
-               style="cursor:pointer">
-            <div class="fw-medium lh-sm" style="font-size:.88rem">{{ a.title or a.url }}</div>
-            <div class="text-muted" style="font-size:.75rem">
-              {% set pub = a.published_at or a.fetched_at %}
-              {% if pub %}{{ pub[:10] }}{% endif %}
+            <!-- Article items -->
+            <div id="{{ grp_id }}" class="collapse {{ '' if is_nitter else 'show' }}">
+              {% for a in group.articles %}
+                <div class="article-list-item px-3 py-2 border-bottom"
+                     data-id="{{ a.id }}"
+                     onclick="selectArticle({{ a.id }})"
+                     style="cursor:pointer">
+                  <div class="fw-medium lh-sm" style="font-size:.88rem">{{ a.title or a.url }}</div>
+                  <div class="text-muted" style="font-size:.75rem">
+                    {% set pub = a.published_at or a.fetched_at %}
+                    {% if pub %}{{ pub[:10] }}{% endif %}
+                  </div>
+                </div>
+              {% endfor %}
             </div>
           </div>
         {% endfor %}
@@ -124,6 +144,18 @@
 
 {% block scripts %}
 <script>
+// Show scheduler badge if APScheduler is active
+fetch('/scheduler/status').then(r => r.json()).then(data => {
+  if (data.running) {
+    const badge = document.getElementById('scheduler-badge');
+    badge.style.display = 'inline-block';
+    if (data.next_nitter_fetch) {
+      const next = new Date(data.next_nitter_fetch);
+      badge.title = 'Nitter auto-fetch every hour. Next: ' + next.toLocaleTimeString();
+    }
+  }
+}).catch(() => {});
+
 const ARTICLES = JSON.parse(document.getElementById('articles-data').textContent);
 const byId = {};
 ARTICLES.forEach(a => byId[a.id] = a);
@@ -242,12 +274,13 @@ function triggerFetch() {
   spinner.style.display = 'inline-block';
 
   const dateFrom = document.querySelector('input[name="date_from"]').value;
+  const dateTo = document.querySelector('input[name="date_to"]').value;
   const sourceIds = Array.from(document.querySelectorAll('input[name="source_ids"]:checked'))
                          .map(el => parseInt(el.value));
   fetch('/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date_from: dateFrom || null, source_ids: sourceIds.length ? sourceIds : null })
+    body: JSON.stringify({ date_from: dateFrom || null, date_to: dateTo || null, source_ids: sourceIds.length ? sourceIds : null })
   })
     .then(r => r.json())
     .then(data => {

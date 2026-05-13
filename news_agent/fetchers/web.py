@@ -3,141 +3,179 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Optional
-from urllib.parse import urljoin, urlparse
-
-from bs4 import BeautifulSoup
 
 from config import MIN_ARTICLE_DATE
 
 logger = logging.getLogger(__name__)
 
-_ARTICLE_HINTS = re.compile(
-    r"(news|post|article|blog|press|release|story|update)", re.I
-)
+_MIN_DT = datetime.fromisoformat(MIN_ARTICLE_DATE).replace(tzinfo=timezone.utc)
 
 
-def _same_origin(base_url: str, link: str) -> bool:
-    base = urlparse(base_url)
-    target = urlparse(link)
-    return (not target.netloc) or (target.netloc == base.netloc)
+def _parse_cutoff(date_from: Optional[str]) -> Optional[datetime]:
+    if not date_from:
+        return None
+    try:
+        return datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
 
 
-def _candidate_links(soup: BeautifulSoup, base_url: str) -> list[str]:
-    """Heuristically find article links on a news index page."""
-    seen: set[str] = set()
-    results: list[str] = []
-
-    for tag in soup.find_all(True):
-        cls = " ".join(tag.get("class", []))
-        tag_id = tag.get("id", "")
-        if _ARTICLE_HINTS.search(cls) or _ARTICLE_HINTS.search(tag_id):
-            for a in tag.find_all("a", href=True):
-                href = urljoin(base_url, a["href"])
-                if href not in seen and _same_origin(base_url, href) and href != base_url:
-                    seen.add(href)
-                    results.append(href)
-
-    if not results:
-        for a in soup.find_all("a", href=True):
-            href = urljoin(base_url, a["href"])
-            if (
-                href not in seen
-                and _same_origin(base_url, href)
-                and href != base_url
-                and not href.startswith("javascript")
-                and "#" not in href.split("?")[0][-1:]
-            ):
-                seen.add(href)
-                results.append(href)
-
-    return results
+def _is_too_old(date_str: str, cutoff: datetime) -> bool:
+    try:
+        dt = datetime.fromisoformat(date_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt < cutoff
+    except Exception:
+        return False
 
 
-async def _fetch_index_html(index_url: str) -> str:
-    """Load the news index page with a real browser to handle JS-rendered content."""
-    from playwright.async_api import async_playwright
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=False,
-            args=["--lang=en-US"],
-        )
-        context = await browser.new_context(
-            locale="en-US",
-            extra_http_headers={"Accept-Language": "en-US,en;q=0.9"},
-        )
-        page = await context.new_page()
-        try:
-            await page.goto(index_url, wait_until="domcontentloaded", timeout=60_000)
-            await page.wait_for_timeout(2_000)
-            html = await page.content()
-            logger.info("[web] index page HTML: %d chars from %s", len(html), index_url)
-        except Exception as exc:
-            logger.warning("[web] failed to load index %s: %s", index_url, exc)
-            html = ""
-        finally:
-            await browser.close()
-    return html
+def _is_too_new(date_str: str, ceiling: datetime) -> bool:
+    try:
+        dt = datetime.fromisoformat(date_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt > ceiling
+    except Exception:
+        return False
 
 
-def fetch_web(index_url: str, known_urls: set[str]) -> list[dict]:
+async def _agent_discover_links(
+    index_url: str,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+) -> list[dict]:
     """
-    Scrape a company news/press release index page.
-    Uses Playwright to render the index (handles JS-heavy pages), then fetches
-    each article URL via browser_use_fetcher.fetch_article() (Playwright first,
-    browser-use agent as last resort).
+    Use a browser-use LLM agent to discover article links on a news index page.
+    Returns a list of {"url": str, "date": str|None} dicts.
+    """
+    from browser_use import Agent
+    from browser_use.browser.profile import BrowserProfile
+    from fetchers.browser_use_fetcher import _make_qwen_llm
 
-    known_urls: set of article URLs already in the DB (skip them entirely).
-    Returns list of article dicts.
+    if date_from and date_to:
+        date_hint = f" Only include articles published between {date_from} and {date_to} (inclusive)."
+    elif date_from:
+        date_hint = f" Only include articles published on or after {date_from}."
+    else:
+        date_hint = ""
+
+    task = (
+        f"Navigate to {index_url}. This is a news or press release listing page. "
+        "Your job is to find links to individual news articles, blog posts, or press releases. "
+        "Exclude: navigation menus, footer links, social media links, links to site sections "
+        "(About, Careers, Research, Products, etc.), and links that are not individual articles. "
+        f"{date_hint}"
+        "Return a JSON array where each element has exactly two fields: "
+        '"url" (full absolute URL of the article) and '
+        '"date" (publication date in YYYY-MM-DD format as shown on the page, or null if not visible). '
+        'Example output: [{"url": "https://example.com/news/article-1", "date": "2026-05-10"}, ...]. '
+        "Call done() with ONLY the raw JSON array — no markdown, no explanation."
+    )
+
+    profile = BrowserProfile(
+        args=["--lang=en-US", "--accept-lang=en-US"],
+        headless=False,
+    )
+    agent = Agent(task=task, llm=_make_qwen_llm(), use_vision=True, browser_profile=profile)
+    result = await agent.run(max_steps=5)
+
+    raw = result.final_result() or ""
+    if not raw:
+        parts = result.extracted_content() or []
+        raw = max(parts, key=len) if parts else ""
+
+    # Extract JSON array from response (agent may wrap it in markdown code fences)
+    match = re.search(r"\[.*\]", raw, re.DOTALL)
+    if not match:
+        logger.warning("[web agent] no JSON array found in response: %s", raw[:300])
+        return []
+    try:
+        items = json.loads(match.group())
+        valid = [i for i in items if isinstance(i, dict) and i.get("url", "").startswith("http")]
+        logger.info("[web agent] discovered %d article link(s) from %s", len(valid), index_url)
+        return valid
+    except Exception as exc:
+        logger.warning("[web agent] JSON parse failed: %s | raw: %s", exc, raw[:300])
+        return []
+
+
+def fetch_web(
+    index_url: str,
+    known_urls: set[str],
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+) -> list[dict]:
+    """
+    Scrape a company news/press release index page using an LLM agent for link
+    discovery, then Playwright (+ agent fallback) for individual article content.
+
+    index_url:  URL of the news listing page.
+    known_urls: article URLs already in the DB (skipped entirely).
+    date_from:  ISO date string; articles with a known date older than this are skipped.
+    date_to:    ISO date string; articles with a known date newer than this are skipped.
     """
     from fetchers.browser_use_fetcher import fetch_article
 
     logger.info("Fetching web index: %s", index_url)
 
-    html = asyncio.run(_fetch_index_html(index_url))
-    if not html:
+    link_items = asyncio.run(_agent_discover_links(index_url, date_from, date_to))
+    if not link_items:
         return []
 
-    soup = BeautifulSoup(html, "html.parser")
-    links = _candidate_links(soup, index_url)
-    logger.info("  Found %d candidate links", len(links))
-
+    cutoff = _parse_cutoff(date_from) or _MIN_DT
+    ceiling = _parse_cutoff(date_to)
     articles = []
-    for link in links:
-        if link in known_urls:
+    skipped_known = skipped_date = 0
+
+    for item in link_items:
+        url = item.get("url", "").strip().rstrip("/")
+        date_str = item.get("date") or None
+
+        if not url:
+            continue
+        if url in known_urls:
+            skipped_known += 1
+            continue
+        if date_str and _is_too_old(date_str, cutoff):
+            skipped_date += 1
+            continue
+        if date_str and ceiling and _is_too_new(date_str, ceiling):
+            skipped_date += 1
             continue
 
         try:
-            content = fetch_article(link)
+            content = fetch_article(url)
         except Exception as exc:
-            logger.warning("  fetch_article failed for %s: %s", link, exc)
+            logger.warning("  fetch_article failed for %s: %s", url, exc)
             continue
 
         if not content:
             continue
 
-        # Extract title from the rendered page cheaply via BeautifulSoup on the
-        # same HTML we already have from the index, or fall back to the URL.
-        title = link
-        try:
-            # Re-use the index soup only if the link appears as an <a> with text
-            a_tag = soup.find("a", href=True, string=True)
-            page_soup = BeautifulSoup(content[:2000], "html.parser")
-            h1 = page_soup.find("h1")
-            if h1:
-                title = h1.get_text(strip=True)
-        except Exception:
-            pass
+        # Extract title from first heading in the markdown content
+        title = url
+        for line in content.splitlines():
+            stripped = line.strip().lstrip("#").strip()
+            if line.strip().startswith("#") and stripped:
+                title = stripped
+                break
 
         articles.append({
             "title": title,
-            "url": link,
+            "url": url,
             "content": content,
-            "published_at": None,
+            "published_at": date_str,
         })
 
+    if skipped_known:
+        logger.info("  Skipped %d already-known article(s)", skipped_known)
+    if skipped_date:
+        logger.info("  Skipped %d article(s) outside date range", skipped_date)
     logger.info("  → %d new articles from %s", len(articles), index_url)
     return articles
