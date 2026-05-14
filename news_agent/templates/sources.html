@@ -73,6 +73,7 @@
             <th>URL / Handle</th>
             <th>URL Filter</th>
             <th>Last Fetched</th>
+            <th>Follow</th>
             <th></th>
           </tr>
         </thead>
@@ -95,6 +96,19 @@
             <td class="text-muted small font-monospace">{{ s.url_filter or '—' }}</td>
             <td class="text-muted small">
               {{ s.last_fetched[:16].replace('T', ' ') if s.last_fetched else '—' }}
+            </td>
+            <td>
+              {% if s.id in followed_source_ids %}
+                <form method="post" action="/sources/{{ s.id }}/follow" class="d-inline">
+                  <input type="hidden" name="action" value="unfollow">
+                  <button class="btn btn-sm btn-success">Following</button>
+                </form>
+              {% else %}
+                <form method="post" action="/sources/{{ s.id }}/follow" class="d-inline">
+                  <input type="hidden" name="action" value="follow">
+                  <button class="btn btn-sm btn-outline-secondary">Follow</button>
+                </form>
+              {% endif %}
             </td>
             <td>
               <form method="post" action="/sources/{{ s.id }}/delete"

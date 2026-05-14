@@ -58,9 +58,31 @@ def init_db():
                 error        TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS users (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                email      TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+                created_at TEXT    NOT NULL,
+                last_seen  TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS user_source_follows (
+                user_id   INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+                source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+                PRIMARY KEY (user_id, source_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS digests (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_ids_hash TEXT    NOT NULL UNIQUE,
+                article_ids_json TEXT    NOT NULL,
+                content          TEXT    NOT NULL,
+                created_at       TEXT    NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_articles_source   ON articles(source_id);
             CREATE INDEX IF NOT EXISTS idx_articles_pub_date ON articles(published_at);
             CREATE INDEX IF NOT EXISTS idx_fetch_log_started ON fetch_log(started_at);
+            CREATE INDEX IF NOT EXISTS idx_usf_user          ON user_source_follows(user_id);
         """)
         # Migrations for older databases
         try:
@@ -69,6 +91,22 @@ def init_db():
             pass
         try:
             conn.execute("ALTER TABLE fetch_log ADD COLUMN total_fetched INTEGER NOT NULL DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE articles ADD COLUMN digest_abstract TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN digest_enabled INTEGER NOT NULL DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN digest_frequency_days INTEGER NOT NULL DEFAULT 7")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN digest_last_sent TEXT")
         except Exception:
             pass
 
@@ -268,3 +306,136 @@ def get_fetch_log(limit: int = 50) -> list[sqlite3.Row]:
         return conn.execute(
             "SELECT * FROM fetch_log ORDER BY started_at DESC LIMIT ?", (limit,)
         ).fetchall()
+
+
+# ---------------------------------------------------------------------------
+# Users
+# ---------------------------------------------------------------------------
+
+def get_or_create_user(email: str) -> sqlite3.Row:
+    """Return the user row for email, creating it if it doesn't exist.
+    Updates last_seen on every call. Email is normalised to lowercase.
+    """
+    email = email.strip().lower()
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT * FROM users WHERE email = ?", (email,)
+        ).fetchone()
+        if existing:
+            conn.execute("UPDATE users SET last_seen = ? WHERE id = ?", (now, existing["id"]))
+            return conn.execute("SELECT * FROM users WHERE id = ?", (existing["id"],)).fetchone()
+        conn.execute(
+            "INSERT INTO users (email, created_at, last_seen) VALUES (?, ?, ?)",
+            (email, now, now),
+        )
+        return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+
+def get_user_by_id(user_id: int) -> Optional[sqlite3.Row]:
+    with get_conn() as conn:
+        return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+
+
+# ---------------------------------------------------------------------------
+# User source follows
+# ---------------------------------------------------------------------------
+
+def get_followed_source_ids(user_id: int) -> list[int]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT source_id FROM user_source_follows WHERE user_id = ?", (user_id,)
+        ).fetchall()
+        return [r["source_id"] for r in rows]
+
+
+def follow_source(user_id: int, source_id: int):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO user_source_follows (user_id, source_id) VALUES (?, ?)",
+            (user_id, source_id),
+        )
+
+
+def unfollow_source(user_id: int, source_id: int):
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM user_source_follows WHERE user_id = ? AND source_id = ?",
+            (user_id, source_id),
+        )
+
+
+# ---------------------------------------------------------------------------
+# User digest settings
+# ---------------------------------------------------------------------------
+
+def update_user_digest_settings(user_id: int, enabled: bool, frequency_days: int):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET digest_enabled=?, digest_frequency_days=? WHERE id=?",
+            (1 if enabled else 0, frequency_days, user_id),
+        )
+
+
+def update_user_digest_last_sent(user_id: int):
+    today = datetime.now(timezone.utc).date().isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET digest_last_sent=? WHERE id=?",
+            (today, user_id),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Digest abstract cache (per-article)
+# ---------------------------------------------------------------------------
+
+def get_digest_abstract(article_id: int) -> Optional[str]:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT digest_abstract FROM articles WHERE id = ?", (article_id,)
+        ).fetchone()
+        return row["digest_abstract"] if row else None
+
+
+def update_digest_abstract(article_id: int, abstract: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE articles SET digest_abstract = ? WHERE id = ?", (abstract, article_id)
+        )
+
+
+# ---------------------------------------------------------------------------
+# Full digest cache
+# ---------------------------------------------------------------------------
+
+def get_digest_cache(article_ids_hash: str) -> Optional[str]:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT content FROM digests WHERE article_ids_hash = ?", (article_ids_hash,)
+        ).fetchone()
+        return row["content"] if row else None
+
+
+def save_digest_cache(article_ids_hash: str, article_ids_json: str, content: str):
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO digests (article_ids_hash, article_ids_json, content, created_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(article_ids_hash) DO UPDATE SET content=excluded.content, created_at=excluded.created_at""",
+            (article_ids_hash, article_ids_json, content, now),
+        )
+
+
+def get_users_due_for_digest() -> list[sqlite3.Row]:
+    """Return users who have digest enabled and are due for their next send."""
+    with get_conn() as conn:
+        return conn.execute("""
+            SELECT * FROM users
+            WHERE digest_enabled = 1
+            AND (
+                digest_last_sent IS NULL
+                OR date(digest_last_sent, '+' || digest_frequency_days || ' days') <= date('now')
+            )
+        """).fetchall()

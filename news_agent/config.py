@@ -21,6 +21,9 @@ MIN_BROWSER_FALLBACK_CHARS = 300        # Playwright result shorter than this tr
 # --- Database ---
 DB_PATH = os.getenv("DB_PATH", "news.db")
 
+# --- Scheduler ---
+NITTER_FETCH_INTERVAL_HOURS = int(os.getenv("NITTER_FETCH_INTERVAL_HOURS", "2"))
+
 # --- Article filtering ---
 MIN_ARTICLE_DATE = "2026-01-01"          # hard floor: drop articles published before this date
 DATE_RANGE_DAYS = 7                      # only fetch articles from the last N days per run
@@ -36,6 +39,16 @@ DEFAULT_SOURCES = [
         "url": "https://openai.com/news/rss.xml",
         "url_filter": "openai.com/index/",   # only keep articles whose URL contains this
     },
+]
+
+# --- Flask session ---
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-change-me")
+
+# --- Access whitelist (comma-separated emails; empty = open to all) ---
+EMAIL_WHITELIST: list[str] = [
+    e.strip().lower()
+    for e in os.getenv("EMAIL_WHITELIST", "").split(",")
+    if e.strip()
 ]
 
 # --- Email ---

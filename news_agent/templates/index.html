@@ -5,81 +5,17 @@
 {# Pass article data to JS as JSON #}
 <script id="articles-data" type="application/json">{{ articles | tojson }}</script>
 
-<!-- Filter bar -->
-<form method="get" action="/" class="row g-2 align-items-end mb-3" id="filter-form">
-  <div class="col-auto">
-    <label class="form-label mb-1 small fw-semibold">From</label>
-    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
-  </div>
-  <div class="col-auto">
-    <label class="form-label mb-1 small fw-semibold">To</label>
-    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
-  </div>
-  <div class="col-auto">
-    <label class="form-label mb-1 small fw-semibold">Sources</label>
-    <div class="dropdown">
-      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-        {% if selected_source_ids %}{{ selected_source_ids|length }} selected{% else %}All sources{% endif %}
-      </button>
-      <ul class="dropdown-menu p-2" style="min-width:200px">
-        {% for s in all_sources %}
-        <li>
-          <label class="dropdown-item d-flex align-items-center gap-2 py-1">
-            <input type="checkbox" name="source_ids" value="{{ s.id }}"
-              {% if s.id in selected_source_ids %}checked{% endif %}>
-            <span>{{ s.name }} <small class="text-muted">({{ s.type }})</small></span>
-          </label>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-  </div>
-  <div class="col-auto">
-    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
-    <a href="/" class="btn btn-sm btn-outline-secondary ms-1">Reset</a>
-  </div>
-  <div class="col-auto ms-auto d-flex align-items-center gap-2">
-    <span id="scheduler-badge" class="badge bg-success" style="display:none" title="Nitter sources auto-fetch every hour">
-      ⏱ Auto-fetch on
-    </span>
-    <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary" onclick="generateDigest()">
-      <span id="digest-label">✦ AI Digest</span>
-      <span id="digest-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
-    </button>
-    <button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
-      <span id="fetch-label">⬇ Fetch Now</span>
-      <span id="fetch-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
-    </button>
-  </div>
-</form>
-<div id="fetch-toast" class="alert mb-2" style="display:none"></div>
-
-<!-- AI Digest panel (collapsed by default) -->
-<div id="digest-panel" class="card mb-3 border-primary" style="display:none">
-  <div class="card-header d-flex justify-content-between align-items-center py-2">
-    <span class="fw-semibold small">✦ AI Digest</span>
-    <button type="button" class="btn-close btn-sm" onclick="closeDigest()"></button>
-  </div>
-  <div class="card-body py-3 px-4">
-    <div id="digest-spinner-panel" class="text-muted small text-center py-3" style="display:none">
-      <span class="spinner-border spinner-border-sm me-1"></span>Generating digest…
-    </div>
-    <div id="digest-text" style="font-size:.9rem; line-height:1.7"></div>
-  </div>
-</div>
-
-<!-- Two-panel layout -->
-<div class="row g-0" style="height: calc(100vh - 220px); min-height: 500px;">
+<!-- Two-panel layout — fills viewport below navbar -->
+<div class="row g-0" style="height: calc(100vh - 90px); min-height: 500px;">
 
   <!-- LEFT: article list grouped by source -->
-  <div class="col-4 border-end" style="overflow-y: auto; height: 100%;">
-    <div id="article-list">
+  <div class="col-4 border-end d-flex flex-column" style="height: 100%; overflow: hidden;">
+    <div id="article-list" style="overflow-y: auto; flex: 1;">
       {% if grouped_articles %}
         {% for group in grouped_articles %}
           {% set grp_id = "src-grp-" ~ loop.index %}
           {% set is_nitter = group.type == 'nitter' %}
           <div class="source-group">
-            <!-- Source header (toggle) -->
             <div class="source-group-header px-3 py-2 d-flex align-items-center gap-2 border-bottom"
                  data-bs-toggle="collapse"
                  data-bs-target="#{{ grp_id }}"
@@ -94,7 +30,6 @@
               <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
               <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
             </div>
-            <!-- Article items -->
             <div id="{{ grp_id }}" class="collapse {{ '' if is_nitter else 'show' }}">
               {% for a in group.articles %}
                 <div class="article-list-item px-3 py-2 border-bottom"
@@ -120,25 +55,95 @@
     </div>
   </div>
 
-  <!-- RIGHT: article detail -->
-  <div class="col-8 p-4" style="overflow-y: auto; height: 100%;" id="detail-panel">
-    <div class="text-center text-muted mt-5" id="detail-placeholder">
-      <p class="fs-5">← Select an article to read it</p>
-    </div>
+  <!-- RIGHT: controls + article detail -->
+  <div class="col-8 d-flex flex-column" style="height: 100%; overflow: hidden;">
 
-    <div id="detail-content" style="display:none">
-      <div class="d-flex justify-content-between align-items-start mb-1">
-        <h5 id="detail-title" class="mb-0 me-3"></h5>
-        <a id="detail-link" href="#" target="_blank" rel="noopener"
-           class="btn btn-sm btn-outline-secondary flex-shrink-0">Open ↗</a>
+    <!-- Fixed header: action buttons + filter form -->
+    <div class="px-3 pt-3 pb-2 border-bottom bg-white flex-shrink-0">
+      <!-- Row 1: action buttons -->
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span id="scheduler-badge" class="badge bg-success" style="display:none" title="Nitter sources auto-fetch every hour">
+          ⏱ Auto-fetch on
+        </span>
+        <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary" onclick="generateDigest()">
+          <span id="digest-label">✦ AI Digest</span>
+          <span id="digest-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
+        </button>
+        <button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
+          <span id="fetch-label">⬇ Fetch Now</span>
+          <span id="fetch-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
+        </button>
       </div>
-      <div class="text-muted small mb-3" id="detail-meta"></div>
-
-      <!-- Article body (rendered as Markdown; images included inline) -->
-      <div id="detail-body" style="font-size:.93rem; line-height:1.7; word-break:break-word;"></div>
+      <!-- Row 2: filter form -->
+      <form method="get" action="/" class="d-flex flex-wrap gap-2 align-items-end" id="filter-form">
+        <div>
+          <label class="form-label mb-1 small fw-semibold">From</label>
+          <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+        </div>
+        <div>
+          <label class="form-label mb-1 small fw-semibold">To</label>
+          <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+        </div>
+        <div>
+          <label class="form-label mb-1 small fw-semibold">Sources</label>
+          {% set active_ids = selected_source_ids if selected_source_ids else followed_source_ids %}
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+              {% if active_ids %}{{ active_ids|length }} selected{% else %}All sources{% endif %}
+            </button>
+            <ul class="dropdown-menu p-2" style="min-width:200px">
+              {% for s in all_sources %}
+              <li>
+                <label class="dropdown-item d-flex align-items-center gap-2 py-1">
+                  <input type="checkbox" name="source_ids" value="{{ s.id }}"
+                    {% if s.id in active_ids %}checked{% endif %}>
+                  <span>{{ s.name }} <small class="text-muted">({{ s.type }})</small></span>
+                </label>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <div class="d-flex gap-1 align-self-end">
+          <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+          <a href="/" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+      </form>
+      <!-- Toast -->
+      <div id="fetch-toast" class="alert mb-0 mt-2" style="display:none"></div>
     </div>
-  </div>
 
+    <!-- AI Digest panel (collapsible, sits between header and detail) -->
+    <div id="digest-panel" class="border-bottom flex-shrink-0" style="display:none">
+      <div class="d-flex justify-content-between align-items-center px-3 py-2 bg-white border-bottom">
+        <span class="fw-semibold small">✦ AI Digest</span>
+        <button type="button" class="btn-close btn-sm" onclick="closeDigest()"></button>
+      </div>
+      <div class="px-4 py-3" style="max-height: 300px; overflow-y: auto; background:#fff;">
+        <div id="digest-spinner-panel" class="text-muted small text-center py-3" style="display:none">
+          <span class="spinner-border spinner-border-sm me-1"></span>Generating digest…
+        </div>
+        <div id="digest-text" style="font-size:.9rem; line-height:1.7"></div>
+      </div>
+    </div>
+
+    <!-- Scrollable article detail -->
+    <div class="flex-grow-1 overflow-auto p-4" id="detail-panel">
+      <div class="text-center text-muted mt-5" id="detail-placeholder">
+        <p class="fs-5">← Select an article to read it</p>
+      </div>
+      <div id="detail-content" style="display:none">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+          <h5 id="detail-title" class="mb-0 me-3"></h5>
+          <a id="detail-link" href="#" target="_blank" rel="noopener"
+             class="btn btn-sm btn-outline-secondary flex-shrink-0">Open ↗</a>
+        </div>
+        <div class="text-muted small mb-3" id="detail-meta"></div>
+        <div id="detail-body" style="font-size:.93rem; line-height:1.7; word-break:break-word;"></div>
+      </div>
+    </div>
+
+  </div>
 </div>
 {% endblock %}
 
@@ -181,7 +186,6 @@ function selectArticle(id) {
     [a.source_name, pub].filter(Boolean).join(' · ');
 
   const raw = a.content || '(No content fetched)';
-  // Render as Markdown if marked.js is available; plain text fallback otherwise
   const bodyEl = document.getElementById('detail-body');
   if (typeof marked !== 'undefined') {
     bodyEl.innerHTML = marked.parse(raw, { breaks: true });
@@ -212,7 +216,6 @@ function generateDigest() {
   panel.style.display = 'block';
   spinnerPanel.style.display = 'block';
   textEl.textContent = '';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   fetch('/digest/generate', {
     method: 'POST',
@@ -241,21 +244,37 @@ function generateDigest() {
 }
 
 function renderDigest(md) {
-  // Escape HTML first
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  function renderLine(raw) {
+    // Extract markdown links before escaping so URLs are preserved verbatim
+    const linkMap = {};
+    let idx = 0;
+    const withPlaceholders = raw.replace(/\[([^\]]*)\]\(([^)]*)\)/g, (_, text, url) => {
+      const key = `\x00L${idx}\x00`;
+      linkMap[key] = `<a href="${url}" target="_blank" rel="noopener">${esc(text)}</a>`;
+      idx++;
+      return key;
+    });
+    // Escape remaining text (placeholders use \x00 which won't appear in normal text)
+    let html = withPlaceholders.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    // Restore links
+    Object.entries(linkMap).forEach(([key, val]) => { html = html.replaceAll(key, val); });
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return html;
+  }
+
   return md.split('\n').map(line => {
-    const raw = line;
-    // Section divider
-    if (/^---+$/.test(raw.trim())) return '<hr class="my-3">';
-    // Bold: **text**
-    let html = esc(raw).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // Bullet lines
-    if (/^[\*\-]\s/.test(raw)) {
+    if (/^---+$/.test(line.trim())) return '<hr class="my-3">';
+    if (/^### /.test(line)) return `<div class="fw-bold mt-3 mb-1" style="font-size:1rem">${esc(line.slice(4))}</div>`;
+    if (/^## /.test(line))  return `<div class="fw-bold mt-2 mb-1" style="font-size:1.05rem;border-bottom:1px solid #dee2e6">${esc(line.slice(3))}</div>`;
+    if (!line.trim()) return '<div class="mb-2"></div>';
+    let html = renderLine(line);
+    if (/^[\*\-]\s/.test(line)) {
       html = '&bull; ' + html.replace(/^[\*\-]\s+/, '');
       return `<div class="ms-2 mb-1">${html}</div>`;
     }
-    // Blank line → spacing
-    if (!raw.trim()) return '<div class="mb-2"></div>';
     return `<div>${html}</div>`;
   }).join('');
 }
@@ -322,7 +341,7 @@ function resetFetchBtn() {
 
 function showToast(msg, type) {
   const el = document.getElementById('fetch-toast');
-  el.className = `alert alert-${type} mb-2`;
+  el.className = `alert alert-${type} mb-0 mt-2`;
   el.textContent = msg;
   el.style.display = 'block';
 }
@@ -330,7 +349,7 @@ function showToast(msg, type) {
 function showFetchResult(res) {
   const el = document.getElementById('fetch-toast');
   const anyError = res.sources && res.sources.some(s => s.error);
-  el.className = `alert ${anyError ? 'alert-warning' : 'alert-success'} mb-2`;
+  el.className = `alert ${anyError ? 'alert-warning' : 'alert-success'} mb-0 mt-2`;
 
   let html = `<strong>Fetch complete — ${res.new_articles} new article(s)</strong>`;
   if (res.sources && res.sources.length) {

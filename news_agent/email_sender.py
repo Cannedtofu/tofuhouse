@@ -11,12 +11,18 @@ from config import RECIPIENT_EMAIL, SMTP_PASSWORD, SMTP_PORT, SMTP_SERVER, SMTP_
 logger = logging.getLogger(__name__)
 
 
-def send_digest(markdown_body: str, date_label: Optional[str] = None) -> bool:
+def send_digest(
+    markdown_body: str,
+    to_email: Optional[str] = None,
+    date_label: Optional[str] = None,
+) -> bool:
     """
     Send a markdown digest as a plain-text email.
+    to_email overrides RECIPIENT_EMAIL from config.
     Returns True on success, False on failure.
     """
-    if not all([SMTP_USER, SMTP_PASSWORD, RECIPIENT_EMAIL]):
+    recipient = to_email or RECIPIENT_EMAIL
+    if not all([SMTP_USER, SMTP_PASSWORD, recipient]):
         logger.error("Email credentials not configured. Set SMTP_USER, SMTP_PASSWORD, RECIPIENT_EMAIL.")
         return False
 
@@ -26,7 +32,7 @@ def send_digest(markdown_body: str, date_label: Optional[str] = None) -> bool:
     msg = EmailMessage()
     msg["Subject"] = f"📰 News Digest — {label} ({article_count} articles)"
     msg["From"] = SMTP_USER
-    msg["To"] = RECIPIENT_EMAIL
+    msg["To"] = recipient
     msg.set_content(markdown_body)
 
     try:
@@ -41,7 +47,7 @@ def send_digest(markdown_body: str, date_label: Optional[str] = None) -> bool:
                 smtp.login(SMTP_USER, SMTP_PASSWORD)
                 smtp.send_message(msg)
 
-        logger.info("Email sent to %s (%d articles)", RECIPIENT_EMAIL, article_count)
+        logger.info("Email sent to %s (%d articles)", recipient, article_count)
         return True
 
     except Exception as exc:
