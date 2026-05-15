@@ -300,7 +300,12 @@ async def _playwright_fetch(url: str) -> str:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=False,
-            args=["--lang=en-US"],
+            args=[
+                "--lang=en-US",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+            ],
         )
         context = await browser.new_context(
             locale="en-US",
@@ -350,7 +355,13 @@ async def _agent_fetch(url: str) -> str:
     from browser_use.browser.profile import BrowserProfile
 
     profile = BrowserProfile(
-        args=["--lang=en-US", "--accept-lang=en-US"],
+        args=[
+            "--lang=en-US",
+            "--accept-lang=en-US",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+        ],
         headless=False,
     )
     task = (

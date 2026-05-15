@@ -79,7 +79,13 @@ async def _agent_discover_links(
     )
 
     profile = BrowserProfile(
-        args=["--lang=en-US", "--accept-lang=en-US"],
+        args=[
+            "--lang=en-US",
+            "--accept-lang=en-US",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+        ],
         headless=True,
     )
     agent = Agent(task=task, llm=_make_qwen_llm(), use_vision=True, browser_profile=profile)
