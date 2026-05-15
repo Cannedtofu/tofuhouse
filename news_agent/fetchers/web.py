@@ -80,7 +80,7 @@ async def _agent_discover_links(
 
     profile = BrowserProfile(
         args=["--lang=en-US", "--accept-lang=en-US"],
-        headless=False,
+        headless=True,
     )
     agent = Agent(task=task, llm=_make_qwen_llm(), use_vision=True, browser_profile=profile)
     result = await agent.run(max_steps=5)

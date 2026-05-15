@@ -92,6 +92,13 @@
               {% if active_ids %}{{ active_ids|length }} selected{% else %}All sources{% endif %}
             </button>
             <ul class="dropdown-menu p-2" style="min-width:200px">
+              <li class="d-flex gap-1 mb-1 px-1">
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
+                        onclick="setAllSources(true)">All</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
+                        onclick="setAllSources(false)">None</button>
+              </li>
+              <li><hr class="dropdown-divider my-1"></li>
               {% for s in all_sources %}
               <li>
                 <label class="dropdown-item d-flex align-items-center gap-2 py-1">
@@ -160,6 +167,10 @@ fetch('/scheduler/status').then(r => r.json()).then(data => {
     }
   }
 }).catch(() => {});
+
+function setAllSources(checked) {
+  document.querySelectorAll('input[name="source_ids"]').forEach(cb => cb.checked = checked);
+}
 
 const ARTICLES = JSON.parse(document.getElementById('articles-data').textContent);
 const byId = {};
