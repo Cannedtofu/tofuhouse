@@ -227,7 +227,10 @@ def generate_batch_digest(article_ids: list[int]) -> str:
     sections: list[str] = []
     briefing_outputs: list[str] = []  # collected for big picture synthesis
 
-    for src in sources.values():
+    # RSS/web sources first, nitter last
+    sorted_sources = sorted(sources.values(), key=lambda s: 1 if s["type"] == "nitter" else 0)
+
+    for src in sorted_sources:
         source_name = src["name"]
         articles = src["articles"]
 

@@ -3,7 +3,7 @@
 import logging
 import os
 import threading
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from logging.handlers import RotatingFileHandler
 
@@ -45,6 +45,21 @@ logging.getLogger().addHandler(_file_handler)
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+_SGT = timezone(timedelta(hours=8))
+
+@app.template_filter("to_sgt")
+def to_sgt_filter(ts_str: str) -> str:
+    """Convert a UTC ISO timestamp string to Singapore time (UTC+8) for display."""
+    if not ts_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(_SGT).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return ts_str[:19].replace("T", " ")
 db.init_db()
 db.seed_default_sources()
 
@@ -408,8 +423,12 @@ def digest_generate():
     article_ids = data.get("article_ids", [])
     if not article_ids:
         return jsonify({"error": "No article IDs provided"}), 400
-    digest = generate_batch_digest(article_ids)
-    return jsonify({"digest": digest})
+    try:
+        digest = generate_batch_digest(article_ids)
+        return jsonify({"digest": digest})
+    except Exception as exc:
+        logging.exception("Digest generation failed")
+        return jsonify({"error": f"Digest generation failed: {exc}"}), 500
 
 
 # ---------------------------------------------------------------------------

@@ -19,7 +19,7 @@
       <table class="table table-sm table-hover mb-0" style="font-size:.82rem">
         <thead class="table-light">
           <tr>
-            <th>Started (UTC)</th>
+            <th>Started (SGT)</th>
             <th>Trigger</th>
             <th class="text-end">Fetched</th>
             <th class="text-end">New</th>
@@ -31,7 +31,7 @@
         <tbody>
           {% for entry in fetch_log %}
           <tr class="{% if entry.error %}table-danger{% endif %}">
-            <td class="text-nowrap">{{ (entry.started_at or '')[:19].replace('T',' ') }}</td>
+            <td class="text-nowrap">{{ entry.started_at | to_sgt }}</td>
             <td>
               {% if entry.trigger == 'scheduled' %}
                 <span class="badge bg-secondary">scheduled</span>
@@ -55,14 +55,16 @@
             </td>
             <td>
               {% for s in entry.sources_parsed %}
-                <span class="me-2 text-nowrap">
-                  <strong>{{ s.name }}</strong>:
-                  {% if s.error %}
-                    <span class="text-danger">err</span>
-                  {% else %}
-                    {{ s.new }}/{{ s.fetched }}
-                  {% endif %}
-                </span>
+                {% if s.new > 0 or s.error %}
+                  <span class="me-2 text-nowrap">
+                    <strong>{{ s.name }}</strong>:
+                    {% if s.error %}
+                      <span class="text-danger">err</span>
+                    {% else %}
+                      <span class="text-success">+{{ s.new }}</span>
+                    {% endif %}
+                  </span>
+                {% endif %}
               {% endfor %}
             </td>
             <td class="text-danger" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
