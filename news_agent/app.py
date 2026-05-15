@@ -3,6 +3,7 @@
 import logging
 import os
 import threading
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from logging.handlers import RotatingFileHandler
@@ -85,6 +86,9 @@ def login_required(f):
 # Background fetch lock (prevent concurrent fetches from overlapping)
 _fetch_lock = threading.Lock()
 _fetch_status: dict = {"running": False, "last_result": None}
+
+# Digest jobs — keyed by UUID, each: {"status": "running"|"done"|"error", "result": str}
+_digest_jobs: dict[str, dict] = {}
 
 # ---------------------------------------------------------------------------
 # Periodic background scheduler
@@ -423,12 +427,29 @@ def digest_generate():
     article_ids = data.get("article_ids", [])
     if not article_ids:
         return jsonify({"error": "No article IDs provided"}), 400
-    try:
-        digest = generate_batch_digest(article_ids)
-        return jsonify({"digest": digest})
-    except Exception as exc:
-        logging.exception("Digest generation failed")
-        return jsonify({"error": f"Digest generation failed: {exc}"}), 500
+
+    job_id = str(uuid.uuid4())
+    _digest_jobs[job_id] = {"status": "running", "result": None}
+
+    def _run():
+        try:
+            result = generate_batch_digest(article_ids)
+            _digest_jobs[job_id] = {"status": "done", "result": result}
+        except Exception as exc:
+            logging.exception("Digest generation failed")
+            _digest_jobs[job_id] = {"status": "error", "result": str(exc)}
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/digest/status/<job_id>")
+@login_required
+def digest_job_status(job_id: str):
+    job = _digest_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify(job)
 
 
 # ---------------------------------------------------------------------------

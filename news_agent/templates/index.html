@@ -224,23 +224,42 @@ function generateDigest() {
   })
     .then(r => r.json())
     .then(data => {
-      spinnerPanel.style.display = 'none';
-      btn.disabled = false;
-      label.textContent = '✦ AI Digest';
-      spinner.style.display = 'none';
-      if (data.digest) {
-        textEl.innerHTML = renderDigest(data.digest);
-      } else {
-        textEl.textContent = data.error || 'Failed to generate digest.';
-      }
+      if (data.error) { showDigestError(data.error); return; }
+      if (data.job_id) { pollDigestStatus(data.job_id); }
     })
-    .catch(() => {
-      spinnerPanel.style.display = 'none';
-      btn.disabled = false;
-      label.textContent = '✦ AI Digest';
-      spinner.style.display = 'none';
-      textEl.textContent = 'Request failed.';
-    });
+    .catch(() => showDigestError('Request failed.'));
+}
+
+function pollDigestStatus(jobId) {
+  const interval = setInterval(() => {
+    fetch(`/digest/status/${jobId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'done') {
+          clearInterval(interval);
+          resetDigestBtn();
+          document.getElementById('digest-spinner-panel').style.display = 'none';
+          document.getElementById('digest-text').innerHTML = renderDigest(data.result);
+        } else if (data.status === 'error') {
+          clearInterval(interval);
+          showDigestError(data.result || 'Digest generation failed.');
+        }
+        // status === 'running': keep polling
+      })
+      .catch(() => { clearInterval(interval); showDigestError('Polling failed.'); });
+  }, 2000);
+}
+
+function resetDigestBtn() {
+  document.getElementById('digest-btn').disabled = false;
+  document.getElementById('digest-label').textContent = '✦ AI Digest';
+  document.getElementById('digest-spinner').style.display = 'none';
+}
+
+function showDigestError(msg) {
+  resetDigestBtn();
+  document.getElementById('digest-spinner-panel').style.display = 'none';
+  document.getElementById('digest-text').textContent = msg;
 }
 
 function renderDigest(md) {
