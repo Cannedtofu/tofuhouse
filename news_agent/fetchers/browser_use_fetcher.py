@@ -305,7 +305,9 @@ async def _playwright_fetch(url: str) -> str:
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
+                "--window-position=-32000,-32000",
             ],
+            env={**__import__("os").environ, "DISPLAY": ":99"},
         )
         context = await browser.new_context(
             locale="en-US",
