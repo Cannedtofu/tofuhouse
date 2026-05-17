@@ -95,7 +95,7 @@ _digest_jobs: dict[str, dict] = {}
 # ---------------------------------------------------------------------------
 
 def _scheduled_nitter_fetch():
-    """Fetch only Nitter sources — runs every hour while the app is active."""
+    """Fetch only Nitter sources — runs at fixed clock times anchored to 11pm SGT."""
     if _fetch_status["running"]:
         logger_sched.info("Skipping scheduled Nitter fetch — manual fetch in progress")
         return
@@ -179,7 +179,21 @@ def _scheduled_digest_send():
 
 logger_sched = logging.getLogger("scheduler")
 _scheduler = BackgroundScheduler(daemon=True)
-_scheduler.add_job(_scheduled_nitter_fetch, "interval", hours=NITTER_FETCH_PERIOD_HOURS, id="nitter_periodic")
+
+# Anchor Nitter fetches to 11pm SGT (15:00 UTC). If NITTER_FETCH_PERIOD_HOURS
+# is less than 24 and divides evenly into 24, add runs at equal intervals from
+# that anchor (e.g. 12h → 15:00 + 03:00 UTC; 8h → 07:00 + 15:00 + 23:00 UTC).
+_NITTER_ANCHOR_UTC = 15  # 11pm SGT = UTC+8
+if 24 % NITTER_FETCH_PERIOD_HOURS == 0:
+    _nitter_cron_hours = ",".join(
+        str((_NITTER_ANCHOR_UTC + i * NITTER_FETCH_PERIOD_HOURS) % 24)
+        for i in range(24 // NITTER_FETCH_PERIOD_HOURS)
+    )
+else:
+    # Non-divisible interval: fall back to single daily run at anchor time
+    _nitter_cron_hours = str(_NITTER_ANCHOR_UTC)
+
+_scheduler.add_job(_scheduled_nitter_fetch, "cron", hour=_nitter_cron_hours, minute=0, id="nitter_periodic")
 _scheduler.add_job(_scheduled_digest_send, "interval", hours=6, id="digest_send")
 _scheduler.start()
 
