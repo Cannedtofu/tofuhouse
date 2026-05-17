@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Sign In — News Feed{% endblock %}
+{% block title %}登录 — 新闻助手{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center mt-5">
   <div class="col-sm-8 col-md-5 col-lg-4">
     <div class="card p-4 shadow-sm">
-      <h5 class="mb-1 fw-semibold">📰 News Feed</h5>
-      <p class="text-muted small mb-4">Enter your email to access your personalised dashboard.</p>
+      <h5 class="mb-1 fw-semibold">📰 新闻助手</h5>
+      <p class="text-muted small mb-4">输入您的邮箱以访问个人看板。</p>
 
       {% if error %}
       <div class="alert alert-danger py-2 small">{{ error }}</div>
@@ -14,15 +14,15 @@
 
       <form method="post">
         <div class="mb-3">
-          <label class="form-label fw-medium">Email address</label>
+          <label class="form-label fw-medium">邮箱地址</label>
           <input type="email" name="email" class="form-control" placeholder="you@example.com"
                  required autofocus>
         </div>
-        <button type="submit" class="btn btn-primary w-100">Continue →</button>
+        <button type="submit" class="btn btn-primary w-100">继续 →</button>
       </form>
 
       <p class="text-muted mt-3 mb-0" style="font-size:.78rem">
-        Your email identifies your dashboard. First visit creates your account automatically.
+        您的邮箱是您的账户标识，首次访问将自动创建账户。
       </p>
     </div>
   </div>

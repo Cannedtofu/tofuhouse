@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Settings{% endblock %}
+{% block title %}设置{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-md-6 col-lg-5">
     <div class="card p-4">
-      <h5 class="mb-4">Email Digest Settings</h5>
+      <h5 class="mb-4">邮件简报设置</h5>
 
       {% if success %}
-      <div class="alert alert-success py-2 small">Settings saved.</div>
+      <div class="alert alert-success py-2 small">设置已保存。</div>
       {% endif %}
 
       <form method="post">
@@ -17,35 +17,34 @@
             <input type="checkbox" name="digest_enabled" class="form-check-input" id="digestEnabled"
                    value="1" {% if user['digest_enabled'] %}checked{% endif %}>
             <label class="form-check-label fw-medium" for="digestEnabled">
-              Receive email digest
+              接收邮件简报
             </label>
           </div>
-          <div class="form-text">Digest will be sent to <strong>{{ g.current_user.email }}</strong></div>
+          <div class="form-text">简报将发送至 <strong>{{ g.current_user.email }}</strong></div>
         </div>
 
         <div class="mb-4">
-          <label class="form-label fw-medium">Send frequency</label>
+          <label class="form-label fw-medium">发送频率</label>
           <select name="digest_frequency_days" class="form-select">
-            <option value="3"  {% if user['digest_frequency_days'] == 3  %}selected{% endif %}>Every 3 days</option>
-            <option value="7"  {% if user['digest_frequency_days'] == 7  %}selected{% endif %}>Every week</option>
-            <option value="14" {% if user['digest_frequency_days'] == 14 %}selected{% endif %}>Every 2 weeks</option>
+            <option value="3"  {% if user['digest_frequency_days'] == 3  %}selected{% endif %}>每 3 天</option>
+            <option value="7"  {% if user['digest_frequency_days'] == 7  %}selected{% endif %}>每周</option>
+            <option value="14" {% if user['digest_frequency_days'] == 14 %}selected{% endif %}>每 2 周</option>
           </select>
           <div class="form-text">
-            The digest will cover the past <span id="freq-label">{{ user['digest_frequency_days'] }}</span> days
-            and is sent at the start of each period.
+            简报将涵盖过去 <span id="freq-label">{{ user['digest_frequency_days'] }}</span> 天的内容，并在每个周期开始时发送。
           </div>
         </div>
 
         {% if user['digest_last_sent'] %}
-        <p class="text-muted small mb-3">Last sent: {{ user['digest_last_sent'] }}</p>
+        <p class="text-muted small mb-3">上次发送：{{ user['digest_last_sent'] }}</p>
         {% endif %}
 
-        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="submit" class="btn btn-primary">保存</button>
       </form>
     </div>
 
     <p class="text-muted small mt-3 px-1">
-      Digests are checked every 6 hours. Make sure your SMTP credentials are configured on the server.
+      每 6 小时检查一次简报发送条件，请确保服务器上已正确配置 SMTP 邮件凭据。
     </p>
   </div>
 </div>

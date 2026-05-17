@@ -5,10 +5,12 @@ Shared fetch + summarize pipeline used by both main.py (CLI) and app.py (web).
 from __future__ import annotations
 
 import logging
+import random
+import time
 
 import db
 from config import MIN_CONTENT_WORDS
-from fetchers.rss import fetch_nitter, fetch_rss
+from fetchers.rss import fetch_nitter_hybrid, fetch_rss
 from fetchers.web import fetch_web
 from summarizer import summarize_new_articles
 
@@ -21,12 +23,14 @@ def run_fetch_and_summarize(
     date_to: str | None = None,
     source_ids: list[int] | None = None,
     source_types: list[str] | None = None,
+    exclude_types: list[str] | None = None,
 ) -> dict:
     """
     Fetch new articles for all sources (or a filtered subset) and store them.
-    date_from:    ISO date string; articles older than this are skipped.
-    source_ids:   list of source IDs to fetch; None means all sources.
-    source_types: list of types to include, e.g. ["nitter"]; None means all types.
+    date_from:     ISO date string; articles older than this are skipped.
+    source_ids:    list of source IDs to fetch; None means all sources.
+    source_types:  allowlist of types to include, e.g. ["nitter"]; None means all.
+    exclude_types: denylist of types to skip, e.g. ["nitter"] for UI fetch.
     Returns a dict: {"total_new": int, "sources": [{"name", "type", "new", "fetched", "error"}]}
     """
     sources = db.get_all_sources()
@@ -34,6 +38,8 @@ def run_fetch_and_summarize(
         sources = [s for s in sources if s["id"] in source_ids]
     if source_types:
         sources = [s for s in sources if s["type"] in source_types]
+    if exclude_types:
+        sources = [s for s in sources if s["type"] not in exclude_types]
     if not sources:
         logger.warning("No sources configured.")
         return {"total_new": 0, "sources": []}
@@ -73,7 +79,9 @@ def run_fetch_and_summarize(
 
             elif source_type == "nitter":
                 handle = source_url.replace("nitter:", "").lstrip("@")
-                articles = fetch_nitter(handle, known_urls=existing_urls, date_from=date_from)
+                # Never pass date_from for nitter — always use period-based cutoff.
+                # Historical nitter fetch is admin-only via scripts/fetch_history.py.
+                articles = fetch_nitter_hybrid(handle, known_urls=existing_urls)
 
             elif source_type == "web":
                 articles = fetch_web(source_url, known_urls=existing_urls, date_from=date_from, date_to=date_to)
@@ -114,6 +122,13 @@ def run_fetch_and_summarize(
             result["error"] = str(exc)
 
         source_results.append(result)
+
+        # Randomised inter-account gap for nitter sources. Jitter prevents
+        # the fixed-interval fingerprint that automation detection looks for.
+        if source_type == "nitter" and source != sources[-1]:
+            gap = 15 + random.randint(0, 15)  # 15–30s
+            logger.info("[nitter] inter-account gap: %ds", gap)
+            time.sleep(gap)
 
     if summarize:
         summarize_new_articles()

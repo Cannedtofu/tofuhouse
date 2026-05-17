@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import random
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -17,7 +18,9 @@ from config import (
     DATE_RANGE_DAYS,
     MAX_ARTICLES_PER_SOURCE,
     MIN_ARTICLE_DATE,
+    NITTER_FETCH_PERIOD_HOURS,
     NITTER_INSTANCES,
+    NITTER_PAGE_DELAY,
 )
 
 logger = logging.getLogger(__name__)
@@ -242,3 +245,108 @@ def fetch_nitter(handle: str, known_urls: set[str] | None = None, date_from: str
 
     logger.error("All Nitter instances failed for @%s", handle)
     return []
+
+
+def fetch_nitter_hybrid(
+    handle: str,
+    known_urls: set[str] | None = None,
+    date_from: str | None = None,
+    page_delay: int = NITTER_PAGE_DELAY,
+) -> list[dict]:
+    """
+    Hybrid Nitter fetch: RSS first, then HTML pagination only when needed.
+
+    The fetch window is NITTER_FETCH_PERIOD_HOURS (e.g. 24h or 12h).
+    Pagination triggers only when all RSS tweets fall within that window,
+    meaning the RSS page is "full" of in-window tweets and there may be more.
+    Pagination stops as soon as a tweet is older than the window.
+
+    If date_from is provided (manual fetch with date filter), it takes
+    precedence over the period-based cutoff.
+    """
+    from fetchers.nitter_html import fetch_nitter_html_page
+
+    now = datetime.now(timezone.utc)
+
+    # Cutoff: use explicit date_from if given, otherwise now minus the fetch period
+    if date_from:
+        period_cutoff = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+    else:
+        period_cutoff = now - timedelta(hours=NITTER_FETCH_PERIOD_HOURS)
+
+    # Step 1 — fast RSS fetch
+    articles = fetch_nitter(handle, known_urls=known_urls, date_from=date_from)
+
+    if not articles:
+        return articles
+
+    # Step 2 — find the oldest tweet's datetime
+    dated = [a for a in articles if a.get("published_at")]
+    if not dated:
+        return articles
+
+    def _as_utc(iso: str) -> datetime:
+        dt = datetime.fromisoformat(iso)
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    oldest_dt = min(_as_utc(a["published_at"]) for a in dated)
+
+    if oldest_dt <= period_cutoff:
+        logger.info(
+            "[nitter-hybrid] @%s: oldest tweet %s is outside the %dh window — RSS sufficient",
+            handle, oldest_dt.strftime("%Y-%m-%d %H:%M"), NITTER_FETCH_PERIOD_HOURS,
+        )
+        return articles
+
+    # All RSS tweets are within the window — paginate to collect the rest
+    logger.info(
+        "[nitter-hybrid] @%s: all %d RSS tweets within the %dh window, paginating…",
+        handle, len(articles), NITTER_FETCH_PERIOD_HOURS,
+    )
+
+    existing_urls: set[str] = {a["url"] for a in articles}
+    if known_urls:
+        existing_urls |= known_urls
+
+    # Fetch HTML page 1 to get the cursor (tweets overlap with RSS — deduped via existing_urls)
+    pre_gap = 10 + random.randint(0, 10)  # 10–20s
+    logger.info("[nitter-hybrid] @%s: waiting %ds before HTML page 1…", handle, pre_gap)
+    time.sleep(pre_gap)
+    _, cursor = fetch_nitter_html_page(handle)
+
+    while cursor:
+        jitter = random.randint(1, 60)
+        actual_delay = page_delay + jitter
+        logger.info("[nitter-hybrid] @%s: waiting %ds (%d + %d jitter) before next page…",
+                    handle, actual_delay, page_delay, jitter)
+        time.sleep(actual_delay)
+
+        page_tweets, cursor = fetch_nitter_html_page(handle, cursor=cursor)
+
+        if not page_tweets:
+            break
+
+        past_window = False
+        for tweet in page_tweets:
+            if tweet["url"] in existing_urls:
+                continue
+
+            pub = tweet.get("published_at")
+            if pub:
+                tweet_dt = _as_utc(pub)
+                if tweet_dt <= period_cutoff:
+                    logger.info(
+                        "[nitter-hybrid] @%s: tweet at %s is older than %dh window — stopping",
+                        handle, tweet_dt.strftime("%Y-%m-%d %H:%M"), NITTER_FETCH_PERIOD_HOURS,
+                    )
+                    past_window = True
+                    break
+
+            articles.append(tweet)
+            existing_urls.add(tweet["url"])
+
+        if past_window:
+            break
+
+    logger.info("[nitter-hybrid] @%s: %d total tweets after pagination", handle, len(articles))
+    return articles

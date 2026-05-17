@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Activity Log{% endblock %}
+{% block title %}日志{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h5 class="mb-0 fw-semibold">Activity Log</h5>
-  <a href="/" class="btn btn-sm btn-outline-secondary">← Feed</a>
+  <h5 class="mb-0 fw-semibold">活动日志</h5>
+  <a href="/" class="btn btn-sm btn-outline-secondary">← 返回</a>
 </div>
 
 <!-- Fetch history table -->
 <div class="card mb-4">
   <div class="card-header py-2 d-flex justify-content-between align-items-center">
-    <span class="fw-semibold small">Fetch History</span>
-    <span class="text-muted small">Last {{ fetch_log|length }} runs</span>
+    <span class="fw-semibold small">抓取历史</span>
+    <span class="text-muted small">最近 {{ fetch_log|length }} 条</span>
   </div>
   <div class="card-body p-0">
     {% if fetch_log %}
@@ -19,13 +19,13 @@
       <table class="table table-sm table-hover mb-0" style="font-size:.82rem">
         <thead class="table-light">
           <tr>
-            <th>Started (SGT)</th>
-            <th>Trigger</th>
-            <th class="text-end">Fetched</th>
-            <th class="text-end">New</th>
-            <th>Duration</th>
-            <th>Sources</th>
-            <th>Error</th>
+            <th>开始时间 (SGT)</th>
+            <th>触发方式</th>
+            <th class="text-end">已抓取</th>
+            <th class="text-end">新增</th>
+            <th>耗时</th>
+            <th>来源</th>
+            <th>错误</th>
           </tr>
         </thead>
         <tbody>
@@ -34,9 +34,11 @@
             <td class="text-nowrap">{{ entry.started_at | to_sgt }}</td>
             <td>
               {% if entry.trigger == 'scheduled' %}
-                <span class="badge bg-secondary">scheduled</span>
+                <span class="badge bg-secondary">定时</span>
+              {% elif entry.trigger == 'digest' %}
+                <span class="badge bg-info text-dark">简报</span>
               {% else %}
-                <span class="badge bg-primary">manual</span>
+                <span class="badge bg-primary">手动</span>
               {% endif %}
             </td>
             <td class="text-end">{{ entry.total_fetched }}</td>
@@ -45,12 +47,11 @@
             </td>
             <td class="text-nowrap text-muted">
               {% if entry.started_at and entry.finished_at %}
-                {# JS will fill in the duration #}
                 <span class="duration-cell"
                       data-start="{{ entry.started_at }}"
                       data-end="{{ entry.finished_at }}">—</span>
               {% else %}
-                <span class="text-warning">running…</span>
+                <span class="text-warning">运行中…</span>
               {% endif %}
             </td>
             <td>
@@ -59,7 +60,7 @@
                   <span class="me-2 text-nowrap">
                     <strong>{{ s.name }}</strong>:
                     {% if s.error %}
-                      <span class="text-danger">err</span>
+                      <span class="text-danger">错误</span>
                     {% else %}
                       <span class="text-success">+{{ s.new }}</span>
                     {% endif %}
@@ -77,7 +78,7 @@
       </table>
     </div>
     {% else %}
-      <p class="text-muted p-3 mb-0">No fetch runs recorded yet.</p>
+      <p class="text-muted p-3 mb-0">暂无抓取记录。</p>
     {% endif %}
   </div>
 </div>
@@ -85,12 +86,12 @@
 <!-- Raw log tail -->
 <div class="card">
   <div class="card-header py-2 d-flex justify-content-between align-items-center">
-    <span class="fw-semibold small">Raw Log <span class="text-muted fw-normal">(last {{ raw_lines|length }} lines of logs/app.log)</span></span>
-    <button class="btn btn-sm btn-outline-secondary" onclick="scrollLogBottom()">↓ Bottom</button>
+    <span class="fw-semibold small">原始日志 <span class="text-muted fw-normal">（最近 {{ raw_lines|length }} 行，来自 logs/app.log）</span></span>
+    <button class="btn btn-sm btn-outline-secondary" onclick="scrollLogBottom()">↓ 底部</button>
   </div>
   <div class="card-body p-0">
     <div id="log-box" style="height:400px;overflow-y:auto;background:#1e1e1e;border-radius:0 0 .375rem .375rem">
-      <pre style="color:#d4d4d4;font-size:.75rem;line-height:1.5;margin:0;padding:.75rem 1rem;white-space:pre-wrap;word-break:break-all">{% if raw_lines %}{% for line in raw_lines %}{{ line }}{% endfor %}{% else %}No log file found yet. Start a fetch run to generate logs.{% endif %}</pre>
+      <pre style="color:#d4d4d4;font-size:.75rem;line-height:1.5;margin:0;padding:.75rem 1rem;white-space:pre-wrap;word-break:break-all">{% if raw_lines %}{% for line in raw_lines %}{{ line }}{% endfor %}{% else %}暂无日志文件，请先运行一次抓取任务。{% endif %}</pre>
     </div>
   </div>
 </div>
@@ -103,8 +104,8 @@ document.querySelectorAll('.duration-cell').forEach(el => {
   const start = new Date(el.dataset.start);
   const end = new Date(el.dataset.end);
   const secs = Math.round((end - start) / 1000);
-  if (secs < 60) el.textContent = secs + 's';
-  else el.textContent = Math.floor(secs / 60) + 'm ' + (secs % 60) + 's';
+  if (secs < 60) el.textContent = secs + '秒';
+  else el.textContent = Math.floor(secs / 60) + '分 ' + (secs % 60) + '秒';
 });
 
 function scrollLogBottom() {

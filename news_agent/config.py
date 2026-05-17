@@ -25,8 +25,15 @@ MIN_BROWSER_FALLBACK_CHARS = 300        # Playwright result shorter than this tr
 # --- Database ---
 DB_PATH = os.getenv("DB_PATH", "news.db")
 
-# --- Scheduler ---
-NITTER_FETCH_INTERVAL_HOURS = int(os.getenv("NITTER_FETCH_INTERVAL_HOURS", "2"))
+# --- Scheduler + Nitter fetch window ---
+# NITTER_FETCH_PERIOD_HOURS controls two things simultaneously:
+#   1. How often the background scheduler runs.
+#   2. The pagination stop threshold — tweets older than this many hours are skipped.
+# Example: set to 12 → fetch every 12h AND stop paginating when tweet is >12h old.
+NITTER_FETCH_PERIOD_HOURS = int(os.getenv("NITTER_FETCH_PERIOD_HOURS", "24"))
+
+# Seconds to wait between Nitter HTML pagination page requests (default: 120 = 2 min).
+NITTER_PAGE_DELAY = int(os.getenv("NITTER_PAGE_DELAY", "120"))
 
 # --- Article filtering ---
 MIN_ARTICLE_DATE = "2026-01-01"          # hard floor: drop articles published before this date

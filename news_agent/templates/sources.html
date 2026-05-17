@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Manage Sources{% endblock %}
+{% block title %}管理来源{% endblock %}
 
 {% block content %}
 <div class="row">
   <!-- Add source form -->
   <div class="col-lg-4 mb-4">
     <div class="card p-4">
-      <h5 class="mb-3">Add Source</h5>
+      <h5 class="mb-3">添加来源</h5>
       {% if error %}
       <div class="alert alert-danger py-2">{{ error }}</div>
       {% endif %}
@@ -16,10 +16,10 @@
         <div class="mb-3">
           <label class="form-label">URL</label>
           <input type="text" id="detect-url-input" class="form-control"
-                 placeholder="https://example.com  or  x.com/username">
+                 placeholder="https://example.com  或  x.com/username">
         </div>
         <button type="button" class="btn btn-outline-primary w-100" onclick="detectSource()">
-          <span id="detect-label">🔍 Detect Source Type</span>
+          <span id="detect-label">🔍 检测来源类型</span>
           <span id="detect-spinner" class="spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
         <div id="detect-error" class="text-danger small mt-2" style="display:none"></div>
@@ -33,27 +33,27 @@
           <input type="hidden" name="url"  id="confirm-url">
           <input type="hidden" name="type" id="confirm-type">
           <div class="mb-3">
-            <label class="form-label">Name</label>
+            <label class="form-label">名称</label>
             <input type="text" name="name" class="form-control" id="confirm-name"
-                   placeholder="e.g. SemiAnalysis" required>
+                   placeholder="例如 SemiAnalysis" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">Type <span class="text-muted small">(auto-detected)</span></label>
+            <label class="form-label">类型 <span class="text-muted small">（已自动检测）</span></label>
             <select name="type" id="confirm-type-select" class="form-select">
               <option value="rss">RSS / Atom feed</option>
-              <option value="nitter">X.com account (Nitter)</option>
-              <option value="web">Website (scrape)</option>
+              <option value="nitter">X.com 账号 (Nitter)</option>
+              <option value="web">网站（抓取）</option>
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label">URL Filter <span class="text-muted">(optional)</span></label>
+            <label class="form-label">URL 过滤 <span class="text-muted">（可选）</span></label>
             <input type="text" name="url_filter" class="form-control"
-                   placeholder="e.g. /p/ to keep only article pages">
-            <div class="form-text">Only keep articles whose URL contains this string.</div>
+                   placeholder="例如 /p/ 仅保留文章页面">
+            <div class="form-text">仅保留 URL 中包含此字符串的文章。</div>
           </div>
           <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary flex-grow-1">Add Source</button>
-            <button type="button" class="btn btn-outline-secondary" onclick="resetDetect()">Back</button>
+            <button type="submit" class="btn btn-primary flex-grow-1">添加来源</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="resetDetect()">返回</button>
           </div>
         </form>
       </div>
@@ -62,18 +62,18 @@
 
   <!-- Existing sources -->
   <div class="col-lg-8">
-    <h5 class="mb-3">Configured Sources ({{ sources|length }})</h5>
+    <h5 class="mb-3">已配置来源 ({{ sources|length }})</h5>
     {% if sources %}
     <div class="table-responsive">
       <table class="table table-hover align-middle bg-white rounded shadow-sm">
         <thead class="table-light">
           <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>URL / Handle</th>
-            <th>URL Filter</th>
-            <th>Last Fetched</th>
-            <th>Follow</th>
+            <th>名称</th>
+            <th>类型</th>
+            <th>地址 / 账号</th>
+            <th>URL 过滤</th>
+            <th>最近抓取</th>
+            <th>关注</th>
             <th></th>
           </tr>
         </thead>
@@ -101,19 +101,19 @@
               {% if s.id in followed_source_ids %}
                 <form method="post" action="/sources/{{ s.id }}/follow" class="d-inline">
                   <input type="hidden" name="action" value="unfollow">
-                  <button class="btn btn-sm btn-success">Following</button>
+                  <button class="btn btn-sm btn-success">已关注</button>
                 </form>
               {% else %}
                 <form method="post" action="/sources/{{ s.id }}/follow" class="d-inline">
                   <input type="hidden" name="action" value="follow">
-                  <button class="btn btn-sm btn-outline-secondary">Follow</button>
+                  <button class="btn btn-sm btn-outline-secondary">关注</button>
                 </form>
               {% endif %}
             </td>
             <td>
               <form method="post" action="/sources/{{ s.id }}/delete"
-                    onsubmit="return confirm('Delete {{ s.name }} and all its articles?')">
-                <button class="btn btn-sm btn-outline-danger">Delete</button>
+                    onsubmit="return confirm('删除「{{ s.name }}」及其所有文章？')">
+                <button class="btn btn-sm btn-outline-danger">删除</button>
               </form>
             </td>
           </tr>
@@ -123,7 +123,7 @@
     </div>
     {% else %}
     <div class="text-center text-muted py-5">
-      <p>No sources yet. Add one using the form on the left.</p>
+      <p>暂无来源，请使用左侧表单添加。</p>
     </div>
     {% endif %}
   </div>
@@ -134,11 +134,11 @@
 <script>
 function detectSource() {
   const url = document.getElementById('detect-url-input').value.trim();
-  if (!url) { showDetectError('Please enter a URL.'); return; }
+  if (!url) { showDetectError('请输入 URL。'); return; }
 
   const label   = document.getElementById('detect-label');
   const spinner = document.getElementById('detect-spinner');
-  label.textContent = 'Detecting…';
+  label.textContent = '检测中…';
   spinner.style.display = 'inline-block';
   document.getElementById('detect-error').style.display = 'none';
 
@@ -149,9 +149,9 @@ function detectSource() {
   })
     .then(r => r.json())
     .then(data => {
-      label.textContent = '🔍 Detect Source Type';
+      label.textContent = '🔍 检测来源类型';
       spinner.style.display = 'none';
-      if (!data.ok) { showDetectError(data.error || 'Detection failed.'); return; }
+      if (!data.ok) { showDetectError(data.error || '检测失败。'); return; }
 
       // Populate confirm step
       document.getElementById('confirm-url').value = data.url;
@@ -165,9 +165,9 @@ function detectSource() {
       document.getElementById('confirm-name').focus();
     })
     .catch(() => {
-      label.textContent = '🔍 Detect Source Type';
+      label.textContent = '🔍 检测来源类型';
       spinner.style.display = 'none';
-      showDetectError('Request failed. Check your connection.');
+      showDetectError('请求失败，请检查网络连接。');
     });
 }
 

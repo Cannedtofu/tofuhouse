@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}News Feed{% endblock %}
+{% block title %}资讯{% endblock %}
 
 {% block content %}
 {# Pass article data to JS as JSON #}
@@ -48,8 +48,8 @@
         {% endfor %}
       {% else %}
         <div class="text-center text-muted p-4">
-          <p>No articles yet.</p>
-          <p><a href="/sources">Add sources</a> and click <strong>Fetch Now</strong>.</p>
+          <p>暂无文章。</p>
+          <p><a href="/sources">添加来源</a>后点击 <strong>立即获取</strong>。</p>
         </div>
       {% endif %}
     </div>
@@ -62,41 +62,41 @@
     <div class="px-3 pt-3 pb-2 border-bottom bg-white flex-shrink-0">
       <!-- Row 1: action buttons -->
       <div class="d-flex align-items-center gap-2 mb-2">
-        <span id="scheduler-badge" class="badge bg-success" style="display:none" title="Nitter sources auto-fetch every hour">
-          ⏱ Auto-fetch on
+        <span id="scheduler-badge" class="badge bg-success" style="display:none" title="Nitter 来源定时自动抓取">
+          ⏱ 自动获取已开启
         </span>
         <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary" onclick="generateDigest()">
-          <span id="digest-label">✦ AI Digest</span>
+          <span id="digest-label">✦ AI 简报</span>
           <span id="digest-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
         </button>
         <button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
-          <span id="fetch-label">⬇ Fetch Now</span>
+          <span id="fetch-label">⬇ 立即获取</span>
           <span id="fetch-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
         </button>
       </div>
       <!-- Row 2: filter form -->
       <form method="get" action="/" class="d-flex flex-wrap gap-2 align-items-end" id="filter-form">
         <div>
-          <label class="form-label mb-1 small fw-semibold">From</label>
+          <label class="form-label mb-1 small fw-semibold">开始</label>
           <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
         </div>
         <div>
-          <label class="form-label mb-1 small fw-semibold">To</label>
+          <label class="form-label mb-1 small fw-semibold">结束</label>
           <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
         </div>
         <div>
-          <label class="form-label mb-1 small fw-semibold">Sources</label>
+          <label class="form-label mb-1 small fw-semibold">来源</label>
           {% set active_ids = selected_source_ids if selected_source_ids else followed_source_ids %}
           <div class="dropdown">
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-              {% if active_ids %}{{ active_ids|length }} selected{% else %}All sources{% endif %}
+              {% if active_ids %}已选 {{ active_ids|length }} 个{% else %}全部来源{% endif %}
             </button>
             <ul class="dropdown-menu p-2" style="min-width:200px">
               <li class="d-flex gap-1 mb-1 px-1">
                 <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
-                        onclick="setAllSources(true)">All</button>
+                        onclick="setAllSources(true)">全选</button>
                 <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
-                        onclick="setAllSources(false)">None</button>
+                        onclick="setAllSources(false)">清空</button>
               </li>
               <li><hr class="dropdown-divider my-1"></li>
               {% for s in all_sources %}
@@ -112,8 +112,8 @@
           </div>
         </div>
         <div class="d-flex gap-1 align-self-end">
-          <button type="submit" class="btn btn-sm btn-primary">Apply</button>
-          <a href="/" class="btn btn-sm btn-outline-secondary">Reset</a>
+          <button type="submit" class="btn btn-sm btn-primary">应用</button>
+          <a href="/" class="btn btn-sm btn-outline-secondary">重置</a>
         </div>
       </form>
       <!-- Toast -->
@@ -128,7 +128,7 @@
       </div>
       <div class="px-4 py-3" style="max-height: 300px; overflow-y: auto; background:#fff;">
         <div id="digest-spinner-panel" class="text-muted small text-center py-3" style="display:none">
-          <span class="spinner-border spinner-border-sm me-1"></span>Generating digest…
+          <span class="spinner-border spinner-border-sm me-1"></span>简报生成中，晚点再回来看看吧…
         </div>
         <div id="digest-text" style="font-size:.9rem; line-height:1.7"></div>
       </div>
@@ -137,13 +137,13 @@
     <!-- Scrollable article detail -->
     <div class="flex-grow-1 overflow-auto p-4" id="detail-panel">
       <div class="text-center text-muted mt-5" id="detail-placeholder">
-        <p class="fs-5">← Select an article to read it</p>
+        <p class="fs-5">← 点击左侧文章以阅读</p>
       </div>
       <div id="detail-content" style="display:none">
         <div class="d-flex justify-content-between align-items-start mb-1">
           <h5 id="detail-title" class="mb-0 me-3"></h5>
           <a id="detail-link" href="#" target="_blank" rel="noopener"
-             class="btn btn-sm btn-outline-secondary flex-shrink-0">Open ↗</a>
+             class="btn btn-sm btn-outline-secondary flex-shrink-0">打开 ↗</a>
         </div>
         <div class="text-muted small mb-3" id="detail-meta"></div>
         <div id="detail-body" style="font-size:.93rem; line-height:1.7; word-break:break-word;"></div>
@@ -163,7 +163,7 @@ fetch('/scheduler/status').then(r => r.json()).then(data => {
     badge.style.display = 'inline-block';
     if (data.next_nitter_fetch) {
       const next = new Date(data.next_nitter_fetch);
-      badge.title = 'Nitter auto-fetch every hour. Next: ' + next.toLocaleTimeString();
+      badge.title = 'Nitter 定时自动抓取。下次：' + next.toLocaleTimeString();
     }
   }
 }).catch(() => {});
@@ -196,7 +196,7 @@ function selectArticle(id) {
   document.getElementById('detail-meta').textContent =
     [a.source_name, pub].filter(Boolean).join(' · ');
 
-  const raw = a.content || '(No content fetched)';
+  const raw = a.content || '（暂无内容）';
   const bodyEl = document.getElementById('detail-body');
   if (typeof marked !== 'undefined') {
     bodyEl.innerHTML = marked.parse(raw, { breaks: true });
@@ -210,7 +210,7 @@ function selectArticle(id) {
 function generateDigest() {
   const ids = ARTICLES.map(a => a.id);
   if (ids.length === 0) {
-    alert('No articles to digest. Apply filters and fetch articles first.');
+    alert('暂无文章可生成简报，请先应用筛选条件并获取文章。');
     return;
   }
 
@@ -222,7 +222,7 @@ function generateDigest() {
   const textEl = document.getElementById('digest-text');
 
   btn.disabled = true;
-  label.textContent = 'Generating…';
+  label.textContent = '生成中，晚点再回来看看吧…';
   spinner.style.display = 'inline-block';
   panel.style.display = 'block';
   spinnerPanel.style.display = 'block';
@@ -238,7 +238,7 @@ function generateDigest() {
       if (data.error) { showDigestError(data.error); return; }
       if (data.job_id) { pollDigestStatus(data.job_id); }
     })
-    .catch(() => showDigestError('Request failed.'));
+    .catch(() => showDigestError('请求失败。'));
 }
 
 function pollDigestStatus(jobId) {
@@ -253,17 +253,17 @@ function pollDigestStatus(jobId) {
           document.getElementById('digest-text').innerHTML = renderDigest(data.result);
         } else if (data.status === 'error') {
           clearInterval(interval);
-          showDigestError(data.result || 'Digest generation failed.');
+          showDigestError(data.result || '简报生成失败。');
         }
         // status === 'running': keep polling
       })
-      .catch(() => { clearInterval(interval); showDigestError('Polling failed.'); });
+      .catch(() => { clearInterval(interval); showDigestError('轮询失败。'); });
   }, 2000);
 }
 
 function resetDigestBtn() {
   document.getElementById('digest-btn').disabled = false;
-  document.getElementById('digest-label').textContent = '✦ AI Digest';
+  document.getElementById('digest-label').textContent = '✦ AI 简报';
   document.getElementById('digest-spinner').style.display = 'none';
 }
 
@@ -319,7 +319,7 @@ function triggerFetch() {
   const label = document.getElementById('fetch-label');
   const spinner = document.getElementById('fetch-spinner');
   btn.disabled = true;
-  label.textContent = 'Fetching…';
+  label.textContent = '获取中，晚点再回来看看吧…';
   spinner.style.display = 'inline-block';
 
   const dateFrom = document.querySelector('input[name="date_from"]').value;
@@ -336,11 +336,11 @@ function triggerFetch() {
       if (data.status === 'started') {
         pollFetchStatus();
       } else {
-        showToast('Already running, please wait.', 'warning');
+        showToast('正在运行，请稍候。', 'warning');
         resetFetchBtn();
       }
     })
-    .catch(() => { showToast('Fetch request failed.', 'danger'); resetFetchBtn(); });
+    .catch(() => { showToast('获取请求失败。', 'danger'); resetFetchBtn(); });
 }
 
 function pollFetchStatus() {
@@ -365,7 +365,7 @@ function pollFetchStatus() {
 
 function resetFetchBtn() {
   document.getElementById('fetch-btn').disabled = false;
-  document.getElementById('fetch-label').textContent = '⬇ Fetch Now';
+  document.getElementById('fetch-label').textContent = '⬇ 立即获取';
   document.getElementById('fetch-spinner').style.display = 'none';
 }
 

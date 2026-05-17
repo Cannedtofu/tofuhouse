@@ -12,7 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
 
 import db
-from config import EMAIL_WHITELIST, NITTER_FETCH_INTERVAL_HOURS, SECRET_KEY
+from config import EMAIL_WHITELIST, NITTER_FETCH_PERIOD_HOURS, SECRET_KEY
 from digest import build_digest
 from pipeline import run_fetch_and_summarize
 from summarizer import generate_batch_digest, summarize_single_article
@@ -179,7 +179,7 @@ def _scheduled_digest_send():
 
 logger_sched = logging.getLogger("scheduler")
 _scheduler = BackgroundScheduler(daemon=True)
-_scheduler.add_job(_scheduled_nitter_fetch, "interval", hours=NITTER_FETCH_INTERVAL_HOURS, id="nitter_hourly")
+_scheduler.add_job(_scheduled_nitter_fetch, "interval", hours=NITTER_FETCH_PERIOD_HOURS, id="nitter_periodic")
 _scheduler.add_job(_scheduled_digest_send, "interval", hours=6, id="digest_send")
 _scheduler.start()
 
@@ -347,7 +347,7 @@ def delete_source(source_id: int):
 
 @app.route("/scheduler/status")
 def scheduler_status():
-    job = _scheduler.get_job("nitter_hourly")
+    job = _scheduler.get_job("nitter_periodic")
     next_run = job.next_run_time.isoformat() if job and job.next_run_time else None
     return jsonify({"running": _scheduler.running, "next_nitter_fetch": next_run})
 
@@ -371,7 +371,14 @@ def fetch():
         _fetch_status["running"] = True
         log_id = db.log_fetch_start(trigger="manual")
         try:
-            result = run_fetch_and_summarize(summarize=False, date_from=date_from, date_to=date_to, source_ids=source_ids)
+            # Nitter sources are never fetched from the UI — scheduler-only.
+            result = run_fetch_and_summarize(
+                summarize=False,
+                date_from=date_from,
+                date_to=date_to,
+                source_ids=source_ids,
+                exclude_types=["nitter"],
+            )
             db.log_fetch_finish(log_id, result)
             _fetch_status["last_result"] = {"status": "ok", "new_articles": result["total_new"], "sources": result["sources"]}
         except Exception as exc:
@@ -476,7 +483,7 @@ LOG_TAIL_LINES = 200
 @app.route("/logs")
 @login_required
 def logs_view():
-    fetch_log = [dict(r) for r in db.get_fetch_log(limit=100)]
+    fetch_log = [dict(r) for r in db.get_fetch_log(limit=20)]
     # Parse sources_json for display
     import json as _json
     for entry in fetch_log:
