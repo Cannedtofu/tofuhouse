@@ -4,7 +4,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- Nitter instances (tried in order until one works) ---
+# Set NITTER_LOCAL_URL=http://127.0.0.1:8080 in .env to use a self-hosted instance first
+NITTER_LOCAL_URL = os.getenv("NITTER_LOCAL_URL", "")
+
 NITTER_INSTANCES = [
+    *([NITTER_LOCAL_URL] if NITTER_LOCAL_URL else []),
     "https://nitter.net",
     "https://nitter.privacydev.net",
     "https://nitter.poast.org",
