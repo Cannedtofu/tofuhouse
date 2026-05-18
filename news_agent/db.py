@@ -79,10 +79,21 @@ def init_db():
                 created_at       TEXT    NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS token_usage (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                operation  TEXT    NOT NULL,
+                model      TEXT    NOT NULL,
+                tokens_in  INTEGER NOT NULL DEFAULT 0,
+                tokens_out INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT    NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_articles_source   ON articles(source_id);
             CREATE INDEX IF NOT EXISTS idx_articles_pub_date ON articles(published_at);
             CREATE INDEX IF NOT EXISTS idx_fetch_log_started ON fetch_log(started_at);
             CREATE INDEX IF NOT EXISTS idx_usf_user          ON user_source_follows(user_id);
+            CREATE INDEX IF NOT EXISTS idx_token_usage_user  ON token_usage(user_id);
         """)
         # Migrations for older databases
         try:
@@ -426,6 +437,47 @@ def save_digest_cache(article_ids_hash: str, article_ids_json: str, content: str
                ON CONFLICT(article_ids_hash) DO UPDATE SET content=excluded.content, created_at=excluded.created_at""",
             (article_ids_hash, article_ids_json, content, now),
         )
+
+
+# ---------------------------------------------------------------------------
+# Token usage
+# ---------------------------------------------------------------------------
+
+def log_token_usage(
+    operation: str,
+    model: str,
+    tokens_in: int,
+    tokens_out: int,
+    user_id: Optional[int] = None,
+):
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO token_usage (user_id, operation, model, tokens_in, tokens_out, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (user_id, operation, model, tokens_in, tokens_out, now),
+        )
+
+
+def get_token_usage_summary(user_id: Optional[int] = None) -> list[sqlite3.Row]:
+    """Totals grouped by operation + model. Pass user_id=None for global (browser_agent)."""
+    with get_conn() as conn:
+        if user_id is not None:
+            return conn.execute(
+                """SELECT operation, model,
+                          SUM(tokens_in) AS total_in, SUM(tokens_out) AS total_out,
+                          COUNT(*) AS calls
+                   FROM token_usage WHERE user_id = ?
+                   GROUP BY operation, model ORDER BY operation""",
+                (user_id,),
+            ).fetchall()
+        return conn.execute(
+            """SELECT operation, model,
+                      SUM(tokens_in) AS total_in, SUM(tokens_out) AS total_out,
+                      COUNT(*) AS calls
+               FROM token_usage
+               GROUP BY operation, model ORDER BY operation""",
+        ).fetchall()
 
 
 def get_users_due_for_digest() -> list[sqlite3.Row]:

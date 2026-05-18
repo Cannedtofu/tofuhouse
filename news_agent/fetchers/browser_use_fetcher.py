@@ -36,6 +36,11 @@ from config import MIN_BROWSER_FALLBACK_CHARS, QWEN_API_KEY, QWEN_BASE_URL, QWEN
 
 logger = logging.getLogger(__name__)
 
+# Circuit breaker — set True when the vision API returns 403 quota-exhausted.
+# Prevents launching a browser + spinning up an agent that will immediately fail.
+# Resets on process restart (intentional — quota may be refilled by next day).
+_agent_quota_exhausted: bool = False
+
 
 # ---------------------------------------------------------------------------
 # Image-aware HTML → Markdown conversion
@@ -353,6 +358,11 @@ def _make_qwen_llm():
 
 async def _agent_fetch(url: str) -> str:
     """Use a browser-use LLM agent to extract content when Playwright alone isn't enough."""
+    global _agent_quota_exhausted
+    if _agent_quota_exhausted:
+        logger.warning("[browser-use] skipping %s — vision API quota exhausted this session", url)
+        return ""
+
     from browser_use import Agent
     from browser_use.browser.profile import BrowserProfile
 
@@ -382,6 +392,28 @@ async def _agent_fetch(url: str) -> str:
     if not text:
         parts = result.extracted_content() or []
         text = max(parts, key=len) if parts else ""
+
+    # Detect quota exhaustion from agent error history
+    try:
+        errors = result.errors() if hasattr(result, "errors") else []
+        quota_hit = any(
+            "403" in str(e) or "FreeTierOnly" in str(e) or "AllocationQuota" in str(e)
+            for e in (errors or [])
+        )
+        if quota_hit:
+            _agent_quota_exhausted = True
+            logger.warning("[browser-use] vision API quota exhausted — agent disabled for this session")
+    except Exception:
+        pass
+
+    try:
+        import db as _db
+        tokens_in  = result.total_input_tokens()  if hasattr(result, "total_input_tokens")  else 0
+        tokens_out = result.total_output_tokens() if hasattr(result, "total_output_tokens") else 0
+        if tokens_in or tokens_out:
+            _db.log_token_usage("browser_agent", QWEN_VISION_MODEL, tokens_in, tokens_out)
+    except Exception:
+        pass
 
     logger.info("[browser-use agent] extracted: %d chars", len(text))
     return text

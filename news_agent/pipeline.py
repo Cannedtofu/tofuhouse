@@ -58,21 +58,27 @@ def run_fetch_and_summarize(
         result = {"name": source_name, "type": source_type, "new": 0, "fetched": 0, "error": None}
 
         try:
-            # Only treat an article as "known" (skip it) when its stored content
-            # is already rich enough.  Thin articles are re-fetched so Selenium
-            # can fill in their full content.
             all_stored = db.get_articles(source_ids=[source_id])
-            existing_urls = {
-                row["url"]
-                for row in all_stored
-                if len((row["content"] or "").split()) >= MIN_CONTENT_WORDS
-            }
-            thin_count = sum(
-                1 for row in all_stored
-                if len((row["content"] or "").split()) < MIN_CONTENT_WORDS
-            )
-            if thin_count:
-                logger.info("  %d existing article(s) have thin content — will re-fetch", thin_count)
+
+            if source_type == "nitter":
+                # Tweets are always short by nature — never re-fetch them.
+                # Treat every stored tweet URL as known so the fetcher skips them
+                # and pagination doesn't trigger for already-seen tweets.
+                existing_urls = {row["url"] for row in all_stored}
+            else:
+                # For RSS/web: re-fetch articles whose stored content is too thin,
+                # since Playwright may be able to extract the full body.
+                existing_urls = {
+                    row["url"]
+                    for row in all_stored
+                    if len((row["content"] or "").split()) >= MIN_CONTENT_WORDS
+                }
+                thin_count = sum(
+                    1 for row in all_stored
+                    if len((row["content"] or "").split()) < MIN_CONTENT_WORDS
+                )
+                if thin_count:
+                    logger.info("  %d existing article(s) have thin content — will re-fetch", thin_count)
 
             if source_type == "rss":
                 articles = fetch_rss(source_url, known_urls=existing_urls, date_from=date_from)

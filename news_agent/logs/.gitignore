@@ -1,0 +1,2 @@
+# Ignore log content — pull fresh from server with scripts/pull_logs.ps1
+app.log

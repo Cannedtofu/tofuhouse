@@ -32,6 +32,7 @@ def _chat(
     label: str,
     max_tokens: int = 512,
     system: str | None = _SYSTEM_MESSAGE,
+    _acc: list | None = None,
 ) -> str:
     messages = []
     if system:
@@ -44,6 +45,8 @@ def _chat(
             temperature=0.2,
             max_tokens=max_tokens,
         )
+        if _acc is not None and resp.usage:
+            _acc.append((resp.usage.prompt_tokens, resp.usage.completion_tokens))
         return resp.choices[0].message.content.strip()
     except Exception as exc:
         logger.warning("Qwen error (%s): %s", label, exc)
@@ -183,7 +186,7 @@ def summarize_new_articles() -> int:
     return count
 
 
-def generate_batch_digest(article_ids: list[int]) -> str:
+def generate_batch_digest(article_ids: list[int], user_id: int | None = None) -> str:
     """
     Generate a structured digest grouped by source.
 
@@ -226,6 +229,7 @@ def generate_batch_digest(article_ids: list[int]) -> str:
     client = _get_client()
     sections: list[str] = []
     briefing_outputs: list[str] = []  # collected for big picture synthesis
+    _acc: list[tuple[int, int]] = []  # (tokens_in, tokens_out) per _chat() call
 
     # RSS/web sources first, nitter last
     sorted_sources = sorted(sources.values(), key=lambda s: 1 if s["type"] == "nitter" else 0)
@@ -248,6 +252,7 @@ def generate_batch_digest(article_ids: list[int]) -> str:
                     _TWEET_PROMPT.format(source_name=source_name, items=items_text),
                     f"{source_name} tweets",
                     max_tokens=600,
+                    _acc=_acc,
                 )
                 parts.append(result)
                 briefing_outputs.append(f"[{source_name} — original posts]\n{result}")
@@ -261,6 +266,7 @@ def generate_batch_digest(article_ids: list[int]) -> str:
                     _RETWEET_PROMPT.format(source_name=source_name, items=items_text),
                     f"{source_name} retweets",
                     max_tokens=600,
+                    _acc=_acc,
                 )
                 parts.append(result)
                 briefing_outputs.append(f"[{source_name} — retweets]\n{result}")
@@ -285,6 +291,7 @@ def generate_batch_digest(article_ids: list[int]) -> str:
                 ),
                 f"{source_name} briefing",
                 max_tokens=700,
+                _acc=_acc,
             )
             briefing_outputs.append(f"[{source_name}]\n{briefing}")
 
@@ -308,6 +315,7 @@ def generate_batch_digest(article_ids: list[int]) -> str:
                             ),
                             f"{source_name} abstract {i + 1}",
                             max_tokens=200,
+                            _acc=_acc,
                         )
                         db.update_digest_abstract(a["id"], abstract)
                     title_text = a["title"] or "(no title)"
@@ -326,11 +334,19 @@ def generate_batch_digest(article_ids: list[int]) -> str:
             _BIG_PICTURE_PROMPT.format(n=len(sources), all_briefings=all_briefings),
             "big picture",
             max_tokens=1000,
+            _acc=_acc,
         )
         sections.insert(0, f"## Big Picture\n\n{big_picture}")
 
     result = "\n\n---\n\n".join(sections) if sections else "(No digest could be generated.)"
     db.save_digest_cache(ids_hash, ids_json, result)
+
+    if _acc:
+        total_in  = sum(t[0] for t in _acc)
+        total_out = sum(t[1] for t in _acc)
+        db.log_token_usage("digest", QWEN_SUMMARY_MODEL, total_in, total_out, user_id=user_id)
+        logger.info("Digest token usage: %d in / %d out (%d calls)", total_in, total_out, len(_acc))
+
     return result
 
 

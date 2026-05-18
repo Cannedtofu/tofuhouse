@@ -55,6 +55,13 @@ deploy
 
 ---
 
+## Updating .env
+
+nano /opt/tofuhouse/news_agent/.env
+ctrl+o, then ctrl+x
+
+
+
 ## When you add a new `.env` variable
 
 The `.env` file is not tracked by git. The deploy script automatically adds known variables if missing. For anything new, add it manually:

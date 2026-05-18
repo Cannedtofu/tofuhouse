@@ -165,7 +165,7 @@ def _scheduled_digest_send():
 
             # Step 3: generate AI digest (same pipeline as the web UI)
             logger_sched.info("Generating AI digest for %s (%d articles)", user["email"], len(article_ids))
-            md = generate_batch_digest(article_ids)
+            md = generate_batch_digest(article_ids, user_id=user["id"])
 
             # Step 4: send
             ok = _send_email(md, to_email=user["email"], date_label=f"{date_from} to {date_to}")
@@ -452,9 +452,11 @@ def digest_generate():
     job_id = str(uuid.uuid4())
     _digest_jobs[job_id] = {"status": "running", "result": None}
 
+    uid = g.current_user["id"] if g.current_user else None
+
     def _run():
         try:
-            result = generate_batch_digest(article_ids)
+            result = generate_batch_digest(article_ids, user_id=uid)
             _digest_jobs[job_id] = {"status": "done", "result": result}
         except Exception as exc:
             logging.exception("Digest generation failed")
@@ -537,7 +539,16 @@ def settings():
         db.update_user_digest_settings(g.current_user["id"], enabled, freq)
         g.current_user = db.get_user_by_id(g.current_user["id"])
         success = True
-    return render_template("settings.html", user=g.current_user, success=success)
+    token_summary = db.get_token_usage_summary(user_id=g.current_user["id"])
+    browser_summary = db.get_token_usage_summary()  # global — includes browser_agent
+    browser_rows = [r for r in browser_summary if r["operation"] == "browser_agent"]
+    return render_template(
+        "settings.html",
+        user=g.current_user,
+        success=success,
+        token_summary=token_summary,
+        browser_rows=browser_rows,
+    )
 
 
 if __name__ == "__main__":

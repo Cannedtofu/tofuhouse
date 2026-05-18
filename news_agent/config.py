@@ -7,19 +7,15 @@ load_dotenv()
 # Set NITTER_LOCAL_URL=http://127.0.0.1:8080 in .env to use a self-hosted instance first
 NITTER_LOCAL_URL = os.getenv("NITTER_LOCAL_URL", "")
 
-NITTER_INSTANCES = [
-    *([NITTER_LOCAL_URL] if NITTER_LOCAL_URL else []),
-    "https://nitter.net",
-    "https://nitter.privacydev.net",
-    "https://nitter.poast.org",
-    "https://nitter.1d4.us",
-]
+NITTER_INSTANCES = (
+    [NITTER_LOCAL_URL] if NITTER_LOCAL_URL else []
+)
 
 # --- LLM (Qwen via Alibaba Cloud DashScope, OpenAI-compatible) ---
 QWEN_API_KEY = os.getenv("QWEN_API_KEY", "")
 QWEN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 QWEN_SUMMARY_MODEL = "qwen-plus"        # fast + cheap, used for article summaries
-QWEN_VISION_MODEL = "qwen-vl-max"       # vision model, used for browser-use fallback only
+QWEN_VISION_MODEL = "qwen3-vl-flash"       # vision model, used for browser-use fallback only
 MIN_BROWSER_FALLBACK_CHARS = 300        # Playwright result shorter than this triggers agent fallback
 
 # --- Database ---

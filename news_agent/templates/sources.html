@@ -74,7 +74,6 @@
             <th>URL 过滤</th>
             <th>最近抓取</th>
             <th>关注</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -109,12 +108,6 @@
                   <button class="btn btn-sm btn-outline-secondary">关注</button>
                 </form>
               {% endif %}
-            </td>
-            <td>
-              <form method="post" action="/sources/{{ s.id }}/delete"
-                    onsubmit="return confirm('删除「{{ s.name }}」及其所有文章？')">
-                <button class="btn btn-sm btn-outline-danger">删除</button>
-              </form>
             </td>
           </tr>
           {% endfor %}
