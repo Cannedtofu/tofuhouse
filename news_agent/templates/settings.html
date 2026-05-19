@@ -26,6 +26,7 @@
         <div class="mb-4">
           <label class="form-label fw-medium">发送频率</label>
           <select name="digest_frequency_days" class="form-select">
+            <option value="1"  {% if user['digest_frequency_days'] == 1  %}selected{% endif %}>每天</option>
             <option value="3"  {% if user['digest_frequency_days'] == 3  %}selected{% endif %}>每 3 天</option>
             <option value="7"  {% if user['digest_frequency_days'] == 7  %}selected{% endif %}>每周</option>
             <option value="14" {% if user['digest_frequency_days'] == 14 %}selected{% endif %}>每 2 周</option>

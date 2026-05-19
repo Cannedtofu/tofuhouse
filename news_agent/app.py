@@ -534,7 +534,7 @@ def settings():
             freq = int(request.form.get("digest_frequency_days", 7))
         except ValueError:
             freq = 7
-        if freq not in (3, 7, 14):
+        if freq not in (1, 3, 7, 14):
             freq = 7
         db.update_user_digest_settings(g.current_user["id"], enabled, freq)
         g.current_user = db.get_user_by_id(g.current_user["id"])
