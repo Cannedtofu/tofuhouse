@@ -6,9 +6,10 @@ Workflow (called after POST /transcript/process returns):
   2. Fast path: youtube-transcript-api (captions)
   3. If captions unavailable → audio fallback:
        a. yt-dlp: download audio-only (mp3, mono, 64 kbps)
-       b. pydub: split on silence boundaries at ~10-min intervals
-       c. Alibaba STT: transcribe each chunk (placeholder — see _transcribe_audio_chunk)
-       d. Reassemble chunks, deduplicating overlap words at boundaries
+       b. pydub: split on silence boundaries at ~4-min intervals
+       c. qwen3-asr-flash (DashScope): all chunks transcribed in parallel via
+          ThreadPoolExecutor — total wall-clock time ≈ one chunk regardless of video length
+       d. Reassemble chunks in order, deduplicating overlap words at boundaries
   4. Summarize full transcript with Qwen (qwen-plus)
   5. Set job status → "done" (or "error" on failure)
 
@@ -28,8 +29,8 @@ from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL
 
 logger = logging.getLogger(__name__)
 
-# Target audio chunk size in milliseconds (~10 minutes)
-_TARGET_CHUNK_MS = 10 * 60 * 1000
+# Target audio chunk size in milliseconds — must stay under qwen3-asr-flash's 5-min/10MB limit
+_TARGET_CHUNK_MS = 4 * 60 * 1000
 # How far from the target boundary to search for a silence midpoint (30 s)
 _SILENCE_SEEK_MS = 30 * 1000
 # Overlap between adjacent chunks to avoid losing words at the cut boundary (~1.5 s)
@@ -205,52 +206,55 @@ def _chunk_audio(audio_path: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Step 4d: Speech-to-text — Alibaba NLS/ISS (PLACEHOLDER)
+# Step 4d: Speech-to-text — qwen3-asr-flash via DashScope SDK
 # ---------------------------------------------------------------------------
 
 def _transcribe_audio_chunk(audio_path: str) -> str:
     """
-    Send one audio chunk to Alibaba speech-to-text and return the transcript text.
-
-    THIS IS A PLACEHOLDER — the actual Alibaba NLS/ISS API call must be filled in.
-
-    To implement:
-      1. Add the following to .env:
-           ALIBABA_NLS_APP_KEY=<your NLS app key>
-           ALIBABA_NLS_TOKEN=<your NLS access token>
-           ALIBABA_NLS_ENDPOINT=wss://nls-gateway.cn-shanghai.aliyuncs.com/ws/v1
-      2. Install the Alibaba NLS Python SDK:
-           pip install aliyun-python-sdk-nls  (or the websocket-based nls package)
-      3. Replace the NotImplementedError below with a real API call, for example:
-
-         import nls
-         token = os.getenv("ALIBABA_NLS_TOKEN")
-         app_key = os.getenv("ALIBABA_NLS_APP_KEY")
-         endpoint = os.getenv("ALIBABA_NLS_ENDPOINT", "wss://nls-gateway.cn-shanghai.aliyuncs.com/ws/v1")
-
-         results = []
-         def on_result(text, *args): results.append(text)
-
-         transcriber = nls.NlsSpeechTranscriber(
-             url=endpoint, app_key=app_key, token=token,
-             on_result_changed=on_result, on_completed=lambda *a: None,
-         )
-         with open(audio_path, "rb") as f:
-             audio_bytes = f.read()
-         transcriber.start(audio_format="mp3", sample_rate=16000,
-                           enable_punctuation_prediction=True)
-         transcriber.send_audio(audio_bytes)
-         transcriber.stop()
-         return "".join(results)
-
-    Docs: https://www.alibabacloud.com/help/en/nls/
+    Transcribe one audio chunk with qwen3-asr-flash using the DashScope SDK.
+    Uses a local file:// URI so no base64 encoding or upload is needed.
+    Safe to call from multiple threads simultaneously.
     """
-    # TODO: implement Alibaba NLS speech-to-text here
-    raise NotImplementedError(
-        "Alibaba speech-to-text is not yet implemented. "
-        "Fill in _transcribe_audio_chunk() in transcript_worker.py and "
-        "set ALIBABA_NLS_APP_KEY / ALIBABA_NLS_TOKEN in .env."
+    import dashscope  # noqa: PLC0415
+    from dashscope import MultiModalConversation  # noqa: PLC0415
+
+    dashscope.api_key = QWEN_API_KEY
+
+    file_uri = f"file://{os.path.abspath(audio_path)}"
+    response = MultiModalConversation.call(
+        model="qwen3-asr-flash",
+        messages=[{"role": "user", "content": [{"audio": file_uri}]}],
     )
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"qwen3-asr-flash error {response.status_code}: {response.message}"
+        )
+
+    return response.output.choices[0].message.content[0]["text"]
+
+
+def _transcribe_chunks_parallel(chunk_paths: list[str]) -> list[str]:
+    """
+    Transcribe all chunks concurrently with ThreadPoolExecutor.
+    Results are returned in the original chunk order regardless of completion order.
+    Cap at 8 workers to avoid overwhelming the API.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: PLC0415
+
+    results: list[str | None] = [None] * len(chunk_paths)
+    max_workers = min(len(chunk_paths), 8)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_idx = {
+            executor.submit(_transcribe_audio_chunk, path): i
+            for i, path in enumerate(chunk_paths)
+        }
+        for future in as_completed(future_to_idx):
+            idx = future_to_idx[future]
+            results[idx] = future.result()  # re-raises any exception from the thread
+
+    return results  # type: ignore[return-value]
 
 
 # ---------------------------------------------------------------------------
@@ -426,12 +430,13 @@ def process_transcript_job(job_id: str, video_url: str, video_id: str) -> None:
                 logger.info("Audio split into %d chunk(s)", len(chunk_paths))
 
                 # ----------------------------------------------------------
-                # 4d: Speech-to-text (Alibaba — placeholder)
+                # 4d: Speech-to-text — parallel across all chunks
                 # ----------------------------------------------------------
-                chunk_transcripts: list[str] = []
-                for chunk_path in chunk_paths:
-                    chunk_text = _transcribe_audio_chunk(chunk_path)
-                    chunk_transcripts.append(chunk_text)
+                logger.info(
+                    "Transcribing %d chunk(s) in parallel (qwen3-asr-flash)",
+                    len(chunk_paths),
+                )
+                chunk_transcripts = _transcribe_chunks_parallel(chunk_paths)
 
                 # Reassemble and remove overlap duplicates
                 transcript = _remove_boundary_duplicates(chunk_transcripts)

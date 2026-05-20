@@ -123,10 +123,18 @@ def fetch_web(
 
     index_url:  URL of the news listing page.
     known_urls: article URLs already in the DB (skipped entirely).
-    date_from:  ISO date string; articles with a known date older than this are skipped.
-    date_to:    ISO date string; articles with a known date newer than this are skipped.
+    date_from:  ISO date string; articles older than this are skipped.
+    date_to:    ISO date string; articles newer than this are skipped.
+
+    Date handling:
+      - Listing-page date (from LLM agent): used as a cheap pre-filter only.
+        If clearly out of range, the article is skipped before a browser call.
+      - Article-page date (from trafilatura metadata): authoritative.
+        Extracted for free during the Playwright fetch and used for the final
+        date check and as the stored published_at value.
+      - If both dates are unavailable, the article is kept (conservative).
     """
-    from fetchers.browser_use_fetcher import fetch_article
+    from fetchers.browser_use_fetcher import fetch_article_with_meta
 
     logger.info("Fetching web index: %s", index_url)
 
@@ -141,28 +149,52 @@ def fetch_web(
 
     for item in link_items:
         url = item.get("url", "").strip().rstrip("/")
-        date_str = item.get("date") or None
+        listing_date = item.get("date") or None
 
         if not url:
             continue
         if url in known_urls:
             skipped_known += 1
             continue
-        if date_str and _is_too_old(date_str, cutoff):
-            skipped_date += 1
-            continue
-        if date_str and ceiling and _is_too_new(date_str, ceiling):
-            skipped_date += 1
-            continue
 
+        # Cheap pre-filter: skip without a browser call when the listing-page
+        # date is present and already clearly outside the target range.
+        if listing_date:
+            if _is_too_old(listing_date, cutoff):
+                skipped_date += 1
+                continue
+            if ceiling and _is_too_new(listing_date, ceiling):
+                skipped_date += 1
+                continue
+
+        # Fetch full content + extract authoritative date from the article page itself
         try:
-            content = fetch_article(url)
+            content, article_date = fetch_article_with_meta(url)
         except Exception as exc:
-            logger.warning("  fetch_article failed for %s: %s", url, exc)
+            logger.warning("  fetch_article_with_meta failed for %s: %s", url, exc)
             continue
 
         if not content:
             continue
+
+        # Article-page date is authoritative; fall back to listing-page date
+        final_date = article_date or listing_date
+
+        if article_date and article_date != listing_date and listing_date:
+            logger.info(
+                "  date corrected for %s: listing=%s article=%s",
+                url, listing_date, article_date,
+            )
+
+        # Final date check against the authoritative article-page date
+        if final_date:
+            if _is_too_old(final_date, cutoff):
+                skipped_date += 1
+                logger.info("  skipping %s — article date %s is out of range", url, final_date)
+                continue
+            if ceiling and _is_too_new(final_date, ceiling):
+                skipped_date += 1
+                continue
 
         # Extract title from first heading in the markdown content
         title = url
@@ -176,7 +208,7 @@ def fetch_web(
             "title": title,
             "url": url,
             "content": content,
-            "published_at": date_str,
+            "published_at": final_date,
         })
 
     if skipped_known:

@@ -298,8 +298,13 @@ def _extract_with_images(html: str) -> str:
 # Tier 1: Playwright only
 # ---------------------------------------------------------------------------
 
-async def _playwright_fetch(url: str) -> str:
-    """Navigate with a headed Playwright browser, extract text with trafilatura."""
+async def _playwright_fetch(url: str) -> tuple[str, str | None]:
+    """
+    Navigate with a headed Playwright browser, extract text + publication date.
+    Returns (content, date_str) where date_str is YYYY-MM-DD or None.
+    The date is extracted from page metadata (trafilatura) at zero extra cost
+    since the raw HTML is already in memory.
+    """
     from playwright.async_api import async_playwright
 
     async with async_playwright() as p:
@@ -335,7 +340,18 @@ async def _playwright_fetch(url: str) -> str:
 
     text = _extract_with_images(html)
     logger.info("[playwright] extracted: %d chars", len(text))
-    return text
+
+    # Extract publication date from page metadata — free since HTML is already in memory
+    date_str: str | None = None
+    try:
+        meta = trafilatura.extract_metadata(html)
+        if meta and meta.date:
+            date_str = meta.date
+            logger.info("[playwright] extracted date: %s", date_str)
+    except Exception:
+        pass
+
+    return text, date_str
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +441,7 @@ async def _agent_fetch(url: str) -> str:
 
 async def _fetch_async(url: str) -> str:
     """Tier 1 first; fall back to Tier 2 only if content is too short."""
-    text = await _playwright_fetch(url)
+    text, _ = await _playwright_fetch(url)  # date discarded — RSS path doesn't need it
 
     if len(text) >= MIN_BROWSER_FALLBACK_CHARS:
         return text
@@ -444,9 +460,40 @@ async def _fetch_async(url: str) -> str:
     return text
 
 
+async def _fetch_async_with_meta(url: str) -> tuple[str, str | None]:
+    """Like _fetch_async but also returns the publication date from page metadata."""
+    text, date_str = await _playwright_fetch(url)
+
+    if len(text) >= MIN_BROWSER_FALLBACK_CHARS:
+        return text, date_str
+
+    logger.warning(
+        "[playwright] only %d chars — below threshold (%d), trying browser-use agent…",
+        len(text), MIN_BROWSER_FALLBACK_CHARS,
+    )
+    try:
+        agent_text = await _agent_fetch(url)
+        if len(agent_text) > len(text):
+            text = agent_text
+    except Exception as exc:
+        logger.warning("[browser-use agent] failed: %s", exc)
+
+    # date_str comes from the Playwright phase; the agent doesn't expose metadata
+    return text, date_str
+
+
 def fetch_article(url: str) -> str:
-    """Synchronous wrapper — use this from the main pipeline."""
+    """Synchronous wrapper — use this from the RSS pipeline."""
     return asyncio.run(_fetch_async(url))
+
+
+def fetch_article_with_meta(url: str) -> tuple[str, str | None]:
+    """
+    Like fetch_article but also returns the publication date extracted from page metadata.
+    Returns (content, date_str) where date_str is YYYY-MM-DD or None.
+    Used by the web fetcher so it can validate dates against the target range.
+    """
+    return asyncio.run(_fetch_async_with_meta(url))
 
 
 # ---------------------------------------------------------------------------
