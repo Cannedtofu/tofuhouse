@@ -112,11 +112,10 @@ def _scheduled_nitter_fetch():
 
 def _scheduled_digest_send():
     """
-    For each user due for a digest:
-      1. Fetch fresh articles from all their followed sources (RSS + web + nitter).
-      2. Run the same AI digest pipeline used by the web UI (briefing, abstracts,
-         big picture synthesis).
-      3. Send the result by email.
+    Send email digests to all users due for one.
+    All required sources are fetched once (union of followed sources, widest date
+    window) before the per-user digest/email loop, eliminating redundant fetches
+    when multiple users share sources.
     Runs every 6 hours; fetch is skipped if a manual fetch is already in progress.
     """
     from email_sender import send_digest as _send_email
@@ -125,37 +124,56 @@ def _scheduled_digest_send():
     users = db.get_users_due_for_digest()
     if not users:
         return
+
+    users = [dict(u) for u in users]
     logger_sched.info("Digest check: %d user(s) due for email", len(users))
 
+    date_to = date.today().isoformat()
+
+    # Resolve each user's date window and followed sources upfront.
     for user in users:
-        user = dict(user)
-        days = user["digest_frequency_days"]
-        date_from = (date.today() - timedelta(days=days)).isoformat()
-        date_to = date.today().isoformat()
+        user["_date_from"] = (date.today() - timedelta(days=user["digest_frequency_days"])).isoformat()
         followed = db.get_followed_source_ids(user["id"])
-        source_ids = followed if followed else None
+        user["_source_ids"] = followed if followed else None
+
+    # --- Single unified fetch ---
+    # Use the union of all users' followed sources (None = all sources).
+    if any(u["_source_ids"] is None for u in users):
+        all_source_ids = None
+    else:
+        all_source_ids = list({sid for u in users for sid in u["_source_ids"]})
+
+    # Use the oldest date_from so the fetch covers every user's lookback window.
+    min_date_from = min(u["_date_from"] for u in users)
+
+    if not _fetch_status["running"]:
+        logger_sched.info(
+            "Digest pre-fetch: %s source(s), from %s",
+            len(all_source_ids) if all_source_ids is not None else "all",
+            min_date_from,
+        )
+        log_id = db.log_fetch_start(trigger="digest")
+        try:
+            result = run_fetch_and_summarize(
+                summarize=False,
+                date_from=min_date_from,
+                date_to=date_to,
+                source_ids=all_source_ids,
+            )
+            db.log_fetch_finish(log_id, result)
+            logger_sched.info("Digest pre-fetch done: %d new article(s)", result["total_new"])
+        except Exception as exc:
+            db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
+            logger_sched.warning("Digest pre-fetch failed: %s — continuing with existing articles", exc)
+    else:
+        logger_sched.info("Skipping digest pre-fetch — manual fetch in progress")
+
+    # --- Per-user digest generation and email ---
+    for user in users:
+        date_from = user["_date_from"]
+        source_ids = user["_source_ids"]
 
         try:
-            # Step 1: fetch fresh articles for this user's sources
-            if not _fetch_status["running"]:
-                logger_sched.info("Digest pre-fetch for %s (sources: %s)", user["email"], source_ids)
-                log_id = db.log_fetch_start(trigger="digest")
-                try:
-                    result = run_fetch_and_summarize(
-                        summarize=False,
-                        date_from=date_from,
-                        date_to=date_to,
-                        source_ids=source_ids,
-                    )
-                    db.log_fetch_finish(log_id, result)
-                    logger_sched.info("Digest pre-fetch done: %d new article(s)", result["total_new"])
-                except Exception as exc:
-                    db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
-                    logger_sched.warning("Digest pre-fetch failed: %s — continuing with existing articles", exc)
-            else:
-                logger_sched.info("Skipping digest pre-fetch for %s — manual fetch in progress", user["email"])
-
-            # Step 2: get article IDs for the period
             articles = db.get_articles(date_from=date_from, date_to=date_to, source_ids=source_ids)
             article_ids = [a["id"] for a in articles]
             if not article_ids:
@@ -163,11 +181,9 @@ def _scheduled_digest_send():
                 db.update_user_digest_last_sent(user["id"])
                 continue
 
-            # Step 3: generate AI digest (same pipeline as the web UI)
             logger_sched.info("Generating AI digest for %s (%d articles)", user["email"], len(article_ids))
             md = generate_batch_digest(article_ids, user_id=user["id"])
 
-            # Step 4: send
             ok = _send_email(md, to_email=user["email"], date_label=f"{date_from} to {date_to}")
             if ok:
                 db.update_user_digest_last_sent(user["id"])
@@ -175,7 +191,6 @@ def _scheduled_digest_send():
 
         except Exception as exc:
             logger_sched.error("Digest failed for %s: %s", user["email"], exc)
-
 
 logger_sched = logging.getLogger("scheduler")
 _scheduler = BackgroundScheduler(daemon=True)
