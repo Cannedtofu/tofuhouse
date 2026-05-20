@@ -210,6 +210,8 @@ else:
 
 _scheduler.add_job(_scheduled_nitter_fetch, "cron", hour=_nitter_cron_hours, minute=0, id="nitter_periodic")
 _scheduler.add_job(_scheduled_digest_send, "interval", hours=6, id="digest_send")
+
+
 _scheduler.start()
 
 

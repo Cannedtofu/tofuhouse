@@ -61,6 +61,11 @@ EMAIL_WHITELIST: list[str] = [
 # --- Admin account (full source management including delete) ---
 ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "cuiyuan@maisoncapital.com").strip().lower()
 
+# --- YouTube cookies file (Netscape format) for yt-dlp authentication ---
+# Only needed when the fast path (youtube-transcript-api) fails, i.e. for videos
+# with no English captions. Set to the path of a manually exported cookies file.
+YOUTUBE_COOKIES_FILE: str = os.getenv("YOUTUBE_COOKIES_FILE", "")
+
 # --- Email ---
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")

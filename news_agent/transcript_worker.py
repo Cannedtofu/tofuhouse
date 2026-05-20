@@ -25,7 +25,7 @@ import shutil
 import tempfile
 
 import db
-from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL
+from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL, YOUTUBE_COOKIES_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -70,16 +70,46 @@ def is_youtube_url(url: str) -> bool:
 
 def _fetch_transcript_fast(video_id: str) -> str | None:
     """
-    Try to fetch English captions via youtube-transcript-api.
-    Returns plain text transcript or None if unavailable/failed.
+    Fetch English captions via youtube-transcript-api.
+    Tries manually-created English first, then auto-generated English.
+    Returns None if neither exists — caller falls through to audio download.
     """
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi
+        from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound  # noqa: PLC0415
 
-        entries = YouTubeTranscriptApi.get_transcript(
-            video_id, languages=["en", "en-US", "en-GB", "en-AU"]
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        transcript = None
+
+        # 1. Human-authored English transcript
+        try:
+            transcript = transcript_list.find_manually_created_transcript(
+                ["en", "en-US", "en-GB", "en-AU"]
+            )
+        except NoTranscriptFound:
+            pass
+
+        # 2. Auto-generated English transcript
+        if transcript is None:
+            try:
+                transcript = transcript_list.find_generated_transcript(
+                    ["en", "en-US", "en-GB", "en-AU"]
+                )
+            except NoTranscriptFound:
+                pass
+
+        if transcript is None:
+            logger.info("No English transcript available for %s", video_id)
+            return None
+
+        entries = transcript.fetch()
+        text = " ".join(e["text"] for e in entries)
+        logger.info(
+            "Transcript fetched via youtube-transcript-api for %s "
+            "(lang=%s, generated=%s, %d chars)",
+            video_id, transcript.language_code, transcript.is_generated, len(text),
         )
-        return " ".join(e["text"] for e in entries)
+        return text
+
     except Exception as exc:
         logger.info("youtube-transcript-api unavailable for %s: %s", video_id, exc)
         return None
@@ -94,6 +124,9 @@ def _download_audio(video_id: str, tmp_dir: str) -> str:
     Download audio-only from YouTube using yt-dlp.
     Saves as mp3, mono, 64 kbps to keep the file small.
     Returns the path to the downloaded audio file.
+
+    Requires a cookies file when YouTube blocks server-side requests.
+    Set YOUTUBE_COOKIES_FILE in .env to the path of a Netscape-format cookies file.
     """
     import yt_dlp  # noqa: PLC0415
 
@@ -114,6 +147,15 @@ def _download_audio(video_id: str, tmp_dir: str) -> str:
         "quiet": True,
         "no_warnings": True,
     }
+
+    if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
+        ydl_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
+        logger.info("yt-dlp: using cookies file %s", YOUTUBE_COOKIES_FILE)
+    else:
+        logger.warning(
+            "yt-dlp: no cookies file configured — YouTube may block this request. "
+            "Set YOUTUBE_COOKIES_FILE in .env if you see bot-detection errors."
+        )
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
