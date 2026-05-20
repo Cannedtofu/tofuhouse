@@ -74,6 +74,9 @@
             <th>URL 过滤</th>
             <th>最近抓取</th>
             <th>关注</th>
+            {% if g.current_user and g.current_user.email == 'cuiyuan@maisoncapital.com' %}
+            <th></th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
@@ -109,6 +112,14 @@
                 </form>
               {% endif %}
             </td>
+            {% if g.current_user and g.current_user.email == 'cuiyuan@maisoncapital.com' %}
+            <td>
+              <form method="post" action="/sources/{{ s.id }}/delete" class="d-inline"
+                    onsubmit="return confirm('删除来源「{{ s.name }}」？此操作不可撤销。')">
+                <button class="btn btn-sm btn-outline-danger">删除</button>
+              </form>
+            </td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>

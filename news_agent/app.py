@@ -12,7 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
 
 import db
-from config import EMAIL_WHITELIST, NITTER_FETCH_PERIOD_HOURS, SECRET_KEY
+from config import ADMIN_EMAIL, EMAIL_WHITELIST, NITTER_FETCH_PERIOD_HOURS, SECRET_KEY
 from digest import build_digest
 from pipeline import run_fetch_and_summarize
 from summarizer import generate_batch_digest, summarize_single_article
@@ -370,6 +370,8 @@ def detect_source():
 @app.route("/sources/<int:source_id>/delete", methods=["POST"])
 @login_required
 def delete_source(source_id: int):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "Not authorised."}), 403
     db.delete_source(source_id)
     return redirect(url_for("sources"))
 
@@ -563,6 +565,96 @@ def settings():
         success=success,
         token_summary=token_summary,
         browser_rows=browser_rows,
+    )
+
+
+# ---------------------------------------------------------------------------
+# YouTube transcript
+# ---------------------------------------------------------------------------
+
+@app.route("/transcript")
+@login_required
+def transcript_page():
+    return render_template("transcript.html")
+
+
+@app.route("/transcript/process", methods=["POST"])
+@login_required
+def transcript_process():
+    from transcript_worker import extract_video_id, is_youtube_url, process_transcript_job
+
+    data = request.get_json(silent=True) or {}
+    url = (data.get("url") or "").strip()
+
+    if not url:
+        return jsonify({"error": "URL is required."}), 400
+    if not is_youtube_url(url):
+        return jsonify({"error": "Not a recognized YouTube video URL."}), 400
+
+    video_id = extract_video_id(url)
+    job_id = db.create_transcript_job(video_url=url, video_id=video_id)
+
+    # Spawn background worker — returns immediately
+    thread = threading.Thread(
+        target=process_transcript_job,
+        args=(job_id, url, video_id),
+        daemon=True,
+    )
+    thread.start()
+
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/transcript/status/<job_id>")
+@login_required
+def transcript_status(job_id: str):
+    job = db.get_transcript_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    return jsonify({
+        "job_id": job["job_id"],
+        "status": job["status"],
+        "summary": job["summary"],
+        "transcript": job["transcript"],
+        "error_message": job["error_message"],
+    })
+
+
+@app.route("/transcript/download/<job_id>")
+@login_required
+def transcript_download(job_id: str):
+    from flask import Response
+
+    job = db.get_transcript_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    if job["status"] != "done":
+        return jsonify({"error": "Transcript not ready yet."}), 400
+
+    video_url = job["video_url"]
+    summary = job["summary"] or ""
+    transcript = job["transcript"] or ""
+
+    content = (
+        f"YouTube Transcript\n"
+        f"URL: {video_url}\n"
+        f"{'=' * 60}\n\n"
+        f"SUMMARY\n"
+        f"{'-' * 60}\n"
+        f"{summary}\n\n"
+        f"{'=' * 60}\n\n"
+        f"FULL TRANSCRIPT\n"
+        f"{'-' * 60}\n"
+        f"{transcript}\n"
+    )
+
+    safe_id = job["video_id"]
+    return Response(
+        content,
+        mimetype="text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="transcript_{safe_id}.txt"'
+        },
     )
 
 

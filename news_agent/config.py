@@ -58,6 +58,9 @@ EMAIL_WHITELIST: list[str] = [
     if e.strip()
 ]
 
+# --- Admin account (full source management including delete) ---
+ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "cuiyuan@maisoncapital.com").strip().lower()
+
 # --- Email ---
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")

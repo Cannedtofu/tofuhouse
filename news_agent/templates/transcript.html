@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}视频转录{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <!-- URL input card -->
+    <div class="card p-4 mb-4">
+      <h5 class="mb-3">YouTube 视频转录 &amp; 总结</h5>
+      <p class="text-muted small mb-3">
+        粘贴 YouTube 视频链接，自动提取字幕（或下载音频转录），并用 AI 生成摘要。
+      </p>
+
+      <div class="d-flex gap-2">
+        <input type="url" id="yt-url-input" class="form-control"
+               placeholder="https://www.youtube.com/watch?v=..."
+               autocomplete="off">
+        <button type="button" id="submit-btn" class="btn btn-primary flex-shrink-0"
+                onclick="submitUrl()">
+          <span id="submit-label">开始转录</span>
+          <span id="submit-spinner" class="spinner-border spinner-border-sm ms-1"
+                style="display:none"></span>
+        </button>
+      </div>
+      <div id="url-error" class="text-danger small mt-2" style="display:none"></div>
+    </div>
+
+    <!-- Status / result card (hidden until a job is submitted) -->
+    <div id="result-card" class="card p-4" style="display:none">
+
+      <!-- Status indicator -->
+      <div id="status-indicator" class="d-flex align-items-center gap-2 mb-3">
+        <span id="status-badge" class="badge bg-secondary">等待中</span>
+        <span id="status-text" class="text-muted small">正在排队…</span>
+      </div>
+
+      <!-- Error display -->
+      <div id="error-panel" class="alert alert-danger" style="display:none"></div>
+
+      <!-- Results: summary + transcript + download (shown once done) -->
+      <div id="done-panel" style="display:none">
+
+        <!-- Download button -->
+        <div class="d-flex justify-content-end mb-3">
+          <a id="download-btn" href="#" class="btn btn-sm btn-outline-secondary">
+            ⬇ 下载 .txt
+          </a>
+        </div>
+
+        <!-- Summary section -->
+        <div class="mb-4">
+          <div class="fw-semibold mb-2" style="font-size:1rem; border-left:4px solid #0d6efd; padding-left:.6rem;">
+            AI 摘要
+          </div>
+          <div id="summary-content"
+               style="font-size:.93rem; line-height:1.7; background:#f8f9fa;
+                      border-radius:6px; padding:1rem; white-space:pre-wrap; word-break:break-word;">
+          </div>
+        </div>
+
+        <!-- Full transcript section (collapsible) -->
+        <div>
+          <button class="btn btn-sm btn-outline-secondary mb-2"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#transcript-collapse">
+            完整转录文本 ▾
+          </button>
+          <div class="collapse" id="transcript-collapse">
+            <div id="transcript-content"
+                 style="font-size:.88rem; line-height:1.75; background:#f8f9fa;
+                        border-radius:6px; padding:1rem; max-height:500px;
+                        overflow-y:auto; white-space:pre-wrap; word-break:break-word;">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _pollInterval = null;
+let _currentJobId  = null;
+
+// Allow Enter key in URL input to submit
+document.getElementById('yt-url-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); submitUrl(); }
+});
+
+function submitUrl() {
+  const url = document.getElementById('yt-url-input').value.trim();
+  if (!url) { showUrlError('请输入 YouTube 链接。'); return; }
+
+  clearUrlError();
+  setSubmitBusy(true);
+  resetResultCard();
+
+  fetch('/transcript/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        showUrlError(data.error);
+        setSubmitBusy(false);
+        return;
+      }
+      _currentJobId = data.job_id;
+      showResultCard('pending', '正在排队…');
+      startPolling(_currentJobId);
+    })
+    .catch(() => {
+      showUrlError('请求失败，请检查网络连接。');
+      setSubmitBusy(false);
+    });
+}
+
+function startPolling(jobId) {
+  // Poll every 3 seconds; stops automatically when status is "done" or "error"
+  _pollInterval = setInterval(() => {
+    fetch(`/transcript/status/${jobId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          stopPolling();
+          showErrorPanel(data.error);
+          setSubmitBusy(false);
+          return;
+        }
+
+        const status = data.status;
+        updateStatusBadge(status);
+
+        if (status === 'processing') {
+          setStatusText('正在处理（提取字幕 / 转录音频）…');
+        } else if (status === 'pending') {
+          setStatusText('正在排队…');
+        } else if (status === 'done') {
+          stopPolling();
+          setSubmitBusy(false);
+          showDonePanel(data, jobId);
+        } else if (status === 'error') {
+          stopPolling();
+          setSubmitBusy(false);
+          showErrorPanel(data.error_message || '处理失败，请重试。');
+        }
+      })
+      .catch(() => { /* keep polling on transient network errors */ });
+  }, 3000);
+}
+
+function stopPolling() {
+  if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+}
+
+// ---- UI helpers ----
+
+function setSubmitBusy(busy) {
+  const btn    = document.getElementById('submit-btn');
+  const label  = document.getElementById('submit-label');
+  const spinner = document.getElementById('submit-spinner');
+  btn.disabled = busy;
+  label.textContent = busy ? '处理中…' : '开始转录';
+  spinner.style.display = busy ? 'inline-block' : 'none';
+}
+
+function showUrlError(msg) {
+  const el = document.getElementById('url-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function clearUrlError() {
+  document.getElementById('url-error').style.display = 'none';
+}
+
+function resetResultCard() {
+  stopPolling();
+  document.getElementById('result-card').style.display = 'none';
+  document.getElementById('error-panel').style.display  = 'none';
+  document.getElementById('done-panel').style.display   = 'none';
+  document.getElementById('summary-content').textContent   = '';
+  document.getElementById('transcript-content').textContent = '';
+}
+
+function showResultCard(status, statusText) {
+  document.getElementById('result-card').style.display = 'block';
+  updateStatusBadge(status);
+  setStatusText(statusText);
+  document.getElementById('error-panel').style.display = 'none';
+  document.getElementById('done-panel').style.display  = 'none';
+}
+
+function updateStatusBadge(status) {
+  const badge = document.getElementById('status-badge');
+  const map = {
+    pending:    ['bg-secondary', '等待中'],
+    processing: ['bg-warning text-dark', '处理中'],
+    done:       ['bg-success',   '完成'],
+    error:      ['bg-danger',    '错误'],
+  };
+  const [cls, label] = map[status] || ['bg-secondary', status];
+  badge.className = `badge ${cls}`;
+  badge.textContent = label;
+}
+
+function setStatusText(msg) {
+  document.getElementById('status-text').textContent = msg;
+}
+
+function showErrorPanel(msg) {
+  updateStatusBadge('error');
+  setStatusText('处理失败');
+  const el = document.getElementById('error-panel');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function showDonePanel(data, jobId) {
+  updateStatusBadge('done');
+  setStatusText('转录与摘要已生成。');
+
+  document.getElementById('summary-content').textContent    = data.summary || '（无摘要）';
+  document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
+  document.getElementById('download-btn').href = `/transcript/download/${jobId}`;
+  document.getElementById('done-panel').style.display = 'block';
+}
+</script>
+{% endblock %}

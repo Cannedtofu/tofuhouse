@@ -11,7 +11,10 @@ from config import DB_PATH
 
 @contextmanager
 def get_conn():
-    conn = sqlite3.connect(DB_PATH)
+    # check_same_thread=False: each call creates its own connection used within
+    # one thread, so there is no cross-thread sharing. timeout=30 lets background
+    # workers wait up to 30 s for WAL write locks instead of raising immediately.
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     try:
@@ -94,6 +97,21 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_fetch_log_started ON fetch_log(started_at);
             CREATE INDEX IF NOT EXISTS idx_usf_user          ON user_source_follows(user_id);
             CREATE INDEX IF NOT EXISTS idx_token_usage_user  ON token_usage(user_id);
+
+            CREATE TABLE IF NOT EXISTS transcript_jobs (
+                job_id        TEXT    PRIMARY KEY,
+                video_url     TEXT    NOT NULL,
+                video_id      TEXT    NOT NULL,
+                status        TEXT    NOT NULL DEFAULT 'pending'
+                                      CHECK(status IN ('pending','processing','done','error')),
+                transcript    TEXT,
+                summary       TEXT,
+                error_message TEXT,
+                created_at    TEXT    NOT NULL,
+                updated_at    TEXT    NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_transcript_jobs_created ON transcript_jobs(created_at);
         """)
         # Migrations for older databases
         try:
@@ -491,3 +509,51 @@ def get_users_due_for_digest() -> list[sqlite3.Row]:
                 OR date(digest_last_sent, '+' || digest_frequency_days || ' days') <= date('now')
             )
         """).fetchall()
+
+
+# ---------------------------------------------------------------------------
+# YouTube transcript jobs
+# ---------------------------------------------------------------------------
+
+def create_transcript_job(video_url: str, video_id: str) -> str:
+    """Insert a new transcript job with status 'pending'. Returns the job_id (UUID)."""
+    import uuid as _uuid
+    job_id = str(_uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO transcript_jobs
+               (job_id, video_url, video_id, status, created_at, updated_at)
+               VALUES (?, ?, ?, 'pending', ?, ?)""",
+            (job_id, video_url, video_id, now, now),
+        )
+    return job_id
+
+
+def update_transcript_job(
+    job_id: str,
+    status: str,
+    transcript: Optional[str] = None,
+    summary: Optional[str] = None,
+    error_message: Optional[str] = None,
+):
+    """Update a transcript job's status and optional result fields."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            """UPDATE transcript_jobs
+               SET status=?, transcript=COALESCE(?, transcript),
+                   summary=COALESCE(?, summary),
+                   error_message=COALESCE(?, error_message),
+                   updated_at=?
+               WHERE job_id=?""",
+            (status, transcript, summary, error_message, now, job_id),
+        )
+
+
+def get_transcript_job(job_id: str) -> Optional[sqlite3.Row]:
+    """Return the transcript job row for the given job_id, or None."""
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT * FROM transcript_jobs WHERE job_id = ?", (job_id,)
+        ).fetchone()
