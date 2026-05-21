@@ -306,6 +306,7 @@ def index():
         date_from=date_from,
         date_to=date_to,
         fetch_status=_fetch_status,
+        is_admin=g.current_user["email"] == ADMIN_EMAIL,
     )
 
 
@@ -441,6 +442,15 @@ def article_detail(article_id: int):
     if not row:
         return jsonify({"error": "Not found"}), 404
     return jsonify(dict(row))
+
+
+@app.route("/articles/<int:article_id>/delete", methods=["POST"])
+@login_required
+def delete_article(article_id: int):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "Not authorised."}), 403
+    db.delete_article(article_id)
+    return jsonify({"ok": True})
 
 
 @app.route("/articles/<int:article_id>/summarize", methods=["POST"])

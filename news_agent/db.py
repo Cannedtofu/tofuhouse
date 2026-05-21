@@ -195,6 +195,11 @@ def delete_source(source_id: int):
         conn.execute("DELETE FROM sources WHERE id = ?", (source_id,))
 
 
+def delete_article(article_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM articles WHERE id = ?", (article_id,))
+
+
 def update_source_last_fetched(source_id: int):
     now = datetime.now(timezone.utc).isoformat()
     with get_conn() as conn:

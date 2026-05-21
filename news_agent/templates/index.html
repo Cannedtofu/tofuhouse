@@ -32,15 +32,21 @@
             </div>
             <div id="{{ grp_id }}" class="collapse {{ '' if is_nitter else 'show' }}">
               {% for a in group.articles %}
-                <div class="article-list-item px-3 py-2 border-bottom"
+                <div class="article-list-item px-3 py-2 border-bottom position-relative"
                      data-id="{{ a.id }}"
                      onclick="selectArticle({{ a.id }})"
                      style="cursor:pointer">
-                  <div class="fw-medium lh-sm" style="font-size:.88rem">{{ a.title or a.url }}</div>
+                  <div class="fw-medium lh-sm pe-3" style="font-size:.88rem">{{ a.title or a.url }}</div>
                   <div class="text-muted" style="font-size:.75rem">
                     {% set pub = a.published_at or a.fetched_at %}
                     {% if pub %}{{ pub[:10] }}{% endif %}
                   </div>
+                  {% if is_admin %}
+                  <button class="btn btn-link p-0 text-danger position-absolute top-50 end-0 translate-middle-y me-2"
+                          style="font-size:.8rem; opacity:0.35; line-height:1;"
+                          onclick="event.stopPropagation(); deleteArticle({{ a.id }})"
+                          title="删除">✕</button>
+                  {% endif %}
                 </div>
               {% endfor %}
             </div>
@@ -142,8 +148,14 @@
       <div id="detail-content" style="display:none">
         <div class="d-flex justify-content-between align-items-start mb-1">
           <h5 id="detail-title" class="mb-0 me-3"></h5>
-          <a id="detail-link" href="#" target="_blank" rel="noopener"
-             class="btn btn-sm btn-outline-secondary flex-shrink-0">打开 ↗</a>
+          <div class="d-flex gap-2 flex-shrink-0">
+            <a id="detail-link" href="#" target="_blank" rel="noopener"
+               class="btn btn-sm btn-outline-secondary">打开 ↗</a>
+            {% if is_admin %}
+            <button id="detail-delete-btn" class="btn btn-sm btn-outline-danger"
+                    onclick="deleteArticle(currentId)">删除</button>
+            {% endif %}
+          </div>
         </div>
         <div class="text-muted small mb-3" id="detail-meta"></div>
         <div id="detail-body" style="font-size:.93rem; line-height:1.7; word-break:break-word;"></div>
@@ -397,5 +409,31 @@ function showFetchResult(res) {
   el.innerHTML = html;
   el.style.display = 'block';
 }
+
+{% if is_admin %}
+function deleteArticle(id) {
+  if (!id) return;
+  const a = byId[id];
+  const label = a ? (a.title || a.url || '该条目') : '该条目';
+  if (!confirm(`删除「${label}」？`)) return;
+  if (!confirm(`再次确认：永久删除「${label}」，此操作不可撤销。`)) return;
+  fetch(`/articles/${id}/delete`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); return; }
+      const idx = ARTICLES.findIndex(a => a.id === id);
+      if (idx !== -1) ARTICLES.splice(idx, 1);
+      delete byId[id];
+      const el = document.querySelector(`.article-list-item[data-id="${id}"]`);
+      if (el) el.remove();
+      if (currentId === id) {
+        currentId = null;
+        document.getElementById('detail-content').style.display = 'none';
+        document.getElementById('detail-placeholder').style.display = 'block';
+      }
+    })
+    .catch(() => alert('删除失败，请重试。'));
+}
+{% endif %}
 </script>
 {% endblock %}

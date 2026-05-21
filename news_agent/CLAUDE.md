@@ -18,19 +18,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Environment setup
 
 Copy `.env.example` to `.env` and fill in:
-- `QWEN_API_KEY` — Alibaba Cloud DashScope key (from bailian.console.aliyun.com). Used for **all** LLM tasks.
+- `QWEN_API_KEY` — Alibaba Cloud DashScope key (from bailian.console.aliyun.com). Used for **all** LLM tasks: article summaries, digest, vision agent, speech-to-text.
 - `SMTP_USER`, `SMTP_PASSWORD`, `RECIPIENT_EMAIL`, `SMTP_SERVER`, `SMTP_PORT` — email delivery via `main.py`
+- `YOUTUBE_COOKIES_FILE` — path to a Netscape-format cookies file for yt-dlp (only needed when the youtube-transcript-api fast path fails, i.e. videos with no English captions)
 
 Python 3.11+ required (browser-use and playwright require 3.11+). Use `.venv` created with `py -3.12`.
+
+ffmpeg must be installed on the server for the YouTube audio fallback path:
+```bash
+apt-get install ffmpeg
+```
 
 ## Architecture
 
 Two entry points share the same pipeline:
 
-- **`app.py`** — Flask web UI. Sources and articles managed in browser. Fetch triggered via AJAX (`POST /fetch`) in a background thread. APScheduler fetches Nitter sources every hour automatically.
+- **`app.py`** — Flask web UI. Sources and articles managed in browser. Fetch triggered via AJAX (`POST /fetch`) in a background thread. APScheduler fetches Nitter sources on a configurable schedule.
 - **`main.py`** — CLI for GitHub Actions. Full pipeline: fetch → summarize → digest → email.
 
-### Data flow
+### Data flow — news feed
 
 ```
 sources (DB)
@@ -51,62 +57,243 @@ digest.py         → markdown builder
 email_sender.py   → SMTP
 ```
 
-### Key design decisions
+### Data flow — YouTube transcript
 
-**Playwright in headed (non-headless) mode**
+```
+POST /transcript/process  (user pastes YouTube URL)
+    ↓
+transcript_worker.process_transcript_job()  [daemon thread]
+    ↓
+Step 1: youtube-transcript-api (fast path)
+    ├── find_manually_created_transcript(["en", ...])
+    └── find_generated_transcript(["en", ...])
+    → if found: plain text transcript, skip to Step 3
+    → if not found: proceed to Step 2
+
+Step 2: audio fallback
+    ├── yt-dlp: download audio-only (mp3, mono, 64 kbps) to /tmp
+    ├── pydub: split on silence at ~4-min boundaries (max 5-min/10MB per API call)
+    │     never cuts mid-word — seeks ±30s for silence; 1.5s overlap between chunks
+    ├── qwen3-asr-flash (DashScope SDK): all chunks in parallel via ThreadPoolExecutor
+    │     wall-clock time ≈ one chunk regardless of video length
+    └── reassemble in order, deduplicate overlap words at boundaries
+
+Step 3: summarize with Qwen qwen-plus
+    ├── if transcript ≤ 12,000 chars: single call
+    └── if longer: summarize chunks separately → combine into final summary
+
+Step 4: store results, set status "done"
+    ↓
+GET /transcript/status/<job_id>  (frontend polls every 3s)
+GET /transcript/download/<job_id>  (returns .txt with summary + full transcript)
+```
+
+---
+
+## Key design decisions
+
+### Playwright in headed (non-headless) mode
 Cloudflare and other bot-detection systems fingerprint headless Chrome via empty plugin list, SwiftShader WebGL, and mismatched screen dimensions. Running headed but off-screen (`--window-position=-32000,-32000`) passes all fingerprint checks. Browser window is invisible to the user.
 
-**Two-tier content extraction**
-`browser_use_fetcher.py` runs Playwright first (fast, no LLM). If fewer than `MIN_BROWSER_FALLBACK_CHARS` (300) characters are extracted, the browser-use LLM agent takes over — it can interact with the page (scroll, dismiss banners) before extracting. Qwen `qwen-vl-max` is used for the vision agent.
+### Two-tier content extraction
+`browser_use_fetcher.py` runs Playwright first (fast, no LLM). If fewer than `MIN_BROWSER_FALLBACK_CHARS` (300) characters are extracted, the browser-use LLM agent takes over — it can interact with the page (scroll, dismiss banners) before extracting. Qwen `qwen3-vl-flash` is used for the vision agent.
 
-**Image extraction with lazy-load handling**
+### `fetch_article` vs `fetch_article_with_meta`
+`browser_use_fetcher.py` exposes two public functions:
+- `fetch_article(url) -> str` — content only; used by the RSS enrichment path.
+- `fetch_article_with_meta(url) -> (str, str | None)` — content + publication date extracted from page metadata via `trafilatura.extract_metadata(html)`; used only by the web fetcher. The raw HTML is already in memory from Playwright so the date costs nothing extra.
+
+### Web source date handling (two-stage)
+`fetch_web()` applies dates in two stages to handle JS-heavy sites (e.g. a16z.com) where the listing page may not show dates:
+1. **Pre-filter on listing-page date** (from LLM agent) — if present and clearly out of range, skip without a browser call.
+2. **Authoritative check on article-page date** (from trafilatura metadata) — extracted during the Playwright fetch. This date is stored as `published_at` and used for the final date gate. Corrects cases where the LLM returned wrong or null dates.
+Articles with no date from either source are kept (conservative — they may be newly published).
+
+### Image extraction with lazy-load handling
 After page load, Playwright scrolls to the bottom and back to trigger lazy-loaded images. `_extract_with_images()` in `browser_use_fetcher.py` runs trafilatura HTML output through a custom `_soup_to_markdown()` converter that handles `<figure>/<picture>/<img>` nesting and Substack's `data-attrs` JSON (which contains clean, permanent S3 URLs without expiring CDN tokens).
 
-**RSS image detection**
+### RSS image detection
 `_entry_to_article_basic()` in `rss.py` checks if the RSS body contains `<img` tags. If so, `needs_full_content=True` regardless of body length — the full article is always fetched via Playwright to get images in context. Text-only feeds only fetch via Playwright when the RSS body is shorter than `CONTENT_LENGTH_THRESHOLD`.
 
-**Source `url_filter`**
+### Source `url_filter`
 Sources have an optional `url_filter` string. After fetching, `pipeline.py` drops articles whose URL doesn't contain that substring. Used to restrict OpenAI's feed to `openai.com/index/` articles only.
 
-**Source auto-detection**
+### Source auto-detection
 `fetchers/detect.py` identifies source type from a raw URL: X.com/Twitter → nitter; direct feed URL → rss; RSS autodiscovery `<link>` tag → rss; common feed path probing → rss; fallback → web. The Sources UI shows a Detect button that previews the result before saving.
 
-**Thin-content re-fetch**
+### Admin-only source deletion
+The delete route (`POST /sources/<id>/delete`) is protected — returns 403 unless the logged-in user's email matches `ADMIN_EMAIL` (config). The delete button in `sources.html` is rendered only for the admin account via a Jinja2 conditional. All other users see no delete UI at all.
+
+### Thin-content re-fetch
 Articles already in the DB are added to `known_urls` (skip list) only if their stored content is ≥ `MIN_CONTENT_WORDS` (200 words). Thin articles are re-fetched so Playwright can fill in full content.
 
-**Nitter periodic background fetch**
-APScheduler (daemon thread) fetches all Nitter sources every hour while `app.py` is running. Since Nitter RSS only returns ~20 recent posts, running hourly builds up a historical database over time. The scheduler status is shown as a badge in the feed UI.
+### Nitter periodic background fetch
+APScheduler (daemon thread) fetches all Nitter sources on a clock-anchored schedule (default: daily at 11pm SGT). Since Nitter RSS only returns ~20 recent posts, running periodically builds up a historical database over time. The scheduler status is shown as a badge in the feed UI.
 
-**AI Digest (batch, structured)**
+### YouTube transcript fast path
+`_fetch_transcript_fast()` tries: (1) manually-created English transcript, (2) auto-generated English transcript. Returns `None` if neither exists — no cascade to non-English or inferior quality. Captions are fetched directly from YouTube's timedtext API via youtube-transcript-api, with no audio download and no API key required.
+
+### YouTube audio fallback chunking
+pydub splits audio at silence boundaries near each 4-minute target. The 4-minute limit ensures chunks stay under qwen3-asr-flash's 5-minute/10MB per-call limit. Chunks overlap by 1.5 seconds to avoid losing words at boundaries; `_remove_boundary_duplicates()` trims the overlapping words during reassembly. All chunks are sent to qwen3-asr-flash concurrently (up to 8 parallel workers) so wall-clock time for a 2-hour video ≈ time for one 4-minute chunk.
+
+### AI Digest (batch, structured)
 `summarizer.generate_batch_digest()` groups articles by source. Nitter sources get separate Qwen calls for original tweets vs retweets. RSS/web sources get per-article abstracts. Sections joined with `---`, rendered as HTML via `renderDigest()` in `index.html`.
 
-**Default sources**
-`config.DEFAULT_SOURCES` is seeded into the DB on first startup (when no sources exist) via `db.seed_default_sources()`. Adding sources to `DEFAULT_SOURCES` seeds on first run only.
+### Background job patterns
+All long-running work uses `threading.Thread(target=_run, daemon=True).start()`:
+- News fetch: protected by `_fetch_lock`; status tracked in `_fetch_status` dict
+- AI digest: jobs tracked in `_digest_jobs` dict (in-memory, keyed by UUID)
+- YouTube transcript: jobs persisted in `transcript_jobs` SQLite table (survives restarts)
 
-### Database
+---
 
-SQLite (`news.db`) with WAL mode. Two tables:
-- `sources` — `id, name, type (rss|nitter|web), url, url_filter, last_fetched`
-- `articles` — `id, source_id, title, url (UNIQUE), content, published_at, fetched_at, summary`
+## Database
 
-Schema created by `db.init_db()`. The `url_filter` column is auto-migrated via try/except `ALTER TABLE` for older databases.
+SQLite (`news.db`) with WAL mode. `check_same_thread=False, timeout=30` on every connection to handle concurrent background threads without locking errors.
 
-### Config constants (`config.py`)
+Schema created/migrated by `db.init_db()`. New columns added via try/except `ALTER TABLE` blocks (idempotent migrations).
+
+### Tables
+
+**`sources`** — `id, name, type (rss|nitter|web), url, url_filter, last_fetched`
+
+**`articles`** — `id, source_id, title, url (UNIQUE), content, published_at, fetched_at, summary, digest_abstract`
+
+**`transcript_jobs`** — `job_id (UUID PK), video_url, video_id, status (pending|processing|done|error), transcript, summary, error_message, created_at, updated_at`
+- Persisted to SQLite so jobs survive app restarts
+- Polled by the frontend every 3 seconds while status is pending/processing
+
+**`fetch_log`** — `id, started_at, finished_at, trigger, total_new, total_fetched, sources_json, error`
+
+**`users`** — `id, email (UNIQUE), created_at, last_seen, digest_enabled, digest_frequency_days, digest_last_sent`
+
+**`user_source_follows`** — `(user_id, source_id)` — which sources each user follows
+
+**`digests`** — `id, article_ids_hash, article_ids_json, content, created_at` — full digest cache keyed by sorted article ID hash
+
+**`token_usage`** — `id, user_id, operation, model, tokens_in, tokens_out, created_at`
+
+---
+
+## Routes
+
+### News feed
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | Main feed (auth required) |
+| POST | `/fetch` | Trigger background fetch (AJAX) |
+| GET | `/fetch/status` | Poll fetch progress |
+| GET | `/articles/<id>` | Article JSON |
+| POST | `/articles/<id>/summarize` | On-demand article summary |
+| POST | `/digest/generate` | Start AI digest job |
+| GET | `/digest/status/<job_id>` | Poll digest job |
+| GET | `/digest` | Plain-text digest export |
+
+### Sources
+| Method | Path | Description |
+|---|---|---|
+| GET/POST | `/sources` | List + add sources (auth required) |
+| POST | `/sources/<id>/follow` | Follow/unfollow |
+| POST | `/sources/<id>/delete` | Delete source (**admin only**) |
+| POST | `/sources/detect` | Auto-detect source type from URL |
+
+### YouTube transcript
+| Method | Path | Description |
+|---|---|---|
+| GET | `/transcript` | Transcript UI tab |
+| POST | `/transcript/process` | Validate URL, create job, start worker |
+| GET | `/transcript/status/<job_id>` | Poll job (pending/processing/done/error) |
+| GET | `/transcript/download/<job_id>` | Download summary + transcript as .txt |
+
+### Other
+| Method | Path | Description |
+|---|---|---|
+| GET/POST | `/identify` | Email-only login |
+| POST | `/logout` | Clear session |
+| GET | `/scheduler/status` | APScheduler next-run info |
+| GET | `/logs` | Fetch log + raw app.log tail |
+| GET/POST | `/settings` | User digest settings + token usage |
+
+---
+
+## Config constants (`config.py`)
 
 | Constant | Purpose |
 |---|---|
-| `QWEN_API_KEY` / `QWEN_BASE_URL` | Alibaba DashScope credentials |
-| `QWEN_SUMMARY_MODEL` | `qwen-plus` — used for article summaries and digest |
-| `QWEN_VISION_MODEL` | `qwen-vl-max` — used only for browser-use agent fallback |
+| `QWEN_API_KEY` / `QWEN_BASE_URL` | Alibaba DashScope credentials — used for all LLM calls |
+| `QWEN_SUMMARY_MODEL` | `qwen-plus` — article summaries, digest, transcript summarization |
+| `QWEN_VISION_MODEL` | `qwen3-vl-flash` — browser-use vision agent fallback only |
 | `MIN_BROWSER_FALLBACK_CHARS` | Playwright result shorter than this triggers agent (300) |
 | `DATE_RANGE_DAYS` | Default fetch lookback window (7 days) |
 | `MIN_ARTICLE_DATE` | Hard floor — articles before this date always dropped |
-| `MAX_ARTICLES_PER_SOURCE` | Cap per source per fetch run |
-| `CONTENT_LENGTH_THRESHOLD` | RSS body shorter than this triggers Playwright fetch |
-| `MIN_CONTENT_WORDS` | Existing DB articles shorter than this are re-fetched |
-| `NITTER_INSTANCES` | Tried in order; first successful response wins |
-| `DEFAULT_SOURCES` | Seeded on first startup |
+| `MAX_ARTICLES_PER_SOURCE` | Cap per source per fetch run (50) |
+| `CONTENT_LENGTH_THRESHOLD` | RSS body shorter than this triggers Playwright fetch (500) |
+| `MIN_CONTENT_WORDS` | Existing DB articles shorter than this are re-fetched (200) |
+| `NITTER_FETCH_PERIOD_HOURS` | Scheduler interval AND tweet pagination cutoff (24h default) |
+| `NITTER_PAGE_DELAY` | Seconds between Nitter HTML page requests (120s default) |
+| `NITTER_INSTANCES` | Nitter instance URLs tried in order |
+| `DEFAULT_SOURCES` | Seeded into DB on first startup |
+| `SECRET_KEY` | Flask session signing key |
+| `EMAIL_WHITELIST` | Comma-separated emails allowed to sign in (empty = open) |
+| `ADMIN_EMAIL` | Single admin account with source deletion rights |
+| `YOUTUBE_COOKIES_FILE` | Path to Netscape cookies file for yt-dlp (audio fallback only) |
+| `SMTP_*` | Email delivery settings |
+
+---
+
+## File structure
+
+```
+app.py                          Flask app, all routes, APScheduler setup
+main.py                         CLI entry point (GitHub Actions)
+pipeline.py                     Shared fetch+summarize pipeline
+db.py                           SQLite layer — schema, migrations, all queries
+config.py                       All constants and env var loading
+summarizer.py                   Qwen summarization — per-article + batch digest
+digest.py                       Plain-text digest builder (CLI path)
+email_sender.py                 SMTP email delivery
+transcript_worker.py            YouTube transcript pipeline (fast path + audio fallback)
+
+fetchers/
+  rss.py                        RSS/Atom + Nitter RSS fetcher
+  web.py                        Web source fetcher (LLM link discovery + Playwright content)
+  browser_use_fetcher.py        Two-tier content extractor (Playwright + browser-use agent)
+                                  fetch_article(url) → str
+                                  fetch_article_with_meta(url) → (str, date | None)
+  nitter_html.py                Nitter HTML pagination scraper
+  detect.py                     Source type auto-detection
+
+templates/
+  base.html                     Navbar + Bootstrap 5 shell (nav: 资讯 来源 转录 日志 设置)
+  index.html                    Main feed — two-panel layout with AI digest
+  sources.html                  Source management — admin sees delete button
+  transcript.html               YouTube transcript tab
+  logs.html                     Fetch log + raw app.log viewer
+  settings.html                 User digest preferences + token usage stats
+  identify.html                 Email login
+
+scripts/
+  deploy.sh                     Server deploy script
+  reset_source.py               Dev utility — clear articles for one source
+  fetch_history.py              Admin — backfill historical Nitter tweets
+```
+
+---
 
 ## GitHub Actions
 
 `.github/workflows/daily_report.yml` runs `main.py` daily at 07:00 UTC. `news.db` is persisted between runs as an artifact (30-day retention). All secrets map directly to `.env` variable names.
+
+## Deployment
+
+**Server:** 47.239.66.248 (Alibaba Cloud ECS, Hong Kong)
+**App path:** `/opt/tofuhouse/news_agent`
+**Service:** `news-agent` (systemd + gunicorn)
+
+Standard deploy:
+```bash
+git push                        # from local
+bash /opt/tofuhouse/news_agent/scripts/deploy.sh   # on server
+```
+
+See `DEPLOY.md` for full deployment reference.

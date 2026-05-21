@@ -115,7 +115,7 @@
             {% if g.current_user and g.current_user.email == 'cuiyuan@maisoncapital.com' %}
             <td>
               <form method="post" action="/sources/{{ s.id }}/delete" class="d-inline"
-                    onsubmit="return confirm('删除来源「{{ s.name }}」？此操作不可撤销。')">
+                    onsubmit="return confirm('删除来源「{{ s.name }}」？') && confirm('再次确认：永久删除「{{ s.name }}」及其所有文章，此操作不可撤销。')">
                 <button class="btn btn-sm btn-outline-danger">删除</button>
               </form>
             </td>

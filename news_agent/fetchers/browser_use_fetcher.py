@@ -326,7 +326,7 @@ async def _playwright_fetch(url: str) -> tuple[str, str | None]:
         page = await context.new_page()
         try:
             logger.info("[playwright] Loading: %s", url)
-            await page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+            await page.goto(url, wait_until="networkidle", timeout=60_000)
             await page.wait_for_timeout(2_000)
             # Scroll to bottom and back to trigger lazy-loaded images
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
