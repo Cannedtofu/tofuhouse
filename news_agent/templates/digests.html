@@ -20,8 +20,8 @@
                onclick="selectDigest({{ d.id }})"
                style="cursor:pointer">
             <div class="d-flex justify-content-between align-items-baseline">
-              <span class="fw-medium" style="font-size:.85rem">{{ d.created_at[:10] }}</span>
-              <span class="text-muted" style="font-size:.75rem">{{ d.created_at[11:16] }}</span>
+              <span class="fw-medium" style="font-size:.85rem">{{ d.created_at_sgt[:10] }}</span>
+              <span class="text-muted" style="font-size:.75rem">{{ d.created_at_sgt[11:16] }}</span>
             </div>
             {% if d.date_from or d.date_to %}
             <div class="text-muted" style="font-size:.75rem">
@@ -85,7 +85,7 @@ function selectDigest(id) {
   document.getElementById('detail-placeholder').style.display = 'none';
   document.getElementById('detail-content').style.display = 'block';
 
-  const ts = (d.created_at || '').slice(0, 16).replace('T', ' ');
+  const ts = d.created_at_sgt || (d.created_at || '').slice(0, 16).replace('T', ' ');
   document.getElementById('detail-date').textContent = ts;
 
   let rangeText = '';

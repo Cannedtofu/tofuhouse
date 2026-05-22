@@ -210,7 +210,8 @@ else:
     _nitter_cron_hours = str(_NITTER_ANCHOR_UTC)
 
 _scheduler.add_job(_scheduled_nitter_fetch, "cron", hour=_nitter_cron_hours, minute=0, id="nitter_periodic")
-_scheduler.add_job(_scheduled_digest_send, "interval", hours=6, id="digest_send")
+# Fixed SGT times (server runs UTC+8): 03:00, 09:00, 15:00, 21:00 — no drift on restart
+_scheduler.add_job(_scheduled_digest_send, "cron", hour="3,9,15,21", minute=0, id="digest_send")
 
 
 _scheduler.start()
@@ -383,7 +384,9 @@ def delete_source(source_id: int):
 @app.route("/scheduler/status")
 def scheduler_status():
     job = _scheduler.get_job("nitter_periodic")
-    next_run = job.next_run_time.isoformat() if job and job.next_run_time else None
+    next_run = None
+    if job and job.next_run_time:
+        next_run = job.next_run_time.astimezone(_SGT).strftime("%Y-%m-%d %H:%M SGT")
     return jsonify({"running": _scheduler.running, "next_nitter_fetch": next_run})
 
 
@@ -522,6 +525,8 @@ def digest():
 @login_required
 def digests_history():
     digests = db.get_all_digests_with_meta()
+    for d in digests:
+        d["created_at_sgt"] = to_sgt_filter(d["created_at"])
     return render_template("digests.html", digests=digests)
 
 

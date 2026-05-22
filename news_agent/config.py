@@ -31,6 +31,10 @@ NITTER_FETCH_PERIOD_HOURS = int(os.getenv("NITTER_FETCH_PERIOD_HOURS", "24"))
 # Seconds to wait between Nitter HTML pagination page requests (default: 120 = 2 min).
 NITTER_PAGE_DELAY = int(os.getenv("NITTER_PAGE_DELAY", "120"))
 
+# Seconds between consecutive Nitter source fetches (to avoid X.com rate limits).
+# Base value; actual delay adds 0–50% random jitter on top.
+NITTER_INTER_SOURCE_DELAY = int(os.getenv("NITTER_INTER_SOURCE_DELAY", "60"))
+
 # --- Article filtering ---
 MIN_ARTICLE_DATE = "2026-01-01"          # hard floor: drop articles published before this date
 DATE_RANGE_DAYS = 7                      # only fetch articles from the last N days per run

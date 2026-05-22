@@ -9,7 +9,7 @@ import random
 import time
 
 import db
-from config import MIN_CONTENT_WORDS
+from config import MIN_CONTENT_WORDS, NITTER_INTER_SOURCE_DELAY
 from fetchers.rss import fetch_nitter_hybrid, fetch_rss
 from fetchers.web import fetch_web
 from summarizer import summarize_new_articles
@@ -132,7 +132,8 @@ def run_fetch_and_summarize(
         # Randomised inter-account gap for nitter sources. Jitter prevents
         # the fixed-interval fingerprint that automation detection looks for.
         if source_type == "nitter" and source != sources[-1]:
-            gap = 15 + random.randint(0, 15)  # 15–30s
+            jitter = random.randint(0, NITTER_INTER_SOURCE_DELAY // 2)
+            gap = NITTER_INTER_SOURCE_DELAY + jitter
             logger.info("[nitter] inter-account gap: %ds", gap)
             time.sleep(gap)
 

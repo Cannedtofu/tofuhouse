@@ -278,7 +278,22 @@ def fetch_nitter_hybrid(
     articles = fetch_nitter(handle, known_urls=known_urls, date_from=date_from)
 
     if not articles:
-        return articles
+        # RSS failed (rate-limited / 404) — try HTML page which is Redis-cached by Nitter
+        # and does not trigger a fresh X.com API call.
+        logger.info("[nitter-hybrid] @%s: RSS empty, trying HTML fallback", handle)
+        page_tweets, _ = fetch_nitter_html_page(handle)
+        if not page_tweets:
+            logger.warning("[nitter-hybrid] @%s: HTML fallback also empty", handle)
+            return []
+        result = []
+        for tweet in page_tweets:
+            if known_urls and tweet["url"] in known_urls:
+                continue
+            if tweet.get("published_at") and _is_too_old(tweet["published_at"], period_cutoff):
+                continue
+            result.append(tweet)
+        logger.info("[nitter-hybrid] @%s: HTML fallback → %d tweets", handle, len(result))
+        return result
 
     # Step 2 — find the oldest tweet's datetime
     dated = [a for a in articles if a.get("published_at")]

@@ -174,8 +174,7 @@ fetch('/scheduler/status').then(r => r.json()).then(data => {
     const badge = document.getElementById('scheduler-badge');
     badge.style.display = 'inline-block';
     if (data.next_nitter_fetch) {
-      const next = new Date(data.next_nitter_fetch);
-      badge.title = 'Nitter 定时自动抓取。下次：' + next.toLocaleTimeString();
+      badge.title = 'Nitter 定时自动抓取。下次：' + data.next_nitter_fetch;
     }
   }
 }).catch(() => {});
