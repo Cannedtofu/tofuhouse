@@ -436,6 +436,37 @@ def fetch_status():
     return jsonify(_fetch_status)
 
 
+@app.route("/sources/<int:source_id>/fetch", methods=["POST"])
+@login_required
+def fetch_nitter_source(source_id):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"ok": False, "error": "Admin only"}), 403
+
+    source = db.get_source_by_id(source_id)
+    if not source or source["type"] != "nitter":
+        return jsonify({"ok": False, "error": "Not a Nitter source"}), 400
+
+    if _fetch_status["running"]:
+        return jsonify({"ok": False, "error": "A fetch is already running"}), 409
+
+    def _run():
+        _fetch_status["running"] = True
+        log_id = db.log_fetch_start(trigger="manual-nitter")
+        try:
+            result = run_fetch_and_summarize(source_ids=[source_id], source_types=["nitter"])
+            db.log_fetch_finish(log_id, result)
+            _fetch_status["last_result"] = {"status": "ok", "new_articles": result["total_new"], "sources": result["sources"]}
+        except Exception as exc:
+            logging.exception("Nitter manual fetch error")
+            db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
+            _fetch_status["last_result"] = {"status": "error", "message": str(exc)}
+        finally:
+            _fetch_status["running"] = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True})
+
+
 # ---------------------------------------------------------------------------
 # Article detail + on-demand summarization
 # ---------------------------------------------------------------------------

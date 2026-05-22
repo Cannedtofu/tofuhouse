@@ -113,7 +113,11 @@
               {% endif %}
             </td>
             {% if g.current_user and g.current_user.email == 'cuiyuan@maisoncapital.com' %}
-            <td>
+            <td class="d-flex gap-1 flex-wrap">
+              {% if s.type == 'nitter' %}
+              <button class="btn btn-sm btn-outline-primary"
+                      onclick="fetchNitterSource({{ s.id }}, '{{ s.name }}', this)">抓取</button>
+              {% endif %}
               <form method="post" action="/sources/{{ s.id }}/delete" class="d-inline"
                     onsubmit="return confirm('删除来源「{{ s.name }}」？') && confirm('再次确认：永久删除「{{ s.name }}」及其所有文章，此操作不可撤销。')">
                 <button class="btn btn-sm btn-outline-danger">删除</button>
@@ -196,5 +200,27 @@ document.getElementById('detect-url-input').addEventListener('keydown', e => {
 document.getElementById('confirm-type-select').addEventListener('change', function() {
   document.getElementById('confirm-type').value = this.value;
 });
+
+function fetchNitterSource(id, name, btn) {
+  btn.disabled = true;
+  btn.textContent = '抓取中…';
+  fetch(`/sources/${id}/fetch`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        btn.textContent = '已开始';
+        btn.classList.replace('btn-outline-primary', 'btn-success');
+      } else {
+        btn.textContent = data.error || '失败';
+        btn.classList.replace('btn-outline-primary', 'btn-danger');
+        btn.disabled = false;
+      }
+    })
+    .catch(() => {
+      btn.textContent = '请求失败';
+      btn.classList.replace('btn-outline-primary', 'btn-danger');
+      btn.disabled = false;
+    });
+}
 </script>
 {% endblock %}
