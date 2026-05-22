@@ -518,6 +518,13 @@ def digest():
     return app.response_class(md, mimetype="text/plain; charset=utf-8")
 
 
+@app.route("/digests")
+@login_required
+def digests_history():
+    digests = db.get_all_digests_with_meta()
+    return render_template("digests.html", digests=digests)
+
+
 # ---------------------------------------------------------------------------
 # Activity log viewer
 # ---------------------------------------------------------------------------

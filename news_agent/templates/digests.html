@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}简报历史{% endblock %}
+
+{% block content %}
+<script id="digests-data" type="application/json">{{ digests | tojson }}</script>
+
+<div class="row g-0" style="height: calc(100vh - 90px); min-height: 500px;">
+
+  <!-- LEFT: digest list -->
+  <div class="col-4 border-end d-flex flex-column" style="height: 100%; overflow: hidden;">
+    <div class="px-3 py-2 border-bottom bg-light d-flex align-items-center flex-shrink-0">
+      <span class="fw-semibold small">AI 简报历史</span>
+      <span class="badge bg-secondary rounded-pill ms-2" style="font-size:.7rem">{{ digests|length }}</span>
+    </div>
+    <div style="overflow-y: auto; flex: 1;">
+      {% if digests %}
+        {% for d in digests %}
+          <div class="digest-list-item px-3 py-2 border-bottom"
+               data-id="{{ d.id }}"
+               onclick="selectDigest({{ d.id }})"
+               style="cursor:pointer">
+            <div class="d-flex justify-content-between align-items-baseline">
+              <span class="fw-medium" style="font-size:.85rem">{{ d.created_at[:10] }}</span>
+              <span class="text-muted" style="font-size:.75rem">{{ d.created_at[11:16] }}</span>
+            </div>
+            {% if d.date_from or d.date_to %}
+            <div class="text-muted" style="font-size:.75rem">
+              {{ d.date_from or '?' }}{% if d.date_from != d.date_to %} → {{ d.date_to or '?' }}{% endif %}
+              · {{ d.article_count }} 篇
+            </div>
+            {% else %}
+            <div class="text-muted" style="font-size:.75rem">{{ d.article_count }} 篇</div>
+            {% endif %}
+            {% if d.sources %}
+            <div style="font-size:.72rem; color:#6c757d; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                 title="{{ d.sources | join(', ') }}">
+              {{ d.sources | join(' · ') }}
+            </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-center text-muted p-4">
+          <p>暂无简报记录。</p>
+          <p>在<a href="/">资讯</a>页面点击 <strong>✦ AI 简报</strong> 生成。</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- RIGHT: digest content -->
+  <div class="col-8 d-flex flex-column" style="height: 100%; overflow: hidden;">
+    <div class="flex-grow-1 overflow-auto p-4" id="detail-panel">
+      <div class="text-center text-muted mt-5" id="detail-placeholder">
+        <p class="fs-5">← 点击左侧查看简报内容</p>
+      </div>
+      <div id="detail-content" style="display:none">
+        <div class="d-flex justify-content-between align-items-start mb-3 pb-2 border-bottom flex-wrap gap-2">
+          <div>
+            <span class="fw-semibold" id="detail-date"></span>
+            <span class="text-muted small ms-2" id="detail-range"></span>
+          </div>
+          <div class="text-muted small text-end" id="detail-sources" style="max-width:55%"></div>
+        </div>
+        <div id="detail-body" style="font-size:.93rem; line-height:1.7; word-break:break-word;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DIGESTS = JSON.parse(document.getElementById('digests-data').textContent);
+const byId = {};
+DIGESTS.forEach(d => byId[d.id] = d);
+
+function selectDigest(id) {
+  document.querySelectorAll('.digest-list-item').forEach(el => {
+    el.classList.toggle('bg-primary-subtle', parseInt(el.dataset.id) === id);
+  });
+
+  const d = byId[id];
+  document.getElementById('detail-placeholder').style.display = 'none';
+  document.getElementById('detail-content').style.display = 'block';
+
+  const ts = (d.created_at || '').slice(0, 16).replace('T', ' ');
+  document.getElementById('detail-date').textContent = ts;
+
+  let rangeText = '';
+  if (d.date_from && d.date_to && d.date_from !== d.date_to) {
+    rangeText = `${d.date_from} → ${d.date_to}`;
+  } else if (d.date_from) {
+    rangeText = d.date_from;
+  }
+  if (d.article_count) rangeText += (rangeText ? ' · ' : '') + `${d.article_count} 篇`;
+  document.getElementById('detail-range').textContent = rangeText;
+
+  document.getElementById('detail-sources').textContent = (d.sources || []).join(' · ');
+
+  const bodyEl = document.getElementById('detail-body');
+  const raw = d.content || '';
+  if (typeof marked !== 'undefined') {
+    bodyEl.innerHTML = marked.parse(raw, { breaks: true });
+  } else {
+    bodyEl.textContent = raw;
+  }
+  document.getElementById('detail-panel').scrollTop = 0;
+}
+
+if (DIGESTS.length > 0) selectDigest(DIGESTS[0].id);
+</script>
+{% endblock %}

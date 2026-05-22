@@ -456,6 +456,50 @@ def update_digest_abstract(article_id: int, abstract: str):
 # Full digest cache
 # ---------------------------------------------------------------------------
 
+def get_all_digests_with_meta(limit: int = 100) -> list[dict]:
+    """Return all digests with date range and source names derived from their article IDs."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, article_ids_json, content, created_at FROM digests ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+    result = []
+    for row in rows:
+        article_ids = json.loads(row["article_ids_json"] or "[]")
+        date_from = date_to = None
+        sources: list[str] = []
+
+        if article_ids:
+            placeholders = ",".join("?" * len(article_ids))
+            with get_conn() as conn:
+                meta = conn.execute(
+                    f"""SELECT MIN(COALESCE(a.published_at, a.fetched_at)) AS date_from,
+                               MAX(COALESCE(a.published_at, a.fetched_at)) AS date_to,
+                               GROUP_CONCAT(DISTINCT s.name) AS sources
+                        FROM articles a
+                        JOIN sources s ON s.id = a.source_id
+                        WHERE a.id IN ({placeholders})""",
+                    article_ids,
+                ).fetchone()
+            if meta:
+                date_from = (meta["date_from"] or "")[:10] or None
+                date_to   = (meta["date_to"]   or "")[:10] or None
+                sources   = sorted(set(meta["sources"].split(",") if meta["sources"] else []))
+
+        result.append({
+            "id":            row["id"],
+            "created_at":    row["created_at"],
+            "content":       row["content"],
+            "article_count": len(article_ids),
+            "date_from":     date_from,
+            "date_to":       date_to,
+            "sources":       sources,
+        })
+
+    return result
+
+
 def get_digest_cache(article_ids_hash: str) -> Optional[str]:
     with get_conn() as conn:
         row = conn.execute(
