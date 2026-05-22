@@ -41,7 +41,10 @@ def run_fetch_and_summarize(
     if exclude_types:
         sources = [s for s in sources if s["type"] not in exclude_types]
     if not sources:
-        logger.warning("No sources configured.")
+        logger.warning(
+            "No sources configured. (source_ids=%s, source_types=%s, exclude_types=%s)",
+            source_ids, source_types, exclude_types,
+        )
         return {"total_new": 0, "sources": []}
 
     total_new = 0

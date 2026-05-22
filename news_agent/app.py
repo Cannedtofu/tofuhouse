@@ -100,6 +100,7 @@ def _scheduled_nitter_fetch():
     if _fetch_status["running"]:
         logger_sched.info("Skipping scheduled Nitter fetch — manual fetch in progress")
         return
+    _fetch_status["running"] = True
     logger_sched.info("Scheduled Nitter fetch starting…")
     log_id = db.log_fetch_start(trigger="scheduled")
     try:
@@ -109,6 +110,8 @@ def _scheduled_nitter_fetch():
     except Exception as exc:
         db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
         logger_sched.error("Scheduled Nitter fetch error: %s", exc)
+    finally:
+        _fetch_status["running"] = False
 
 
 def _scheduled_digest_send():
@@ -452,8 +455,9 @@ def fetch_nitter_source(source_id):
     def _run():
         _fetch_status["running"] = True
         log_id = db.log_fetch_start(trigger="manual-nitter")
+        logging.info("[nitter-manual] Fetching source_id=%d (%s)", source_id, source["name"])
         try:
-            result = run_fetch_and_summarize(source_ids=[source_id], source_types=["nitter"])
+            result = run_fetch_and_summarize(source_ids=[source_id])
             db.log_fetch_finish(log_id, result)
             _fetch_status["last_result"] = {"status": "ok", "new_articles": result["total_new"], "sources": result["sources"]}
         except Exception as exc:
