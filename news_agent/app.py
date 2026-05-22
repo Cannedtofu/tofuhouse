@@ -9,7 +9,7 @@ from functools import wraps
 from logging.handlers import RotatingFileHandler
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 import db
 from config import ADMIN_EMAIL, EMAIL_WHITELIST, NITTER_FETCH_PERIOD_HOURS, SECRET_KEY
@@ -531,6 +531,19 @@ def digests_history():
 
 LOG_FILE = "logs/app.log"
 LOG_TAIL_LINES = 200
+
+
+@app.route("/logs/download")
+@login_required
+def logs_download():
+    if not os.path.exists(LOG_FILE):
+        return "Log file not found.", 404
+    return send_file(
+        os.path.abspath(LOG_FILE),
+        mimetype="text/plain",
+        as_attachment=True,
+        download_name="app.log",
+    )
 
 
 @app.route("/logs")
