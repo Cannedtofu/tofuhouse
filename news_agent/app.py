@@ -412,13 +412,11 @@ def fetch():
         _fetch_status["running"] = True
         log_id = db.log_fetch_start(trigger="manual")
         try:
-            # Nitter sources are never fetched from the UI — scheduler-only.
             result = run_fetch_and_summarize(
                 summarize=False,
                 date_from=date_from,
                 date_to=date_to,
                 source_ids=source_ids,
-                exclude_types=["nitter"],
             )
             db.log_fetch_finish(log_id, result)
             _fetch_status["last_result"] = {"status": "ok", "new_articles": result["total_new"], "sources": result["sources"]}
