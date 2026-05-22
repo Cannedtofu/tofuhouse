@@ -335,6 +335,19 @@ def log_fetch_finish(log_id: int, result: dict, error: Optional[str] = None):
         )
 
 
+def close_open_fetch_logs():
+    """Mark any fetch_log entries still open (no finished_at) as interrupted.
+    Called on startup to clean up runs that were killed mid-flight."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            """UPDATE fetch_log
+               SET finished_at=?, error='interrupted (process restarted)'
+               WHERE finished_at IS NULL""",
+            (now,),
+        )
+
+
 def get_fetch_log(limit: int = 50) -> list[sqlite3.Row]:
     with get_conn() as conn:
         return conn.execute(

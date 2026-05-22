@@ -341,6 +341,19 @@ async def _playwright_fetch(url: str) -> tuple[str, str | None]:
     text = _extract_with_images(html)
     logger.info("[playwright] extracted: %d chars", len(text))
 
+    # If trafilatura/BS got too little, read the rendered text directly from the live DOM.
+    # This captures JS-rendered content (e.g. React/Next.js apps) that trafilatura misses
+    # because the text lives in fragmented span nodes that score as boilerplate.
+    if len(text.strip()) < MIN_BROWSER_FALLBACK_CHARS:
+        try:
+            inner = await page.evaluate("() => document.body.innerText")
+            inner = _deduplicate_paragraphs((inner or "").strip())
+            if len(inner) > len(text.strip()):
+                logger.info("[playwright] inner_text fallback: %d chars", len(inner))
+                text = inner
+        except Exception as exc:
+            logger.debug("[playwright] inner_text failed: %s", exc)
+
     # Extract publication date from page metadata — free since HTML is already in memory
     date_str: str | None = None
     try:
@@ -372,6 +385,27 @@ def _make_qwen_llm():
     )
 
 
+def _deduplicate_paragraphs(text: str) -> str:
+    """
+    Remove duplicate paragraphs from browser-use output.
+    Sites like OpenAI render the same DOM nodes twice (responsive/skeleton variants),
+    causing the extract action to return verbatim repeated blocks.
+    Only deduplicates paragraphs longer than 50 chars — short lines may repeat legitimately.
+    """
+    seen: set[str] = set()
+    result: list[str] = []
+    for para in text.split("\n\n"):
+        stripped = para.strip()
+        if not stripped:
+            continue
+        key = stripped if len(stripped) > 50 else None
+        if key is None or key not in seen:
+            result.append(para)
+            if key:
+                seen.add(key)
+    return "\n\n".join(result)
+
+
 async def _agent_fetch(url: str) -> str:
     """Use a browser-use LLM agent to extract content when Playwright alone isn't enough."""
     global _agent_quota_exhausted
@@ -399,7 +433,7 @@ async def _agent_fetch(url: str) -> str:
         "Call done() with the full article text as your final answer."
     )
     agent = Agent(task=task, llm=_make_qwen_llm(), use_vision=True, browser_profile=profile)
-    result = await agent.run(max_steps=2)
+    result = await agent.run(max_steps=4)
 
     # Prefer the explicit done() result; fall back to the longest single extracted chunk.
     # Do NOT join all extracted_content() parts — the agent loops and re-extracts the same
@@ -408,6 +442,9 @@ async def _agent_fetch(url: str) -> str:
     if not text:
         parts = result.extracted_content() or []
         text = max(parts, key=len) if parts else ""
+
+    if text:
+        text = _deduplicate_paragraphs(text)
 
     # Detect quota exhaustion from agent error history
     try:

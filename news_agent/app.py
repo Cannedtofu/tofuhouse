@@ -62,6 +62,7 @@ def to_sgt_filter(ts_str: str) -> str:
     except Exception:
         return ts_str[:19].replace("T", " ")
 db.init_db()
+db.close_open_fetch_logs()
 db.seed_default_sources()
 
 
