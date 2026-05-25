@@ -72,17 +72,20 @@ Summary:"""
 # Articles are numbered so we can parse which ones get full abstracts.
 # NOTE: The Significant/Notable/Skip labels MUST stay in English — the parser depends on them.
 _ARTICLE_BRIEFING_PROMPT = """\
-以下是来自 {source_name} 的 {n} 篇文章，请按其对AI/科技/VC读者的重要性进行分类。
+以下是来自 {source_name} 的 {n} 篇文章，请按其对AI/科技/VC读者的重要性进行分类，并按以下固定结构输出（分类标签必须保持英文原样，其余内容用简体中文）：
 
 {numbered_articles}
 
-严格按照以下格式输出（分类标签必须保持英文原样，其余内容用简体中文）：
-Significant: [逗号分隔的编号，或填 "none"]
-Notable: [逗号分隔的编号，或填 "none"]
-Skip: [逗号分隔的编号，或填 "none"]
+**Significant**
+[编号]. [标题] — [一句话说明其重要性]
+（如无，填 none）
 
-然后对每篇 Significant 和 Notable 的文章各写一行（用简体中文）：
-[编号]. [标题] — [一句话说明其重要性]"""
+**Notable**
+[编号]. [标题] — [一句话说明其重要性]
+（如无，填 none）
+
+**Skip**
+[逗号分隔的编号，如无填 none]"""
 
 
 # Abstract for a single significant/notable article (~80-100 words).
@@ -110,13 +113,9 @@ Posts:
 
 # Twitter: retweets — what is the account amplifying and why.
 _RETWEET_PROMPT = """\
-基于以下转推内容，概括 {source_name} 正在放大哪些信息。全部用简体中文输出。
+基于以下转推内容，写一段分析性简报，说明 {source_name} 此期间在放大什么信息、体现其怎样的优先判断。全部用简体中文输出。
 
-对每个重要话题：
-- 在说什么，谁说的（如果是值得关注的人）？
-- {source_name} 选择转发这些内容，反映了其怎样的优先关注点？
-
-最后用一句话总结 {source_name} 此期间转发内容的整体主题。
+采用"结论先行"结构：先用1-2句点明整体信号，再以具体转推内容作为佐证（可点名作者或核心主张）。面向熟悉该领域的读者，写分析而非逐条列举。
 
 Retweets:
 {items}"""
@@ -128,14 +127,15 @@ _BIG_PICTURE_PROMPT = """\
 
 {all_briefings}
 
-请识别跨信源的3-5个主导性主题，对每个主题：
-- 用一句话陈述该主题
-- 引用支持该主题的具体信源或文章
-- 指出各信源在该主题上的收敛点或分歧点
+直接输出以下结构，不加前言、自评或格式说明。识别3-5个跨信源主导性主题，每个主题严格按此格式：
 
-最后标注仅出现在单一信源中的重要信号（即便没有其他佐证，也值得关注）。
+**主题：**[一句话标题]
+**依据：**[具体信源名称 + 原文核心主张，点名公司/模型/人物]
+**收敛与分歧：**[各信源立场的共识或张力]
 
-要求具体：点名公司、模型、论文和相关人物。不得在原文依据之外进行推测。全部用简体中文输出。"""
+所有主题输出完毕后，另起一段，标题"**孤立信号**"，列出仅出现在单一信源中但值得关注的内容。
+
+不在原文依据之外推测。全部简体中文输出。"""
 
 
 # ---------------------------------------------------------------------------
@@ -143,15 +143,28 @@ _BIG_PICTURE_PROMPT = """\
 # ---------------------------------------------------------------------------
 
 def _parse_briefing_tiers(text: str) -> tuple[set[int], set[int]]:
-    """Parse article numbers from Significant and Notable lines in a briefing output."""
+    """Parse article numbers from grouped Significant / Notable sections."""
     significant: set[int] = set()
     notable: set[int] = set()
+    current: str | None = None
     for line in text.splitlines():
-        stripped = line.strip().lower()
-        if stripped.startswith("significant:"):
-            significant = {int(n) for n in re.findall(r"\d+", line)}
-        elif stripped.startswith("notable:"):
-            notable = {int(n) for n in re.findall(r"\d+", line)}
+        # Detect section headers (strip markdown bold markers and punctuation)
+        clean = line.strip().lower().lstrip("#*").rstrip("*:").strip()
+        if clean == "significant":
+            current = "significant"
+            continue
+        elif clean == "notable":
+            current = "notable"
+            continue
+        elif clean == "skip":
+            current = None
+            continue
+        if current in ("significant", "notable"):
+            nums = {int(n) for n in re.findall(r"\d+", line)}
+            if current == "significant":
+                significant |= nums
+            else:
+                notable |= nums
     return significant, notable
 
 
@@ -251,7 +264,7 @@ def generate_batch_digest(article_ids: list[int], user_id: int | None = None) ->
                     client,
                     _TWEET_PROMPT.format(source_name=source_name, items=items_text),
                     f"{source_name} tweets",
-                    max_tokens=600,
+                    max_tokens=800,
                     _acc=_acc,
                 )
                 parts.append(result)
@@ -265,7 +278,7 @@ def generate_batch_digest(article_ids: list[int], user_id: int | None = None) ->
                     client,
                     _RETWEET_PROMPT.format(source_name=source_name, items=items_text),
                     f"{source_name} retweets",
-                    max_tokens=600,
+                    max_tokens=700,
                     _acc=_acc,
                 )
                 parts.append(result)
@@ -290,7 +303,7 @@ def generate_batch_digest(article_ids: list[int], user_id: int | None = None) ->
                     n=n, source_name=source_name, numbered_articles=numbered_articles
                 ),
                 f"{source_name} briefing",
-                max_tokens=700,
+                max_tokens=900,
                 _acc=_acc,
             )
             briefing_outputs.append(f"[{source_name}]\n{briefing}")
@@ -333,7 +346,7 @@ def generate_batch_digest(article_ids: list[int], user_id: int | None = None) ->
             client,
             _BIG_PICTURE_PROMPT.format(n=len(sources), all_briefings=all_briefings),
             "big picture",
-            max_tokens=1000,
+            max_tokens=1200,
             _acc=_acc,
         )
         sections.insert(0, f"## Big Picture\n\n{big_picture}")
