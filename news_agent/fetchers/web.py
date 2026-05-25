@@ -177,7 +177,27 @@ def fetch_web(
         if not content:
             continue
 
-        # Article-page date is authoritative; fall back to listing-page date
+        # Article-page date is authoritative; fall back to listing-page date.
+        # If the article-page date is implausibly older than the listing date
+        # (>30 days), trafilatura likely picked up a stale embedded date —
+        # distrust it and prefer the listing date.
+        if article_date and listing_date:
+            try:
+                a_dt = datetime.fromisoformat(article_date)
+                l_dt = datetime.fromisoformat(listing_date)
+                if a_dt.tzinfo is None:
+                    a_dt = a_dt.replace(tzinfo=timezone.utc)
+                if l_dt.tzinfo is None:
+                    l_dt = l_dt.replace(tzinfo=timezone.utc)
+                if (l_dt - a_dt).days > 30:
+                    logger.warning(
+                        "  article-page date %s is >30 days older than listing date %s for %s — using listing date",
+                        article_date, listing_date, url,
+                    )
+                    article_date = None
+            except Exception:
+                pass
+
         final_date = article_date or listing_date
 
         if article_date and article_date != listing_date and listing_date:
