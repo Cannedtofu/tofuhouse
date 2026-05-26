@@ -412,6 +412,30 @@ def unfollow_source(user_id: int, source_id: int):
         )
 
 
+def get_all_sources_with_follow_status(user_id: int) -> list[sqlite3.Row]:
+    """Return all sources with a `followed` boolean for the given user."""
+    with get_conn() as conn:
+        return conn.execute(
+            """SELECT s.id, s.name, s.type,
+                      CASE WHEN f.source_id IS NOT NULL THEN 1 ELSE 0 END AS followed
+               FROM sources s
+               LEFT JOIN user_source_follows f
+                 ON f.source_id = s.id AND f.user_id = ?
+               ORDER BY s.name""",
+            (user_id,),
+        ).fetchall()
+
+
+def set_user_follows(user_id: int, source_ids: list[int]):
+    """Replace a user's entire follow list with the given source IDs."""
+    with get_conn() as conn:
+        conn.execute("DELETE FROM user_source_follows WHERE user_id = ?", (user_id,))
+        conn.executemany(
+            "INSERT INTO user_source_follows (user_id, source_id) VALUES (?, ?)",
+            [(user_id, sid) for sid in source_ids],
+        )
+
+
 # ---------------------------------------------------------------------------
 # User digest settings
 # ---------------------------------------------------------------------------

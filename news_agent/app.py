@@ -633,6 +633,11 @@ def settings():
     is_admin = g.current_user["email"] == ADMIN_EMAIL
     all_users = db.get_all_users() if is_admin else []
     weekly_tokens = db.get_token_usage_by_user_week() if is_admin else []
+    # For the follow-list editor: sources annotated per user
+    user_follows = {}
+    if is_admin:
+        for u in all_users:
+            user_follows[u["id"]] = db.get_all_sources_with_follow_status(u["id"])
     return render_template(
         "settings.html",
         user=g.current_user,
@@ -642,7 +647,18 @@ def settings():
         is_admin=is_admin,
         all_users=all_users,
         weekly_tokens=weekly_tokens,
+        user_follows=user_follows,
     )
+
+
+@app.route("/admin/users/<int:user_id>/follows", methods=["POST"])
+@login_required
+def admin_update_user_follows(user_id: int):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "forbidden"}), 403
+    checked_ids = [int(v) for v in request.form.getlist("source_ids")]
+    db.set_user_follows(user_id, checked_ids)
+    return redirect(url_for("settings") + f"#follows-{user_id}")
 
 
 @app.route("/admin/users/<int:user_id>/digest", methods=["POST"])

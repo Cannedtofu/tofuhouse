@@ -144,6 +144,35 @@
     </table>
   </div>
 
+  <!-- Admin: user follow lists -->
+  <div class="card p-4 mt-4">
+    <h5 class="mb-3">管理员：用户订阅来源</h5>
+    {% for u in all_users %}
+    <div id="follows-{{ u.id }}" class="mb-4">
+      <p class="fw-medium mb-1 small">{{ u.email }}</p>
+      <form method="post" action="/admin/users/{{ u.id }}/follows">
+        <div class="row row-cols-2 row-cols-md-3 g-1 mb-2">
+          {% for src in user_follows[u.id] %}
+          <div class="col">
+            <div class="form-check">
+              <input type="checkbox" name="source_ids" value="{{ src.id }}"
+                     class="form-check-input" id="src-{{ u.id }}-{{ src.id }}"
+                     {% if src.followed %}checked{% endif %}>
+              <label class="form-check-label small" for="src-{{ u.id }}-{{ src.id }}">
+                {{ src.name }}
+                <span class="text-muted">({{ src.type }})</span>
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-sm btn-outline-primary">保存</button>
+      </form>
+    </div>
+    {% if not loop.last %}<hr>{% endif %}
+    {% endfor %}
+  </div>
+
   <!-- Admin: weekly token usage by user -->
   <div class="card p-4 mt-4">
     <h5 class="mb-3">管理员：过去 7 天用量（按用户）</h5>
