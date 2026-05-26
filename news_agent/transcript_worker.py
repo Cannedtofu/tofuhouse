@@ -65,54 +65,84 @@ def is_youtube_url(url: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Step 4a: Fast path — youtube-transcript-api
+# Step 4a: Fast path — yt-dlp subtitle download (caption file only, no audio)
 # ---------------------------------------------------------------------------
+
+def _parse_vtt(content: str) -> str:
+    """Convert WebVTT (including YouTube karaoke-style) to plain text."""
+    # Strip inline timestamp marks like <00:00:01.234>
+    content = re.sub(r"<\d{2}:\d{2}:\d{2}\.\d{3}>", "", content)
+    # Strip HTML tags like <c>, </c>, <b>
+    content = re.sub(r"<[^>]+>", "", content)
+
+    texts = []
+    prev = None
+    for line in content.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Skip WEBVTT header, timestamp lines (-->), numeric cue IDs, metadata
+        if (line.startswith("WEBVTT") or "-->" in line
+                or re.match(r"^\d+$", line)
+                or re.match(r"^[A-Z][a-z]+: ", line)):
+            continue
+        if line != prev:  # rolling dedup removes karaoke duplicates
+            texts.append(line)
+            prev = line
+    return " ".join(texts)
+
 
 def _fetch_transcript_fast(video_id: str) -> str | None:
     """
-    Fetch English captions via youtube-transcript-api.
-    Tries manually-created English first, then auto-generated English.
-    Returns None if neither exists — caller falls through to audio download.
+    Download English subtitles via yt-dlp (caption file only, no audio).
+    Uses YOUTUBE_COOKIES_FILE to bypass YouTube's cloud-IP block.
+    Returns plain text, or None if no English captions exist (triggers audio fallback).
     """
+    import yt_dlp  # noqa: PLC0415
+
+    tmp_dir = tempfile.mkdtemp(prefix="transcript_sub_")
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound  # noqa: PLC0415
-
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        transcript = None
-
-        # 1. Human-authored English transcript
-        try:
-            transcript = transcript_list.find_manually_created_transcript(
-                ["en", "en-US", "en-GB", "en-AU"]
+        ydl_opts = {
+            "writesubtitles": True,
+            "writeautomaticsub": True,
+            "subtitleslangs": ["en", "en-US", "en-GB", "en-AU"],
+            "skip_download": True,
+            "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
+            "quiet": True,
+            "no_warnings": True,
+        }
+        if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
+            ydl_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
+        else:
+            logger.warning(
+                "yt-dlp subtitle: no cookies file configured — may be blocked by YouTube. "
+                "Set YOUTUBE_COOKIES_FILE in .env."
             )
-        except NoTranscriptFound:
-            pass
 
-        # 2. Auto-generated English transcript
-        if transcript is None:
-            try:
-                transcript = transcript_list.find_generated_transcript(
-                    ["en", "en-US", "en-GB", "en-AU"]
-                )
-            except NoTranscriptFound:
-                pass
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
 
-        if transcript is None:
-            logger.info("No English transcript available for %s", video_id)
-            return None
+        # Find the downloaded subtitle file (.vtt preferred, .srt fallback)
+        for ext in (".vtt", ".srt"):
+            for fname in os.listdir(tmp_dir):
+                if fname.endswith(ext):
+                    with open(os.path.join(tmp_dir, fname), encoding="utf-8") as f:
+                        raw = f.read()
+                    text = _parse_vtt(raw)
+                    if text:
+                        logger.info(
+                            "Subtitle fetched via yt-dlp for %s (%d chars)", video_id, len(text)
+                        )
+                        return text
 
-        entries = transcript.fetch()
-        text = " ".join(e["text"] for e in entries)
-        logger.info(
-            "Transcript fetched via youtube-transcript-api for %s "
-            "(lang=%s, generated=%s, %d chars)",
-            video_id, transcript.language_code, transcript.is_generated, len(text),
-        )
-        return text
+        logger.info("No English subtitle file found for %s — will try audio fallback", video_id)
+        return None
 
     except Exception as exc:
-        logger.info("youtube-transcript-api unavailable for %s: %s", video_id, exc)
+        logger.info("yt-dlp subtitle download failed for %s: %s", video_id, exc)
         return None
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
