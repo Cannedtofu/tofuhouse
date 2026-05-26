@@ -94,14 +94,93 @@
       </table>
       {% endif %}
     </div>
+  {% if is_admin %}
+  <!-- Admin: all-user digest settings -->
+  <div class="card p-4 mt-4">
+    <h5 class="mb-3">管理员：用户简报设置</h5>
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>邮箱</th>
+          <th>上次活跃</th>
+          <th>接收简报</th>
+          <th>频率</th>
+          <th>上次发送</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in all_users %}
+        <tr>
+          <td class="small">{{ u.email }}</td>
+          <td class="small text-muted">{{ u.last_seen[:10] if u.last_seen else '—' }}</td>
+          <td>
+            <form method="post" action="/admin/users/{{ u.id }}/digest">
+              <input type="hidden" name="digest_frequency_days" value="{{ u.digest_frequency_days }}">
+              <div class="form-check form-switch mb-0">
+                <input type="checkbox" name="digest_enabled" class="form-check-input"
+                       value="1" {% if u.digest_enabled %}checked{% endif %}
+                       onchange="this.form.submit()">
+              </div>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="/admin/users/{{ u.id }}/digest">
+              {% if u.digest_enabled %}<input type="hidden" name="digest_enabled" value="1">{% endif %}
+              <select name="digest_frequency_days" class="form-select form-select-sm w-auto"
+                      onchange="this.form.submit()">
+                <option value="1"  {% if u.digest_frequency_days == 1  %}selected{% endif %}>每天</option>
+                <option value="3"  {% if u.digest_frequency_days == 3  %}selected{% endif %}>每 3 天</option>
+                <option value="7"  {% if u.digest_frequency_days == 7  %}selected{% endif %}>每周</option>
+                <option value="14" {% if u.digest_frequency_days == 14 %}selected{% endif %}>每 2 周</option>
+              </select>
+            </form>
+          </td>
+          <td class="small text-muted">{{ u.digest_last_sent or '—' }}</td>
+          <td></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Admin: weekly token usage by user -->
+  <div class="card p-4 mt-4">
+    <h5 class="mb-3">管理员：过去 7 天用量（按用户）</h5>
+    {% if weekly_tokens %}
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr><th>用户</th><th>调用次数</th><th>输入</th><th>输出</th><th>合计</th></tr>
+      </thead>
+      <tbody>
+        {% for r in weekly_tokens %}
+        <tr>
+          <td class="small">{{ r.email }}</td>
+          <td>{{ r.calls }}</td>
+          <td>{{ "{:,}".format(r.total_in) }}</td>
+          <td>{{ "{:,}".format(r.total_out) }}</td>
+          <td class="fw-medium">{{ "{:,}".format(r.total_in + r.total_out) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small mb-0">过去 7 天暂无用量记录。</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.querySelector('select[name="digest_frequency_days"]').addEventListener('change', function() {
-  document.getElementById('freq-label').textContent = this.value;
-});
+const ownFreqSelect = document.querySelector('form[method="post"]:not([action]) select[name="digest_frequency_days"]');
+if (ownFreqSelect) {
+  ownFreqSelect.addEventListener('change', function() {
+    document.getElementById('freq-label').textContent = this.value;
+  });
+}
 </script>
 {% endblock %}

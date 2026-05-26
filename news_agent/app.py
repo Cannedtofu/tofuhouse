@@ -630,13 +630,35 @@ def settings():
     token_summary = db.get_token_usage_summary(user_id=g.current_user["id"])
     browser_summary = db.get_token_usage_summary()  # global — includes browser_agent
     browser_rows = [r for r in browser_summary if r["operation"] == "browser_agent"]
+    is_admin = g.current_user["email"] == ADMIN_EMAIL
+    all_users = db.get_all_users() if is_admin else []
+    weekly_tokens = db.get_token_usage_by_user_week() if is_admin else []
     return render_template(
         "settings.html",
         user=g.current_user,
         success=success,
         token_summary=token_summary,
         browser_rows=browser_rows,
+        is_admin=is_admin,
+        all_users=all_users,
+        weekly_tokens=weekly_tokens,
     )
+
+
+@app.route("/admin/users/<int:user_id>/digest", methods=["POST"])
+@login_required
+def admin_update_user_digest(user_id: int):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "forbidden"}), 403
+    enabled = request.form.get("digest_enabled") == "1"
+    try:
+        freq = int(request.form.get("digest_frequency_days", 7))
+    except ValueError:
+        freq = 7
+    if freq not in (1, 3, 7, 14):
+        freq = 7
+    db.update_user_digest_settings(user_id, enabled, freq)
+    return redirect(url_for("settings"))
 
 
 # ---------------------------------------------------------------------------

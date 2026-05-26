@@ -560,6 +560,31 @@ def get_token_usage_summary(user_id: Optional[int] = None) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def get_all_users() -> list[sqlite3.Row]:
+    """Return all users with their digest settings, ordered by email."""
+    with get_conn() as conn:
+        return conn.execute(
+            """SELECT id, email, digest_enabled, digest_frequency_days, digest_last_sent, last_seen
+               FROM users ORDER BY email"""
+        ).fetchall()
+
+
+def get_token_usage_by_user_week() -> list[sqlite3.Row]:
+    """Token usage per user for the past 7 days, grouped by user email."""
+    with get_conn() as conn:
+        return conn.execute(
+            """SELECT COALESCE(u.email, '(system)') AS email,
+                      SUM(t.tokens_in)  AS total_in,
+                      SUM(t.tokens_out) AS total_out,
+                      COUNT(*)          AS calls
+               FROM token_usage t
+               LEFT JOIN users u ON u.id = t.user_id
+               WHERE t.created_at >= date('now', '-7 days')
+               GROUP BY t.user_id
+               ORDER BY (total_in + total_out) DESC"""
+        ).fetchall()
+
+
 def get_users_due_for_digest() -> list[sqlite3.Row]:
     """Return users who have digest enabled and are due for their next send."""
     with get_conn() as conn:
