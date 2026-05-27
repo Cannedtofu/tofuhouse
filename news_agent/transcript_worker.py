@@ -25,7 +25,7 @@ import shutil
 import tempfile
 
 import db
-from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL, YOUTUBE_COOKIES_FILE
+from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL, SOCKS_PROXY, YOUTUBE_COOKIES_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -113,10 +113,12 @@ def _fetch_transcript_fast(video_id: str) -> str | None:
         }
         if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
             ydl_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
+        if SOCKS_PROXY:
+            ydl_opts["proxy"] = SOCKS_PROXY
         else:
             logger.warning(
-                "yt-dlp subtitle: no cookies file configured — may be blocked by YouTube. "
-                "Set YOUTUBE_COOKIES_FILE in .env."
+                "yt-dlp subtitle: no proxy configured — may be blocked by YouTube on cloud IPs. "
+                "Set SOCKS_PROXY in .env."
             )
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -181,10 +183,13 @@ def _download_audio(video_id: str, tmp_dir: str) -> str:
     if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
         ydl_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
         logger.info("yt-dlp: using cookies file %s", YOUTUBE_COOKIES_FILE)
+    if SOCKS_PROXY:
+        ydl_opts["proxy"] = SOCKS_PROXY
+        logger.info("yt-dlp: routing through proxy %s", SOCKS_PROXY)
     else:
         logger.warning(
-            "yt-dlp: no cookies file configured — YouTube may block this request. "
-            "Set YOUTUBE_COOKIES_FILE in .env if you see bot-detection errors."
+            "yt-dlp: no proxy configured — YouTube may block this request on cloud IPs. "
+            "Set SOCKS_PROXY in .env."
         )
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

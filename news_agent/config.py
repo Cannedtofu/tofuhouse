@@ -70,6 +70,12 @@ ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "cuiyuan@maisoncapital.com").strip()
 # with no English captions. Set to the path of a manually exported cookies file.
 YOUTUBE_COOKIES_FILE: str = os.getenv("YOUTUBE_COOKIES_FILE", "")
 
+# --- SOCKS5 proxy for YouTube transcript requests only ---
+# Used exclusively by transcript_worker.py to route yt-dlp through Mihomo.
+# Does not affect any other outbound connections in the app.
+# Example: socks5://127.0.0.1:7890
+SOCKS_PROXY: str = os.getenv("SOCKS_PROXY", "")
+
 # --- Email ---
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
