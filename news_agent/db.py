@@ -112,7 +112,6 @@ def init_db():
             );
 
             CREATE INDEX IF NOT EXISTS idx_transcript_jobs_created ON transcript_jobs(created_at);
-            CREATE INDEX IF NOT EXISTS idx_transcript_jobs_video   ON transcript_jobs(video_id, mode);
         """)
         # Migrations for older databases
         try:
@@ -168,6 +167,13 @@ def init_db():
                 CREATE INDEX IF NOT EXISTS idx_transcript_jobs_video   ON transcript_jobs(video_id, mode);
                 PRAGMA foreign_keys=ON;
             """)
+        try:
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_transcript_jobs_video"
+                " ON transcript_jobs(video_id, mode)"
+            )
+        except Exception:
+            pass
 
 
 def seed_default_sources():
