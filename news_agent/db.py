@@ -102,8 +102,8 @@ def init_db():
                 job_id        TEXT    PRIMARY KEY,
                 video_url     TEXT    NOT NULL,
                 video_id      TEXT    NOT NULL,
-                status        TEXT    NOT NULL DEFAULT 'pending'
-                                      CHECK(status IN ('pending','processing','done','error')),
+                mode          TEXT    NOT NULL DEFAULT 'no_diarization',
+                status        TEXT    NOT NULL DEFAULT 'pending',
                 transcript    TEXT,
                 summary       TEXT,
                 error_message TEXT,
@@ -112,6 +112,7 @@ def init_db():
             );
 
             CREATE INDEX IF NOT EXISTS idx_transcript_jobs_created ON transcript_jobs(created_at);
+            CREATE INDEX IF NOT EXISTS idx_transcript_jobs_video   ON transcript_jobs(video_id, mode);
         """)
         # Migrations for older databases
         try:
@@ -138,6 +139,35 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN digest_last_sent TEXT")
         except Exception:
             pass
+        # Recreate transcript_jobs to: add mode column, drop restrictive CHECK constraint
+        _cols = [r[1] for r in conn.execute("PRAGMA table_info(transcript_jobs)").fetchall()]
+        if "mode" not in _cols:
+            conn.executescript("""
+                PRAGMA foreign_keys=OFF;
+                CREATE TABLE transcript_jobs_new (
+                    job_id        TEXT    PRIMARY KEY,
+                    video_url     TEXT    NOT NULL,
+                    video_id      TEXT    NOT NULL,
+                    mode          TEXT    NOT NULL DEFAULT 'no_diarization',
+                    status        TEXT    NOT NULL DEFAULT 'pending',
+                    transcript    TEXT,
+                    summary       TEXT,
+                    error_message TEXT,
+                    created_at    TEXT    NOT NULL,
+                    updated_at    TEXT    NOT NULL
+                );
+                INSERT INTO transcript_jobs_new
+                    (job_id, video_url, video_id, status, transcript, summary,
+                     error_message, created_at, updated_at)
+                    SELECT job_id, video_url, video_id, status, transcript, summary,
+                           error_message, created_at, updated_at
+                    FROM transcript_jobs;
+                DROP TABLE transcript_jobs;
+                ALTER TABLE transcript_jobs_new RENAME TO transcript_jobs;
+                CREATE INDEX IF NOT EXISTS idx_transcript_jobs_created ON transcript_jobs(created_at);
+                CREATE INDEX IF NOT EXISTS idx_transcript_jobs_video   ON transcript_jobs(video_id, mode);
+                PRAGMA foreign_keys=ON;
+            """)
 
 
 def seed_default_sources():
@@ -626,7 +656,7 @@ def get_users_due_for_digest() -> list[sqlite3.Row]:
 # YouTube transcript jobs
 # ---------------------------------------------------------------------------
 
-def create_transcript_job(video_url: str, video_id: str) -> str:
+def create_transcript_job(video_url: str, video_id: str, mode: str = "no_diarization") -> str:
     """Insert a new transcript job with status 'pending'. Returns the job_id (UUID)."""
     import uuid as _uuid
     job_id = str(_uuid.uuid4())
@@ -634,11 +664,33 @@ def create_transcript_job(video_url: str, video_id: str) -> str:
     with get_conn() as conn:
         conn.execute(
             """INSERT INTO transcript_jobs
-               (job_id, video_url, video_id, status, created_at, updated_at)
-               VALUES (?, ?, ?, 'pending', ?, ?)""",
-            (job_id, video_url, video_id, now, now),
+               (job_id, video_url, video_id, mode, status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, 'pending', ?, ?)""",
+            (job_id, video_url, video_id, mode, now, now),
         )
     return job_id
+
+
+def get_done_transcript_job(video_id: str, mode: str) -> Optional[sqlite3.Row]:
+    """Return the most recent completed job for this video+mode, or None."""
+    with get_conn() as conn:
+        return conn.execute(
+            """SELECT * FROM transcript_jobs
+               WHERE video_id = ? AND mode = ? AND status = 'done'
+               ORDER BY created_at DESC LIMIT 1""",
+            (video_id, mode),
+        ).fetchone()
+
+
+def list_transcript_jobs(limit: int = 60) -> list:
+    """Return recent transcript jobs ordered newest-first (for sidebar)."""
+    with get_conn() as conn:
+        return conn.execute(
+            """SELECT job_id, video_id, video_url, mode, status, created_at
+               FROM transcript_jobs
+               ORDER BY created_at DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
 
 
 def update_transcript_job(

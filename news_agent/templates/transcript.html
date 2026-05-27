@@ -2,68 +2,121 @@
 {% block title %}视频转录{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-8">
+<div class="row g-3">
+
+  <!-- ── Left sidebar: fetched video list ── -->
+  <div class="col-md-3">
+    <div class="card h-100" style="min-height:200px">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0 fw-semibold">已转录视频</h6>
+          <button class="btn btn-link btn-sm p-0 text-muted" onclick="refreshSidebar()" title="刷新">↺</button>
+        </div>
+        <div id="sidebar-list" style="overflow-y:auto; max-height:75vh">
+          {% if sidebar_jobs %}
+            {% for job in sidebar_jobs %}
+            <div class="sidebar-item p-2 rounded mb-1 border"
+                 style="cursor:pointer; font-size:.82rem"
+                 onclick="loadJob('{{ job.job_id }}')"
+                 title="{{ job.video_url }}">
+              <div class="fw-medium text-truncate" style="max-width:100%">
+                {{ job.video_id }}
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-1 gap-1">
+                {% if job.mode == 'diarization' %}
+                  <span class="badge bg-primary" style="font-size:.68rem">区分发言人</span>
+                {% else %}
+                  <span class="badge bg-secondary" style="font-size:.68rem">不区分</span>
+                {% endif %}
+                <span class="text-muted" style="font-size:.72rem; flex-shrink:0">
+                  {{ job.created_at[:10] }}
+                </span>
+                {% if job.status == 'done' %}
+                  <span class="text-success" style="font-size:.72rem">✓</span>
+                {% elif job.status == 'error' %}
+                  <span class="text-danger" style="font-size:.72rem">✗</span>
+                {% else %}
+                  <span class="text-warning" style="font-size:.72rem">…</span>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted small mb-0">暂无转录记录。</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main content ── -->
+  <div class="col-md-9">
 
     <!-- URL input card -->
-    <div class="card p-4 mb-4">
+    <div class="card p-4 mb-3">
       <h5 class="mb-3">YouTube 视频转录</h5>
       <p class="text-muted small mb-3">
-        粘贴 YouTube 视频链接，自动提取字幕并生成转录文本。AI 摘要可在转录完成后按需生成。
+        粘贴 YouTube 视频链接，选择转录模式。AI 摘要可在转录完成后按需生成。
       </p>
-
-      <div class="d-flex gap-2">
+      <div class="mb-3">
         <input type="url" id="yt-url-input" class="form-control"
                placeholder="https://www.youtube.com/watch?v=..."
                autocomplete="off">
-        <button type="button" id="submit-btn" class="btn btn-primary flex-shrink-0"
-                onclick="submitUrl()">
-          <span id="submit-label">开始转录</span>
-          <span id="submit-spinner" class="spinner-border spinner-border-sm ms-1"
-                style="display:none"></span>
+        <div id="url-error" class="text-danger small mt-1" style="display:none"></div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button" id="btn-no-diarize"
+                class="btn btn-outline-primary"
+                onclick="submitUrl('no_diarization')">
+          <span class="btn-label">不区分发言人</span>
+          <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
+        </button>
+        <button type="button" id="btn-diarize"
+                class="btn btn-primary"
+                onclick="submitUrl('diarization')">
+          <span class="btn-label">区分发言人</span>
+          <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
       </div>
-      <div id="url-error" class="text-danger small mt-2" style="display:none"></div>
+      <p class="text-muted small mt-2 mb-0">
+        <strong>不区分发言人</strong>：优先使用字幕，无字幕时询问是否下载音频。<br>
+        <strong>区分发言人</strong>：始终下载音频，使用 ASR + 说话人分离（需 API 费用）。
+      </p>
     </div>
 
-    <!-- Status / result card (hidden until a job is submitted) -->
+    <!-- Status / result card -->
     <div id="result-card" class="card p-4" style="display:none">
 
       <!-- Status indicator -->
-      <div id="status-indicator" class="d-flex align-items-center gap-2 mb-3">
+      <div id="status-indicator" class="d-flex align-items-center gap-2 mb-3 flex-wrap">
         <span id="status-badge" class="badge bg-secondary">等待中</span>
+        <span id="mode-badge" class="badge bg-light text-dark border" style="display:none"></span>
         <span id="status-text" class="text-muted small">正在排队…</span>
       </div>
 
       <!-- Error display -->
       <div id="error-panel" class="alert alert-danger" style="display:none"></div>
 
-      <!-- Audio download approval panel -->
+      <!-- Audio download approval panel (no_diarization only) -->
       <div id="approval-panel" class="alert alert-warning" style="display:none">
         <h6 class="alert-heading mb-2">未找到字幕，需要下载音频转录</h6>
-        <p class="small mb-2">此视频没有可用的字幕文件。若要继续提取转录内容，需要执行以下操作：</p>
+        <p class="small mb-2">此视频没有可用的字幕文件。若要继续提取转录内容，将执行：</p>
         <ul class="small mb-3">
-          <li>通过 yt-dlp 下载视频音频文件（约 64 kbps mp3）</li>
-          <li>调用语音识别 API（qwen3-asr-flash），按实际用量计费</li>
+          <li>通过 yt-dlp 下载视频音频（约 64 kbps mp3）</li>
+          <li>调用 paraformer-v2 语音识别 API（按用量计费）</li>
         </ul>
         <div class="d-flex gap-2">
-          <button class="btn btn-sm btn-warning" onclick="approveAudioDownload()">
-            确认下载并转录
-          </button>
-          <button class="btn btn-sm btn-outline-secondary" onclick="cancelApproval()">
-            取消
-          </button>
+          <button class="btn btn-sm btn-warning" onclick="approveAudioDownload()">确认下载并转录</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="cancelApproval()">取消</button>
         </div>
       </div>
 
-      <!-- Results: transcript + optional summary (shown once done) -->
+      <!-- Done panel: transcript + optional summary -->
       <div id="done-panel" style="display:none">
 
         <!-- Download button -->
         <div class="d-flex justify-content-end mb-3">
-          <a id="download-btn" href="#" class="btn btn-sm btn-outline-secondary">
-            ⬇ 下载 .txt
-          </a>
+          <a id="download-btn" href="#" class="btn btn-sm btn-outline-secondary">⬇ 下载 .txt</a>
         </div>
 
         <!-- Full transcript (primary output) -->
@@ -82,7 +135,6 @@
         <!-- AI summary section (user-activated) -->
         <div id="summary-section">
 
-          <!-- Button to trigger summarization -->
           <div id="summary-generate-area">
             <button class="btn btn-sm btn-outline-primary" onclick="generateSummary()">
               ✨ 生成 AI 摘要
@@ -90,14 +142,12 @@
             <span class="text-muted small ms-2">使用 Qwen 对转录内容进行摘要</span>
           </div>
 
-          <!-- Spinner while summarizing -->
           <div id="summary-spinner-area" class="d-flex align-items-center gap-2"
                style="display:none !important">
             <span class="spinner-border spinner-border-sm text-primary"></span>
             <span class="text-muted small">正在生成 AI 摘要…</span>
           </div>
 
-          <!-- Summary content (shown after generation) -->
           <div id="summary-content-area" style="display:none">
             <div class="fw-semibold mb-2"
                  style="font-size:1rem; border-left:4px solid #0d6efd; padding-left:.6rem;">
@@ -112,50 +162,102 @@
         </div>
       </div>
 
-    </div>
+    </div><!-- /result-card -->
 
-  </div>
-</div>
+  </div><!-- /col-md-9 -->
+</div><!-- /row -->
 {% endblock %}
 
 {% block scripts %}
 <script>
-let _pollInterval = null;
+let _pollInterval  = null;
 let _currentJobId  = null;
+let _activeBtn     = null;   // which submit button is busy
 
 document.getElementById('yt-url-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); submitUrl(); }
+  if (e.key === 'Enter') { e.preventDefault(); submitUrl('no_diarization'); }
 });
 
-function submitUrl() {
+// ── Submit ──────────────────────────────────────────────────────────────────
+
+function submitUrl(mode) {
   const url = document.getElementById('yt-url-input').value.trim();
   if (!url) { showUrlError('请输入 YouTube 链接。'); return; }
 
   clearUrlError();
-  setSubmitBusy(true);
+  setBtnBusy(mode, true);
   resetResultCard();
 
   fetch('/transcript/process', {
-    method: 'POST',
+    method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body:    JSON.stringify({ url, mode }),
   })
     .then(r => r.json())
     .then(data => {
       if (data.error) {
         showUrlError(data.error);
-        setSubmitBusy(false);
+        setBtnBusy(mode, false);
         return;
       }
       _currentJobId = data.job_id;
-      showResultCard('pending', '正在排队…');
+      showResultCard('pending', '正在排队…', mode);
+      if (data.cached) {
+        // Already done — one status poll will render results immediately
+        setStatusText('已找到缓存结果，正在加载…');
+      }
       startPolling(_currentJobId);
     })
     .catch(() => {
       showUrlError('请求失败，请检查网络连接。');
-      setSubmitBusy(false);
+      setBtnBusy(mode, false);
     });
 }
+
+// ── Sidebar ──────────────────────────────────────────────────────────────────
+
+function loadJob(jobId) {
+  resetResultCard();
+  _currentJobId = jobId;
+  showResultCard('pending', '正在加载…', null);
+  startPolling(jobId);
+}
+
+function refreshSidebar() {
+  fetch('/transcript/jobs')
+    .then(r => r.json())
+    .then(jobs => renderSidebar(jobs))
+    .catch(() => {});
+}
+
+function renderSidebar(jobs) {
+  const list = document.getElementById('sidebar-list');
+  if (!jobs || jobs.length === 0) {
+    list.innerHTML = '<p class="text-muted small mb-0">暂无转录记录。</p>';
+    return;
+  }
+  list.innerHTML = jobs.map(j => `
+    <div class="sidebar-item p-2 rounded mb-1 border"
+         style="cursor:pointer; font-size:.82rem"
+         onclick="loadJob('${j.job_id}')"
+         title="${j.video_url}">
+      <div class="fw-medium text-truncate">${j.video_id}</div>
+      <div class="d-flex justify-content-between align-items-center mt-1 gap-1">
+        <span class="badge ${j.mode === 'diarization' ? 'bg-primary' : 'bg-secondary'}"
+              style="font-size:.68rem">
+          ${j.mode === 'diarization' ? '区分发言人' : '不区分'}
+        </span>
+        <span class="text-muted" style="font-size:.72rem; flex-shrink:0">${j.created_at.slice(0,10)}</span>
+        <span class="${j.status==='done'?'text-success':j.status==='error'?'text-danger':'text-warning'}"
+              style="font-size:.72rem">
+          ${j.status==='done'?'✓':j.status==='error'?'✗':'…'}
+        </span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Polling ──────────────────────────────────────────────────────────────────
 
 function startPolling(jobId) {
   stopPolling();
@@ -166,12 +268,12 @@ function startPolling(jobId) {
         if (data.error) {
           stopPolling();
           showErrorPanel(data.error);
-          setSubmitBusy(false);
+          clearAllBtnBusy();
           return;
         }
         handleStatusUpdate(data, jobId);
       })
-      .catch(() => { /* keep polling on transient network errors */ });
+      .catch(() => {});
   }, 3000);
 }
 
@@ -182,14 +284,17 @@ function stopPolling() {
 function handleStatusUpdate(data, jobId) {
   const status = data.status;
   updateStatusBadge(status);
+  setModeBadge(data.mode);
 
   if (status === 'pending') {
     setStatusText('正在排队…');
   } else if (status === 'processing') {
-    setStatusText('正在处理（提取字幕 / 转录音频）…');
+    setStatusText(data.mode === 'diarization'
+      ? '正在下载音频并进行说话人分离转录…'
+      : '正在处理（提取字幕 / 转录音频）…');
   } else if (status === 'awaiting_approval') {
     stopPolling();
-    setSubmitBusy(false);
+    clearAllBtnBusy();
     setStatusText('未找到字幕，需确认是否下载音频。');
     document.getElementById('approval-panel').style.display = 'block';
   } else if (status === 'summarizing') {
@@ -197,14 +302,18 @@ function handleStatusUpdate(data, jobId) {
     setSummarySpinning(true);
   } else if (status === 'done') {
     stopPolling();
-    setSubmitBusy(false);
+    clearAllBtnBusy();
     showDonePanel(data, jobId);
+    refreshSidebar();
   } else if (status === 'error') {
     stopPolling();
-    setSubmitBusy(false);
+    clearAllBtnBusy();
     showErrorPanel(data.error_message || '处理失败，请重试。');
+    refreshSidebar();
   }
 }
+
+// ── Approval ─────────────────────────────────────────────────────────────────
 
 function approveAudioDownload() {
   document.getElementById('approval-panel').style.display = 'none';
@@ -222,9 +331,10 @@ function approveAudioDownload() {
 
 function cancelApproval() {
   document.getElementById('approval-panel').style.display = 'none';
-  document.getElementById('result-card').style.display = 'none';
-  setSubmitBusy(false);
+  document.getElementById('result-card').style.display    = 'none';
 }
+
+// ── Summary ───────────────────────────────────────────────────────────────────
 
 function generateSummary() {
   setSummarySpinning(true);
@@ -237,7 +347,6 @@ function generateSummary() {
         alert('摘要生成失败：' + data.error);
         return;
       }
-      // Backend set status to "summarizing"; resume polling to detect completion
       updateStatusBadge('summarizing');
       startPolling(_currentJobId);
     })
@@ -248,7 +357,7 @@ function generateSummary() {
 }
 
 function setSummarySpinning(spinning) {
-  document.getElementById('summary-generate-area').style.display  = spinning ? 'none' : 'block';
+  document.getElementById('summary-generate-area').style.display  = spinning ? 'none'  : 'block';
   document.getElementById('summary-spinner-area').style.display   = spinning ? 'flex'  : 'none';
   document.getElementById('summary-content-area').style.display   = 'none';
 }
@@ -260,15 +369,21 @@ function showSummaryContent(text) {
   document.getElementById('summary-content').textContent = text;
 }
 
-// ---- UI helpers ----
+// ── UI helpers ────────────────────────────────────────────────────────────────
 
-function setSubmitBusy(busy) {
-  const btn    = document.getElementById('submit-btn');
-  const label  = document.getElementById('submit-label');
-  const spinner = document.getElementById('submit-spinner');
+function setBtnBusy(mode, busy) {
+  const id  = mode === 'diarization' ? 'btn-diarize' : 'btn-no-diarize';
+  const btn = document.getElementById(id);
+  if (!btn) return;
   btn.disabled = busy;
-  label.textContent = busy ? '处理中…' : '开始转录';
-  spinner.style.display = busy ? 'inline-block' : 'none';
+  btn.querySelector('.btn-label').style.opacity   = busy ? '.5' : '1';
+  btn.querySelector('.btn-spinner').style.display = busy ? 'inline-block' : 'none';
+  if (busy) _activeBtn = mode;
+}
+
+function clearAllBtnBusy() {
+  ['no_diarization', 'diarization'].forEach(m => setBtnBusy(m, false));
+  _activeBtn = null;
 }
 
 function showUrlError(msg) {
@@ -289,31 +404,40 @@ function resetResultCard() {
   document.getElementById('approval-panel').style.display = 'none';
   document.getElementById('transcript-content').textContent = '';
   document.getElementById('summary-content').textContent    = '';
+  document.getElementById('mode-badge').style.display       = 'none';
   setSummarySpinning(false);
 }
 
-function showResultCard(status, statusText) {
+function showResultCard(status, statusText, mode) {
   document.getElementById('result-card').style.display    = 'block';
   document.getElementById('error-panel').style.display    = 'none';
   document.getElementById('done-panel').style.display     = 'none';
   document.getElementById('approval-panel').style.display = 'none';
   updateStatusBadge(status);
   setStatusText(statusText);
+  if (mode) setModeBadge(mode);
 }
 
 function updateStatusBadge(status) {
   const badge = document.getElementById('status-badge');
   const map = {
-    pending:           ['bg-secondary',          '等待中'],
-    processing:        ['bg-warning text-dark',   '处理中'],
-    awaiting_approval: ['bg-warning text-dark',   '待确认'],
-    summarizing:       ['bg-info text-dark',      '摘要生成中'],
-    done:              ['bg-success',             '完成'],
-    error:             ['bg-danger',              '错误'],
+    pending:           ['bg-secondary',        '等待中'],
+    processing:        ['bg-warning text-dark', '处理中'],
+    awaiting_approval: ['bg-warning text-dark', '待确认'],
+    summarizing:       ['bg-info text-dark',    '摘要生成中'],
+    done:              ['bg-success',           '完成'],
+    error:             ['bg-danger',            '错误'],
   };
   const [cls, label] = map[status] || ['bg-secondary', status];
-  badge.className = `badge ${cls}`;
+  badge.className   = `badge ${cls}`;
   badge.textContent = label;
+}
+
+function setModeBadge(mode) {
+  const el = document.getElementById('mode-badge');
+  if (!mode) return;
+  el.textContent   = mode === 'diarization' ? '区分发言人' : '不区分发言人';
+  el.style.display = 'inline-block';
 }
 
 function setStatusText(msg) {
@@ -324,13 +448,14 @@ function showErrorPanel(msg) {
   updateStatusBadge('error');
   setStatusText('处理失败');
   const el = document.getElementById('error-panel');
-  el.textContent = msg;
+  el.textContent   = msg;
   el.style.display = 'block';
 }
 
 function showDonePanel(data, jobId) {
   updateStatusBadge('done');
   setStatusText('转录完成。');
+  setModeBadge(data.mode);
   document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
   document.getElementById('download-btn').href = `/transcript/download/${jobId}`;
   document.getElementById('done-panel').style.display = 'block';

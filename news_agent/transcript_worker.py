@@ -1,26 +1,20 @@
 """
 Background worker for YouTube transcript extraction and summarization.
 
-Workflow:
-  process_transcript_job()  — called immediately after POST /transcript/process
-    1. Set job status → "processing"
-    2. Fast path: yt-dlp subtitle download (caption file only, no audio)
-    3a. Captions found → set status "done" with transcript (no summary yet)
-    3b. No captions → set status "awaiting_approval" and stop; user must confirm
+Modes:
+  no_diarization — try yt-dlp captions first; if none, offer audio fallback (user-approved)
+  diarization    — always use audio download + paraformer-v2 with speaker diarization
 
-  continue_audio_transcript()  — called after user approves audio fallback
-    1. Set status → "processing"
-    2. yt-dlp: download audio-only (mp3, mono, 64 kbps)
-    3. pydub: split on silence at ~4-min boundaries
-    4. qwen3-asr-flash: transcribe all chunks in parallel
-    5. Set status "done" with transcript (no summary yet)
+Workflow per mode:
+  process_transcript_job()        First stage — caption try or immediate audio start
+  continue_audio_transcript()     Called after user approves audio fallback (no_diarization only)
+  generate_transcript_summary()   Called after user clicks "Generate AI Summary"
 
-  generate_transcript_summary()  — called after user clicks "Generate AI Summary"
-    1. Set status → "summarizing"
-    2. Summarize transcript with Qwen qwen-plus
-    3. Set status "done" with summary added
-
-All temp files are cleaned up in try/finally blocks even on error.
+ASR: paraformer-v2 via DashScope Recognition API
+  - Full audio file sent in one call (supports ≤2 GB / ≤12 h; diarization recommended ≤2 h)
+  - Without diarization: plain text output
+  - With diarization:    sentence_info with speaker_id, formatted as [Speaker A] lines;
+                         consistent speaker IDs throughout the entire video
 """
 
 from __future__ import annotations
@@ -36,13 +30,6 @@ from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL, SOCKS_PROXY,
 
 logger = logging.getLogger(__name__)
 
-# Target audio chunk size in milliseconds — must stay under qwen3-asr-flash's 5-min/10MB limit
-_TARGET_CHUNK_MS = 4 * 60 * 1000
-# How far from the target boundary to search for a silence midpoint (30 s)
-_SILENCE_SEEK_MS = 30 * 1000
-# Overlap between adjacent chunks to avoid losing words at the cut boundary (~1.5 s)
-_CHUNK_OVERLAP_MS = 1500
-# Maximum transcript characters sent to Qwen per LLM call before chunked summarization kicks in
 _MAX_CHARS_PER_LLM_CALL = 12000
 
 
@@ -51,7 +38,6 @@ _MAX_CHARS_PER_LLM_CALL = 12000
 # ---------------------------------------------------------------------------
 
 def extract_video_id(url: str) -> str | None:
-    """Return the 11-character video ID from any recognized YouTube URL, or None."""
     patterns = [
         r"(?:youtube\.com/watch\?(?:[^&]*&)*v=)([a-zA-Z0-9_-]{11})",
         r"(?:youtu\.be/)([a-zA-Z0-9_-]{11})",
@@ -67,33 +53,28 @@ def extract_video_id(url: str) -> str | None:
 
 
 def is_youtube_url(url: str) -> bool:
-    """Return True if the URL is a recognizable YouTube video URL."""
     return extract_video_id(url) is not None
 
 
 # ---------------------------------------------------------------------------
-# Step 4a: Fast path — yt-dlp subtitle download (caption file only, no audio)
+# Fast path — yt-dlp subtitle download (caption file only, no audio)
 # ---------------------------------------------------------------------------
 
 def _parse_vtt(content: str) -> str:
     """Convert WebVTT (including YouTube karaoke-style) to plain text."""
-    # Strip inline timestamp marks like <00:00:01.234>
     content = re.sub(r"<\d{2}:\d{2}:\d{2}\.\d{3}>", "", content)
-    # Strip HTML tags like <c>, </c>, <b>
     content = re.sub(r"<[^>]+>", "", content)
-
     texts = []
     prev = None
     for line in content.splitlines():
         line = line.strip()
         if not line:
             continue
-        # Skip WEBVTT header, timestamp lines (-->), numeric cue IDs, metadata
         if (line.startswith("WEBVTT") or "-->" in line
                 or re.match(r"^\d+$", line)
                 or re.match(r"^[A-Z][a-z]+: ", line)):
             continue
-        if line != prev:  # rolling dedup removes karaoke duplicates
+        if line != prev:
             texts.append(line)
             prev = line
     return " ".join(texts)
@@ -101,12 +82,11 @@ def _parse_vtt(content: str) -> str:
 
 def _fetch_transcript_fast(video_id: str) -> str | None:
     """
-    Download subtitles via yt-dlp (caption file only, no audio).
-    Tries preferred languages first (English + Chinese); if none found,
-    retries with all available languages as a catch-all.
-    Returns plain text, or None to trigger the audio fallback.
+    Try to download subtitles via yt-dlp (caption file only, no audio).
+    Pass 1: English + Chinese; Pass 2: any language.
+    Returns plain text or None to trigger audio fallback.
     """
-    import yt_dlp  # noqa: PLC0415
+    import yt_dlp
 
     tmp_dir = tempfile.mkdtemp(prefix="transcript_sub_")
     try:
@@ -123,10 +103,7 @@ def _fetch_transcript_fast(video_id: str) -> str | None:
         if SOCKS_PROXY:
             base_opts["proxy"] = SOCKS_PROXY
         else:
-            logger.warning(
-                "yt-dlp subtitle: no proxy configured — may be blocked by YouTube on cloud IPs. "
-                "Set SOCKS_PROXY in .env."
-            )
+            logger.warning("yt-dlp subtitle: no proxy configured — may be blocked on cloud IPs")
 
         def _try_download(langs: list[str]) -> str | None:
             opts = {**base_opts, "subtitleslangs": langs}
@@ -142,21 +119,19 @@ def _fetch_transcript_fast(video_id: str) -> str | None:
                             return text
             return None
 
-        # Pass 1: preferred languages (English + Chinese variants)
         preferred = ["en", "en-US", "en-GB", "en-AU", "zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK"]
         text = _try_download(preferred)
         if text:
             logger.info("Subtitle fetched via yt-dlp for %s (%d chars)", video_id, len(text))
             return text
 
-        # Pass 2: accept any available language
         logger.info("No preferred-language subtitles for %s — retrying with all languages", video_id)
         text = _try_download(["all"])
         if text:
-            logger.info("Subtitle fetched (any language) via yt-dlp for %s (%d chars)", video_id, len(text))
+            logger.info("Subtitle fetched (any language) for %s (%d chars)", video_id, len(text))
             return text
 
-        logger.info("No subtitle file found for %s — will try audio fallback", video_id)
+        logger.info("No subtitle file found for %s", video_id)
         return None
 
     except Exception as exc:
@@ -167,25 +142,16 @@ def _fetch_transcript_fast(video_id: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Step 4b: Audio download — yt-dlp
+# Audio download — yt-dlp
 # ---------------------------------------------------------------------------
 
 def _download_audio(video_id: str, tmp_dir: str) -> str:
-    """
-    Download audio-only from YouTube using yt-dlp.
-    Saves as mp3, mono, 64 kbps to keep the file small.
-    Returns the path to the downloaded audio file.
-
-    Requires a cookies file when YouTube blocks server-side requests.
-    Set YOUTUBE_COOKIES_FILE in .env to the path of a Netscape-format cookies file.
-    """
-    import yt_dlp  # noqa: PLC0415
+    import yt_dlp
 
     output_template = os.path.join(tmp_dir, f"{video_id}.%(ext)s")
     ydl_opts = {
         "format": "bestaudio/best",
         "outtmpl": output_template,
-        # Convert to mp3 at 64 kbps mono via ffmpeg post-processor
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
@@ -193,12 +159,10 @@ def _download_audio(video_id: str, tmp_dir: str) -> str:
                 "preferredquality": "64",
             }
         ],
-        # Pass mono flag through postprocessor args
         "postprocessor_args": {"ffmpeg": ["-ac", "1"]},
         "quiet": True,
         "no_warnings": True,
     }
-
     if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
         ydl_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
         logger.info("yt-dlp: using cookies file %s", YOUTUBE_COOKIES_FILE)
@@ -206,15 +170,11 @@ def _download_audio(video_id: str, tmp_dir: str) -> str:
         ydl_opts["proxy"] = SOCKS_PROXY
         logger.info("yt-dlp: routing through proxy %s", SOCKS_PROXY)
     else:
-        logger.warning(
-            "yt-dlp: no proxy configured — YouTube may block this request on cloud IPs. "
-            "Set SOCKS_PROXY in .env."
-        )
+        logger.warning("yt-dlp: no proxy configured — may be blocked on cloud IPs")
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
 
-    # Find the resulting file (extension may vary if ffmpeg isn't available)
     for fname in os.listdir(tmp_dir):
         if fname.startswith(video_id):
             return os.path.join(tmp_dir, fname)
@@ -223,174 +183,105 @@ def _download_audio(video_id: str, tmp_dir: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Step 4c: Smart audio chunking — pydub
+# ASR — paraformer-v2 via DashScope Recognition API
 # ---------------------------------------------------------------------------
 
-def _chunk_audio(audio_path: str) -> list[str]:
+def _speaker_label(speaker_id) -> str:
+    letters = "ABCDEFGHIJ"
+    if speaker_id is None:
+        return "Speaker"
+    return f"Speaker {letters[speaker_id]}" if speaker_id < len(letters) else f"Speaker {speaker_id + 1}"
+
+
+def _format_diarized_sentences(sentences: list) -> str:
+    """Group consecutive sentences by speaker_id and format as labeled paragraphs."""
+    lines: list[str] = []
+    current_speaker = None
+    current_parts: list[str] = []
+
+    for s in sentences:
+        spk  = s.get("speaker_id")
+        text = s.get("text", "").strip()
+        if not text:
+            continue
+        if spk != current_speaker:
+            if current_parts:
+                lines.append(f"[{_speaker_label(current_speaker)}] {' '.join(current_parts)}")
+            current_speaker = spk
+            current_parts   = [text]
+        else:
+            current_parts.append(text)
+
+    if current_parts:
+        lines.append(f"[{_speaker_label(current_speaker)}] {' '.join(current_parts)}")
+
+    return "\n".join(lines)
+
+
+def _transcribe_audio_file(audio_path: str, diarize: bool = False) -> str:
     """
-    Split audio into ~10-minute chunks, always cutting on a silence boundary.
-
-    Strategy:
-      - Detect all non-silent ranges in the audio.
-      - For each target boundary (every _TARGET_CHUNK_MS), find the nearest
-        silence midpoint within ±_SILENCE_SEEK_MS.
-      - Each successive chunk begins _CHUNK_OVERLAP_MS before the cut point
-        so words at the boundary aren't lost.
-      - If the audio is short enough to fit in one chunk, return [audio_path]
-        unchanged (no new files created).
-
-    Returns a list of file paths for each chunk.
+    Transcribe a full audio file with paraformer-v2 via DashScope Recognition.
+    paraformer-v2 supports up to 2 GB / 12 hours per call (diarization recommended ≤2 h).
+    No chunking needed — the full file is sent in one call, which gives consistent
+    speaker IDs throughout when diarization is enabled.
     """
-    from pydub import AudioSegment  # noqa: PLC0415
-    from pydub.silence import detect_nonsilent  # noqa: PLC0415
-
-    audio = AudioSegment.from_file(audio_path)
-    total_ms = len(audio)
-
-    # Short enough to fit in a single chunk — no splitting needed
-    if total_ms <= _TARGET_CHUNK_MS + _SILENCE_SEEK_MS:
-        return [audio_path]
-
-    # Detect non-silent sections; silence gaps sit between consecutive ranges
-    nonsilent_ranges = detect_nonsilent(audio, min_silence_len=500, silence_thresh=-40)
-
-    # Build list of silence midpoints (center of each gap between spoken regions)
-    silence_midpoints: list[int] = []
-    for i in range(len(nonsilent_ranges) - 1):
-        gap_start = nonsilent_ranges[i][1]
-        gap_end = nonsilent_ranges[i + 1][0]
-        silence_midpoints.append((gap_start + gap_end) // 2)
-
-    tmp_dir = os.path.dirname(audio_path)
-    base_name = os.path.splitext(os.path.basename(audio_path))[0]
-    chunk_paths: list[str] = []
-
-    start_ms = 0
-    chunk_idx = 0
-
-    while start_ms < total_ms:
-        target_end = start_ms + _TARGET_CHUNK_MS
-
-        if target_end >= total_ms:
-            # Last (possibly shorter) chunk — take everything remaining
-            chunk = audio[start_ms:]
-            chunk_path = os.path.join(tmp_dir, f"{base_name}_chunk{chunk_idx}.mp3")
-            chunk.export(chunk_path, format="mp3")
-            chunk_paths.append(chunk_path)
-            break
-
-        # Find the silence midpoint nearest to the target boundary (within ±30 s)
-        best_split = target_end
-        best_dist = float("inf")
-        for mid in silence_midpoints:
-            dist = abs(mid - target_end)
-            if dist <= _SILENCE_SEEK_MS and dist < best_dist:
-                best_dist = dist
-                best_split = mid
-
-        # Export this chunk
-        chunk = audio[start_ms:best_split]
-        chunk_path = os.path.join(tmp_dir, f"{base_name}_chunk{chunk_idx}.mp3")
-        chunk.export(chunk_path, format="mp3")
-        chunk_paths.append(chunk_path)
-
-        # Next chunk starts with a brief overlap so no words are lost at the cut
-        start_ms = max(start_ms, best_split - _CHUNK_OVERLAP_MS)
-        chunk_idx += 1
-
-    return chunk_paths
-
-
-# ---------------------------------------------------------------------------
-# Step 4d: Speech-to-text — qwen3-asr-flash via DashScope SDK
-# ---------------------------------------------------------------------------
-
-def _transcribe_audio_chunk(audio_path: str) -> str:
-    """
-    Transcribe one audio chunk with qwen3-asr-flash using the DashScope SDK.
-    Uses a local file:// URI so no base64 encoding or upload is needed.
-    Safe to call from multiple threads simultaneously.
-    """
-    import dashscope  # noqa: PLC0415
-    from dashscope import MultiModalConversation  # noqa: PLC0415
+    import dashscope
+    from dashscope.audio.asr import Recognition
 
     dashscope.api_key = QWEN_API_KEY
-
     file_uri = f"file://{os.path.abspath(audio_path)}"
-    response = MultiModalConversation.call(
-        model="qwen3-asr-flash",
-        messages=[{"role": "user", "content": [{"audio": file_uri}]}],
+
+    kwargs: dict = dict(
+        model="paraformer-v2",
+        file=file_uri,
+        format="mp3",
+        language_hints=["zh", "en"],
     )
+    if diarize:
+        kwargs["diarization_enabled"] = True
+
+    response = Recognition.call(**kwargs)
 
     if response.status_code != 200:
         raise RuntimeError(
-            f"qwen3-asr-flash error {response.status_code}: {response.message}"
+            f"paraformer-v2 error {response.status_code}: {response.message}"
         )
 
-    return response.output.choices[0].message.content[0]["text"]
+    output    = response.output or {}
+    sentences = output.get("sentence_info") or []
 
+    if not sentences:
+        return output.get("text", "") or ""
 
-def _transcribe_chunks_parallel(chunk_paths: list[str]) -> list[str]:
-    """
-    Transcribe all chunks concurrently with ThreadPoolExecutor.
-    Results are returned in the original chunk order regardless of completion order.
-    Cap at 8 workers to avoid overwhelming the API.
-    """
-    from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: PLC0415
+    if diarize:
+        return _format_diarized_sentences(sentences)
 
-    results: list[str | None] = [None] * len(chunk_paths)
-    max_workers = min(len(chunk_paths), 8)
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_idx = {
-            executor.submit(_transcribe_audio_chunk, path): i
-            for i, path in enumerate(chunk_paths)
-        }
-        for future in as_completed(future_to_idx):
-            idx = future_to_idx[future]
-            results[idx] = future.result()  # re-raises any exception from the thread
-
-    return results  # type: ignore[return-value]
+    return " ".join(s.get("text", "") for s in sentences)
 
 
 # ---------------------------------------------------------------------------
-# Overlap deduplication — reassemble chunk transcripts
+# Shared audio pipeline helper
 # ---------------------------------------------------------------------------
 
-def _remove_boundary_duplicates(texts: list[str]) -> str:
-    """
-    Join chunk transcripts, removing words duplicated by the overlap region.
+def _run_audio_transcript(job_id: str, video_id: str, diarize: bool = False) -> None:
+    """Download full audio, transcribe in one paraformer-v2 call, store transcript."""
+    tmp_dir = tempfile.mkdtemp(prefix="transcript_")
+    try:
+        audio_path = _download_audio(video_id, tmp_dir)
+        logger.info("Audio downloaded to %s", audio_path)
 
-    For each pair of adjacent chunks, compare the tail of the first with the
-    head of the second (up to 60 words) and trim the matching prefix from the
-    second chunk before appending.
-    """
-    if not texts:
-        return ""
-    if len(texts) == 1:
-        return texts[0]
+        logger.info("Transcribing full audio with paraformer-v2 (diarize=%s)", diarize)
+        transcript = _transcribe_audio_file(audio_path, diarize=diarize)
 
-    result_words = texts[0].split()
+        db.update_transcript_job(job_id, status="done", transcript=transcript)
+        logger.info("Audio transcript job %s done (%d chars)", job_id, len(transcript))
 
-    for next_text in texts[1:]:
-        next_words = next_text.split()
-        max_check = min(60, len(result_words), len(next_words))
-        overlap_found = False
-
-        for overlap_len in range(max_check, 0, -1):
-            if result_words[-overlap_len:] == next_words[:overlap_len]:
-                result_words.extend(next_words[overlap_len:])
-                overlap_found = True
-                break
-
-        if not overlap_found:
-            result_words.extend(next_words)
-
-    return " ".join(result_words)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
-# Step 5: Summarization — Qwen via DashScope
+# Summarization — Qwen via DashScope
 # ---------------------------------------------------------------------------
 
 _TRANSCRIPT_SUMMARY_SYSTEM = (
@@ -432,15 +323,13 @@ Section summaries:
 
 
 def _qwen_chat(prompt: str, max_tokens: int = 1024) -> str:
-    """Single Qwen chat call with the transcript summarization system prompt."""
-    from openai import OpenAI  # noqa: PLC0415
-
+    from openai import OpenAI
     client = OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL)
     resp = client.chat.completions.create(
         model=QWEN_SUMMARY_MODEL,
         messages=[
             {"role": "system", "content": _TRANSCRIPT_SUMMARY_SYSTEM},
-            {"role": "user", "content": prompt},
+            {"role": "user",   "content": prompt},
         ],
         temperature=0.2,
         max_tokens=max_tokens,
@@ -449,19 +338,12 @@ def _qwen_chat(prompt: str, max_tokens: int = 1024) -> str:
 
 
 def _summarize_transcript(transcript: str) -> str:
-    """
-    Summarize a transcript with Qwen.
-    If the transcript exceeds _MAX_CHARS_PER_LLM_CALL, it is split into
-    overlapping text chunks, each summarized separately, then a final
-    combined summary is generated from those chunk summaries.
-    """
     if len(transcript) <= _MAX_CHARS_PER_LLM_CALL:
         return _qwen_chat(
             _TRANSCRIPT_SUMMARY_PROMPT.format(transcript=transcript),
             max_tokens=1024,
         )
 
-    # Split transcript into text chunks for long content
     raw_chunks = [
         transcript[i : i + _MAX_CHARS_PER_LLM_CALL]
         for i in range(0, len(transcript), _MAX_CHARS_PER_LLM_CALL)
@@ -477,9 +359,8 @@ def _summarize_transcript(transcript: str) -> str:
         )
         chunk_summaries.append(f"Part {i + 1}:\n{summary}")
 
-    combined = "\n\n".join(chunk_summaries)
     return _qwen_chat(
-        _FINAL_SUMMARY_PROMPT.format(summaries=combined),
+        _FINAL_SUMMARY_PROMPT.format(summaries="\n\n".join(chunk_summaries)),
         max_tokens=1024,
     )
 
@@ -488,28 +369,31 @@ def _summarize_transcript(transcript: str) -> str:
 # Entry points — each called from app.py in a daemon thread
 # ---------------------------------------------------------------------------
 
-def process_transcript_job(job_id: str, video_url: str, video_id: str) -> None:
+def process_transcript_job(job_id: str, video_url: str, video_id: str,
+                            mode: str = "no_diarization") -> None:
     """
-    First stage: attempt caption/subtitle extraction.
-    Sets status "done" (transcript only) if captions are found.
-    Sets status "awaiting_approval" if no captions — user must confirm audio download.
+    First stage.
+    - diarization:    always start audio download immediately (user chose this mode knowingly)
+    - no_diarization: try captions first; if none, pause at awaiting_approval
     """
     try:
         db.update_transcript_job(job_id, status="processing")
-        logger.info("Transcript job %s started for video %s", job_id, video_id)
+        logger.info("Transcript job %s started for %s (mode=%s)", job_id, video_id, mode)
 
-        transcript = _fetch_transcript_fast(video_id)
-
-        if transcript is None:
-            logger.info(
-                "No captions found for %s — pausing for user approval before audio download",
-                video_id,
-            )
-            db.update_transcript_job(job_id, status="awaiting_approval")
-            return
-
-        db.update_transcript_job(job_id, status="done", transcript=transcript)
-        logger.info("Transcript job %s completed via captions (%d chars)", job_id, len(transcript))
+        if mode == "diarization":
+            _run_audio_transcript(job_id, video_id, diarize=True)
+        else:
+            transcript = _fetch_transcript_fast(video_id)
+            if transcript is not None:
+                db.update_transcript_job(job_id, status="done", transcript=transcript)
+                logger.info(
+                    "Transcript job %s completed via captions (%d chars)", job_id, len(transcript)
+                )
+            else:
+                logger.info(
+                    "No captions for %s — awaiting user approval for audio fallback", video_id
+                )
+                db.update_transcript_job(job_id, status="awaiting_approval")
 
     except Exception as exc:
         logger.exception("Transcript job %s failed: %s", job_id, exc)
@@ -518,50 +402,23 @@ def process_transcript_job(job_id: str, video_url: str, video_id: str) -> None:
 
 def continue_audio_transcript(job_id: str, video_id: str) -> None:
     """
-    Second stage (user-approved): download audio and transcribe via ASR.
-    Called only after user confirms the audio fallback in the UI.
-    Sets status "done" (transcript only) on success.
+    Second stage for no_diarization mode — called after user approves audio fallback.
+    Uses paraformer-v2 without diarization.
     """
-    tmp_dir: str | None = None
-
     try:
         db.update_transcript_job(job_id, status="processing")
         logger.info("Audio fallback started for job %s, video %s", job_id, video_id)
-
-        tmp_dir = tempfile.mkdtemp(prefix="transcript_")
-        try:
-            audio_path = _download_audio(video_id, tmp_dir)
-            logger.info("Audio downloaded to %s", audio_path)
-
-            chunk_paths = _chunk_audio(audio_path)
-            logger.info("Audio split into %d chunk(s)", len(chunk_paths))
-
-            logger.info("Transcribing %d chunk(s) in parallel (qwen3-asr-flash)", len(chunk_paths))
-            chunk_transcripts = _transcribe_chunks_parallel(chunk_paths)
-            transcript = _remove_boundary_duplicates(chunk_transcripts)
-
-        finally:
-            if tmp_dir:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-                tmp_dir = None
-
-        db.update_transcript_job(job_id, status="done", transcript=transcript)
-        logger.info("Audio fallback job %s completed (%d chars)", job_id, len(transcript))
-
+        _run_audio_transcript(job_id, video_id, diarize=False)
     except Exception as exc:
         logger.exception("Audio fallback job %s failed: %s", job_id, exc)
         db.update_transcript_job(job_id, status="error", error_message=str(exc))
-    finally:
-        if tmp_dir:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def generate_transcript_summary(job_id: str) -> None:
     """
-    Third stage (user-activated): summarize the stored transcript with Qwen.
-    Called only after the user clicks "Generate AI Summary" in the UI.
-    Sets status back to "done" with summary populated on success.
-    On failure, reverts status to "done" so the user can retry.
+    User-activated summarization. Sets status 'summarizing' before being called.
+    On success: status stays 'done' with summary populated.
+    On failure: reverts to 'done' without summary so user can retry.
     """
     try:
         job = db.get_transcript_job(job_id)

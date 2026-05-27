@@ -684,7 +684,26 @@ def admin_update_user_digest(user_id: int):
 @app.route("/transcript")
 @login_required
 def transcript_page():
-    return render_template("transcript.html")
+    sidebar_jobs = db.list_transcript_jobs(limit=60)
+    return render_template("transcript.html", sidebar_jobs=sidebar_jobs)
+
+
+@app.route("/transcript/jobs")
+@login_required
+def transcript_jobs_list():
+    """AJAX endpoint for sidebar refresh."""
+    jobs = db.list_transcript_jobs(limit=60)
+    return jsonify([
+        {
+            "job_id":     j["job_id"],
+            "video_id":   j["video_id"],
+            "video_url":  j["video_url"],
+            "mode":       j["mode"],
+            "status":     j["status"],
+            "created_at": j["created_at"],
+        }
+        for j in jobs
+    ])
 
 
 @app.route("/transcript/process", methods=["POST"])
@@ -692,26 +711,34 @@ def transcript_page():
 def transcript_process():
     from transcript_worker import extract_video_id, is_youtube_url, process_transcript_job
 
-    data = request.get_json(silent=True) or {}
-    url = (data.get("url") or "").strip()
+    data   = request.get_json(silent=True) or {}
+    url    = (data.get("url")  or "").strip()
+    mode   = (data.get("mode") or "no_diarization").strip()
 
+    if mode not in ("no_diarization", "diarization"):
+        return jsonify({"error": "Invalid mode."}), 400
     if not url:
         return jsonify({"error": "URL is required."}), 400
     if not is_youtube_url(url):
         return jsonify({"error": "Not a recognized YouTube video URL."}), 400
 
     video_id = extract_video_id(url)
-    job_id = db.create_transcript_job(video_url=url, video_id=video_id)
 
-    # Spawn background worker — returns immediately
+    # Return cached result if a completed job already exists for this video+mode
+    cached = db.get_done_transcript_job(video_id, mode)
+    if cached:
+        return jsonify({"job_id": cached["job_id"], "cached": True})
+
+    job_id = db.create_transcript_job(video_url=url, video_id=video_id, mode=mode)
+
     thread = threading.Thread(
         target=process_transcript_job,
-        args=(job_id, url, video_id),
+        args=(job_id, url, video_id, mode),
         daemon=True,
     )
     thread.start()
 
-    return jsonify({"job_id": job_id})
+    return jsonify({"job_id": job_id, "cached": False})
 
 
 @app.route("/transcript/status/<job_id>")
@@ -721,10 +748,11 @@ def transcript_status(job_id: str):
     if not job:
         return jsonify({"error": "Job not found."}), 404
     return jsonify({
-        "job_id": job["job_id"],
-        "status": job["status"],
-        "summary": job["summary"],
-        "transcript": job["transcript"],
+        "job_id":        job["job_id"],
+        "status":        job["status"],
+        "mode":          job["mode"],
+        "summary":       job["summary"],
+        "transcript":    job["transcript"],
         "error_message": job["error_message"],
     })
 
