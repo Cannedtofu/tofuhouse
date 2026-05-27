@@ -314,20 +314,30 @@ function escHtml(s) {
 // ── Delete ────────────────────────────────────────────────────────────────────
 
 function confirmDelete(jobId, title) {
+  console.log('[delete] confirmDelete called, jobId=', jobId, 'title=', title);
   _deleteJobId = jobId;
+  const modalEl = document.getElementById('deleteModal');
+  console.log('[delete] modalEl=', modalEl, 'is_admin rendered=', !!modalEl);
+  if (!modalEl) { alert('删除对话框未找到，请确认当前账号为管理员。'); return; }
   document.getElementById('delete-target-title').textContent = title;
-  _deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  _deleteModal = new bootstrap.Modal(modalEl);
   _deleteModal.show();
 }
 
 function executeDelete() {
-  if (!_deleteJobId) return;
+  console.log('[delete] executeDelete called, _deleteJobId=', _deleteJobId);
+  if (!_deleteJobId) { console.warn('[delete] no _deleteJobId, aborting'); return; }
   const jobId = _deleteJobId;
   if (_deleteModal) { _deleteModal.hide(); _deleteModal = null; }
 
+  console.log('[delete] fetching DELETE for jobId=', jobId);
   fetch(`/transcript/${jobId}/delete`, { method: 'POST' })
-    .then(r => r.json())
+    .then(r => {
+      console.log('[delete] response status=', r.status);
+      return r.json();
+    })
     .then(data => {
+      console.log('[delete] response data=', data);
       if (data.error) { alert('删除失败：' + data.error); return; }
       if (_currentJobId === jobId) {
         _currentJobId = null;
@@ -335,7 +345,7 @@ function executeDelete() {
       }
       refreshSidebar();
     })
-    .catch(() => alert('请求失败，请重试。'));
+    .catch(err => { console.error('[delete] fetch error:', err); alert('请求失败，请重试。'); });
 }
 
 // ── Polling ──────────────────────────────────────────────────────────────────
