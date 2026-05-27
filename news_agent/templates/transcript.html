@@ -7,9 +7,9 @@
 
     <!-- URL input card -->
     <div class="card p-4 mb-4">
-      <h5 class="mb-3">YouTube 视频转录 &amp; 总结</h5>
+      <h5 class="mb-3">YouTube 视频转录</h5>
       <p class="text-muted small mb-3">
-        粘贴 YouTube 视频链接，自动提取字幕（或下载音频转录），并用 AI 生成摘要。
+        粘贴 YouTube 视频链接，自动提取字幕并生成转录文本。AI 摘要可在转录完成后按需生成。
       </p>
 
       <div class="d-flex gap-2">
@@ -38,7 +38,25 @@
       <!-- Error display -->
       <div id="error-panel" class="alert alert-danger" style="display:none"></div>
 
-      <!-- Results: summary + transcript + download (shown once done) -->
+      <!-- Audio download approval panel -->
+      <div id="approval-panel" class="alert alert-warning" style="display:none">
+        <h6 class="alert-heading mb-2">未找到字幕，需要下载音频转录</h6>
+        <p class="small mb-2">此视频没有可用的字幕文件。若要继续提取转录内容，需要执行以下操作：</p>
+        <ul class="small mb-3">
+          <li>通过 yt-dlp 下载视频音频文件（约 64 kbps mp3）</li>
+          <li>调用语音识别 API（qwen3-asr-flash），按实际用量计费</li>
+        </ul>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-warning" onclick="approveAudioDownload()">
+            确认下载并转录
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="cancelApproval()">
+            取消
+          </button>
+        </div>
+      </div>
+
+      <!-- Results: transcript + optional summary (shown once done) -->
       <div id="done-panel" style="display:none">
 
         <!-- Download button -->
@@ -48,35 +66,52 @@
           </a>
         </div>
 
-        <!-- Summary section -->
+        <!-- Full transcript (primary output) -->
         <div class="mb-4">
-          <div class="fw-semibold mb-2" style="font-size:1rem; border-left:4px solid #0d6efd; padding-left:.6rem;">
-            AI 摘要
+          <div class="fw-semibold mb-2"
+               style="font-size:1rem; border-left:4px solid #198754; padding-left:.6rem;">
+            完整转录文本
           </div>
-          <div id="summary-content"
-               style="font-size:.93rem; line-height:1.7; background:#f8f9fa;
-                      border-radius:6px; padding:1rem; white-space:pre-wrap; word-break:break-word;">
+          <div id="transcript-content"
+               style="font-size:.88rem; line-height:1.75; background:#f8f9fa;
+                      border-radius:6px; padding:1rem; max-height:500px;
+                      overflow-y:auto; white-space:pre-wrap; word-break:break-word;">
           </div>
         </div>
 
-        <!-- Full transcript section (collapsible) -->
-        <div>
-          <button class="btn btn-sm btn-outline-secondary mb-2"
-                  type="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#transcript-collapse">
-            完整转录文本 ▾
-          </button>
-          <div class="collapse" id="transcript-collapse">
-            <div id="transcript-content"
-                 style="font-size:.88rem; line-height:1.75; background:#f8f9fa;
-                        border-radius:6px; padding:1rem; max-height:500px;
-                        overflow-y:auto; white-space:pre-wrap; word-break:break-word;">
+        <!-- AI summary section (user-activated) -->
+        <div id="summary-section">
+
+          <!-- Button to trigger summarization -->
+          <div id="summary-generate-area">
+            <button class="btn btn-sm btn-outline-primary" onclick="generateSummary()">
+              ✨ 生成 AI 摘要
+            </button>
+            <span class="text-muted small ms-2">使用 Qwen 对转录内容进行摘要</span>
+          </div>
+
+          <!-- Spinner while summarizing -->
+          <div id="summary-spinner-area" class="d-flex align-items-center gap-2"
+               style="display:none !important">
+            <span class="spinner-border spinner-border-sm text-primary"></span>
+            <span class="text-muted small">正在生成 AI 摘要…</span>
+          </div>
+
+          <!-- Summary content (shown after generation) -->
+          <div id="summary-content-area" style="display:none">
+            <div class="fw-semibold mb-2"
+                 style="font-size:1rem; border-left:4px solid #0d6efd; padding-left:.6rem;">
+              AI 摘要
+            </div>
+            <div id="summary-content"
+                 style="font-size:.93rem; line-height:1.7; background:#f8f9fa;
+                        border-radius:6px; padding:1rem; white-space:pre-wrap; word-break:break-word;">
             </div>
           </div>
-        </div>
 
+        </div>
       </div>
+
     </div>
 
   </div>
@@ -88,7 +123,6 @@
 let _pollInterval = null;
 let _currentJobId  = null;
 
-// Allow Enter key in URL input to submit
 document.getElementById('yt-url-input').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') { e.preventDefault(); submitUrl(); }
 });
@@ -124,7 +158,7 @@ function submitUrl() {
 }
 
 function startPolling(jobId) {
-  // Poll every 3 seconds; stops automatically when status is "done" or "error"
+  stopPolling();
   _pollInterval = setInterval(() => {
     fetch(`/transcript/status/${jobId}`)
       .then(r => r.json())
@@ -135,23 +169,7 @@ function startPolling(jobId) {
           setSubmitBusy(false);
           return;
         }
-
-        const status = data.status;
-        updateStatusBadge(status);
-
-        if (status === 'processing') {
-          setStatusText('正在处理（提取字幕 / 转录音频）…');
-        } else if (status === 'pending') {
-          setStatusText('正在排队…');
-        } else if (status === 'done') {
-          stopPolling();
-          setSubmitBusy(false);
-          showDonePanel(data, jobId);
-        } else if (status === 'error') {
-          stopPolling();
-          setSubmitBusy(false);
-          showErrorPanel(data.error_message || '处理失败，请重试。');
-        }
+        handleStatusUpdate(data, jobId);
       })
       .catch(() => { /* keep polling on transient network errors */ });
   }, 3000);
@@ -159,6 +177,87 @@ function startPolling(jobId) {
 
 function stopPolling() {
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+}
+
+function handleStatusUpdate(data, jobId) {
+  const status = data.status;
+  updateStatusBadge(status);
+
+  if (status === 'pending') {
+    setStatusText('正在排队…');
+  } else if (status === 'processing') {
+    setStatusText('正在处理（提取字幕 / 转录音频）…');
+  } else if (status === 'awaiting_approval') {
+    stopPolling();
+    setSubmitBusy(false);
+    setStatusText('未找到字幕，需确认是否下载音频。');
+    document.getElementById('approval-panel').style.display = 'block';
+  } else if (status === 'summarizing') {
+    setStatusText('正在生成 AI 摘要…');
+    setSummarySpinning(true);
+  } else if (status === 'done') {
+    stopPolling();
+    setSubmitBusy(false);
+    showDonePanel(data, jobId);
+  } else if (status === 'error') {
+    stopPolling();
+    setSubmitBusy(false);
+    showErrorPanel(data.error_message || '处理失败，请重试。');
+  }
+}
+
+function approveAudioDownload() {
+  document.getElementById('approval-panel').style.display = 'none';
+  updateStatusBadge('processing');
+  setStatusText('正在处理（下载音频并转录）…');
+
+  fetch(`/transcript/${_currentJobId}/approve`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showErrorPanel(data.error); return; }
+      startPolling(_currentJobId);
+    })
+    .catch(() => showErrorPanel('请求失败，请重试。'));
+}
+
+function cancelApproval() {
+  document.getElementById('approval-panel').style.display = 'none';
+  document.getElementById('result-card').style.display = 'none';
+  setSubmitBusy(false);
+}
+
+function generateSummary() {
+  setSummarySpinning(true);
+
+  fetch(`/transcript/${_currentJobId}/summarize`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        setSummarySpinning(false);
+        alert('摘要生成失败：' + data.error);
+        return;
+      }
+      // Backend set status to "summarizing"; resume polling to detect completion
+      updateStatusBadge('summarizing');
+      startPolling(_currentJobId);
+    })
+    .catch(() => {
+      setSummarySpinning(false);
+      alert('请求失败，请重试。');
+    });
+}
+
+function setSummarySpinning(spinning) {
+  document.getElementById('summary-generate-area').style.display  = spinning ? 'none' : 'block';
+  document.getElementById('summary-spinner-area').style.display   = spinning ? 'flex'  : 'none';
+  document.getElementById('summary-content-area').style.display   = 'none';
+}
+
+function showSummaryContent(text) {
+  document.getElementById('summary-generate-area').style.display  = 'none';
+  document.getElementById('summary-spinner-area').style.display   = 'none';
+  document.getElementById('summary-content-area').style.display   = 'block';
+  document.getElementById('summary-content').textContent = text;
 }
 
 // ---- UI helpers ----
@@ -184,28 +283,33 @@ function clearUrlError() {
 
 function resetResultCard() {
   stopPolling();
-  document.getElementById('result-card').style.display = 'none';
-  document.getElementById('error-panel').style.display  = 'none';
-  document.getElementById('done-panel').style.display   = 'none';
-  document.getElementById('summary-content').textContent   = '';
+  document.getElementById('result-card').style.display    = 'none';
+  document.getElementById('error-panel').style.display    = 'none';
+  document.getElementById('done-panel').style.display     = 'none';
+  document.getElementById('approval-panel').style.display = 'none';
   document.getElementById('transcript-content').textContent = '';
+  document.getElementById('summary-content').textContent    = '';
+  setSummarySpinning(false);
 }
 
 function showResultCard(status, statusText) {
-  document.getElementById('result-card').style.display = 'block';
+  document.getElementById('result-card').style.display    = 'block';
+  document.getElementById('error-panel').style.display    = 'none';
+  document.getElementById('done-panel').style.display     = 'none';
+  document.getElementById('approval-panel').style.display = 'none';
   updateStatusBadge(status);
   setStatusText(statusText);
-  document.getElementById('error-panel').style.display = 'none';
-  document.getElementById('done-panel').style.display  = 'none';
 }
 
 function updateStatusBadge(status) {
   const badge = document.getElementById('status-badge');
   const map = {
-    pending:    ['bg-secondary', '等待中'],
-    processing: ['bg-warning text-dark', '处理中'],
-    done:       ['bg-success',   '完成'],
-    error:      ['bg-danger',    '错误'],
+    pending:           ['bg-secondary',          '等待中'],
+    processing:        ['bg-warning text-dark',   '处理中'],
+    awaiting_approval: ['bg-warning text-dark',   '待确认'],
+    summarizing:       ['bg-info text-dark',      '摘要生成中'],
+    done:              ['bg-success',             '完成'],
+    error:             ['bg-danger',              '错误'],
   };
   const [cls, label] = map[status] || ['bg-secondary', status];
   badge.className = `badge ${cls}`;
@@ -226,12 +330,16 @@ function showErrorPanel(msg) {
 
 function showDonePanel(data, jobId) {
   updateStatusBadge('done');
-  setStatusText('转录与摘要已生成。');
-
-  document.getElementById('summary-content').textContent    = data.summary || '（无摘要）';
+  setStatusText('转录完成。');
   document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
   document.getElementById('download-btn').href = `/transcript/download/${jobId}`;
   document.getElementById('done-panel').style.display = 'block';
+
+  if (data.summary) {
+    showSummaryContent(data.summary);
+  } else {
+    setSummarySpinning(false);
+  }
 }
 </script>
 {% endblock %}

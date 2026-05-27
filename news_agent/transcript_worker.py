@@ -1,19 +1,26 @@
 """
 Background worker for YouTube transcript extraction and summarization.
 
-Workflow (called after POST /transcript/process returns):
-  1. Set job status → "processing"
-  2. Fast path: youtube-transcript-api (captions)
-  3. If captions unavailable → audio fallback:
-       a. yt-dlp: download audio-only (mp3, mono, 64 kbps)
-       b. pydub: split on silence boundaries at ~4-min intervals
-       c. qwen3-asr-flash (DashScope): all chunks transcribed in parallel via
-          ThreadPoolExecutor — total wall-clock time ≈ one chunk regardless of video length
-       d. Reassemble chunks in order, deduplicating overlap words at boundaries
-  4. Summarize full transcript with Qwen (qwen-plus)
-  5. Set job status → "done" (or "error" on failure)
+Workflow:
+  process_transcript_job()  — called immediately after POST /transcript/process
+    1. Set job status → "processing"
+    2. Fast path: yt-dlp subtitle download (caption file only, no audio)
+    3a. Captions found → set status "done" with transcript (no summary yet)
+    3b. No captions → set status "awaiting_approval" and stop; user must confirm
 
-All temp files are cleaned up in a try/finally block even on error.
+  continue_audio_transcript()  — called after user approves audio fallback
+    1. Set status → "processing"
+    2. yt-dlp: download audio-only (mp3, mono, 64 kbps)
+    3. pydub: split on silence at ~4-min boundaries
+    4. qwen3-asr-flash: transcribe all chunks in parallel
+    5. Set status "done" with transcript (no summary yet)
+
+  generate_transcript_summary()  — called after user clicks "Generate AI Summary"
+    1. Set status → "summarizing"
+    2. Summarize transcript with Qwen qwen-plus
+    3. Set status "done" with summary added
+
+All temp files are cleaned up in try/finally blocks even on error.
 """
 
 from __future__ import annotations
@@ -478,81 +485,97 @@ def _summarize_transcript(transcript: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Main entry point — called from app.py in a daemon thread
+# Entry points — each called from app.py in a daemon thread
 # ---------------------------------------------------------------------------
 
 def process_transcript_job(job_id: str, video_url: str, video_id: str) -> None:
     """
-    Execute the full transcript pipeline for one job.
-    Must be called in a background thread — never blocks the request.
+    First stage: attempt caption/subtitle extraction.
+    Sets status "done" (transcript only) if captions are found.
+    Sets status "awaiting_approval" if no captions — user must confirm audio download.
+    """
+    try:
+        db.update_transcript_job(job_id, status="processing")
+        logger.info("Transcript job %s started for video %s", job_id, video_id)
 
-    On success: stores transcript + summary, sets status "done".
-    On any failure: stores error_message, sets status "error".
-    Temp files are always cleaned up in the finally block.
+        transcript = _fetch_transcript_fast(video_id)
+
+        if transcript is None:
+            logger.info(
+                "No captions found for %s — pausing for user approval before audio download",
+                video_id,
+            )
+            db.update_transcript_job(job_id, status="awaiting_approval")
+            return
+
+        db.update_transcript_job(job_id, status="done", transcript=transcript)
+        logger.info("Transcript job %s completed via captions (%d chars)", job_id, len(transcript))
+
+    except Exception as exc:
+        logger.exception("Transcript job %s failed: %s", job_id, exc)
+        db.update_transcript_job(job_id, status="error", error_message=str(exc))
+
+
+def continue_audio_transcript(job_id: str, video_id: str) -> None:
+    """
+    Second stage (user-approved): download audio and transcribe via ASR.
+    Called only after user confirms the audio fallback in the UI.
+    Sets status "done" (transcript only) on success.
     """
     tmp_dir: str | None = None
 
     try:
         db.update_transcript_job(job_id, status="processing")
-        logger.info("Transcript job %s started for video %s", job_id, video_id)
+        logger.info("Audio fallback started for job %s, video %s", job_id, video_id)
 
-        # ------------------------------------------------------------------
-        # 4a: Fast path — youtube-transcript-api
-        # ------------------------------------------------------------------
-        transcript = _fetch_transcript_fast(video_id)
+        tmp_dir = tempfile.mkdtemp(prefix="transcript_")
+        try:
+            audio_path = _download_audio(video_id, tmp_dir)
+            logger.info("Audio downloaded to %s", audio_path)
 
-        if transcript is None:
-            # --------------------------------------------------------------
-            # 4b: Audio download
-            # --------------------------------------------------------------
-            logger.info("Falling back to audio download for video %s", video_id)
-            tmp_dir = tempfile.mkdtemp(prefix="transcript_")
+            chunk_paths = _chunk_audio(audio_path)
+            logger.info("Audio split into %d chunk(s)", len(chunk_paths))
 
-            try:
-                audio_path = _download_audio(video_id, tmp_dir)
-                logger.info("Audio downloaded to %s", audio_path)
+            logger.info("Transcribing %d chunk(s) in parallel (qwen3-asr-flash)", len(chunk_paths))
+            chunk_transcripts = _transcribe_chunks_parallel(chunk_paths)
+            transcript = _remove_boundary_duplicates(chunk_transcripts)
 
-                # ----------------------------------------------------------
-                # 4c: Smart audio chunking
-                # ----------------------------------------------------------
-                chunk_paths = _chunk_audio(audio_path)
-                logger.info("Audio split into %d chunk(s)", len(chunk_paths))
+        finally:
+            if tmp_dir:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                tmp_dir = None
 
-                # ----------------------------------------------------------
-                # 4d: Speech-to-text — parallel across all chunks
-                # ----------------------------------------------------------
-                logger.info(
-                    "Transcribing %d chunk(s) in parallel (qwen3-asr-flash)",
-                    len(chunk_paths),
-                )
-                chunk_transcripts = _transcribe_chunks_parallel(chunk_paths)
-
-                # Reassemble and remove overlap duplicates
-                transcript = _remove_boundary_duplicates(chunk_transcripts)
-
-            finally:
-                # Always remove the entire tmp directory with all audio files
-                if tmp_dir:
-                    shutil.rmtree(tmp_dir, ignore_errors=True)
-                    tmp_dir = None  # prevent double-cleanup in outer finally
-
-        # ------------------------------------------------------------------
-        # 5: Summarize with Qwen
-        # ------------------------------------------------------------------
-        logger.info(
-            "Summarizing transcript for job %s (%d chars)", job_id, len(transcript)
-        )
-        summary = _summarize_transcript(transcript)
-
-        db.update_transcript_job(
-            job_id, status="done", transcript=transcript, summary=summary
-        )
-        logger.info("Transcript job %s completed successfully", job_id)
+        db.update_transcript_job(job_id, status="done", transcript=transcript)
+        logger.info("Audio fallback job %s completed (%d chars)", job_id, len(transcript))
 
     except Exception as exc:
-        logger.exception("Transcript job %s failed: %s", job_id, exc)
+        logger.exception("Audio fallback job %s failed: %s", job_id, exc)
         db.update_transcript_job(job_id, status="error", error_message=str(exc))
     finally:
-        # Safety net: clean up tmp_dir if inner finally didn't run
         if tmp_dir:
             shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def generate_transcript_summary(job_id: str) -> None:
+    """
+    Third stage (user-activated): summarize the stored transcript with Qwen.
+    Called only after the user clicks "Generate AI Summary" in the UI.
+    Sets status back to "done" with summary populated on success.
+    On failure, reverts status to "done" so the user can retry.
+    """
+    try:
+        job = db.get_transcript_job(job_id)
+        transcript = job["transcript"] if job else None
+        if not transcript:
+            logger.error("Job %s has no transcript to summarize", job_id)
+            db.update_transcript_job(job_id, status="done")
+            return
+
+        logger.info("Summarizing transcript for job %s (%d chars)", job_id, len(transcript))
+        summary = _summarize_transcript(transcript)
+        db.update_transcript_job(job_id, status="done", summary=summary)
+        logger.info("Summary generated for job %s", job_id)
+
+    except Exception as exc:
+        logger.exception("Summary generation for job %s failed: %s", job_id, exc)
+        db.update_transcript_job(job_id, status="done")  # revert so user can retry

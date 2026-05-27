@@ -729,6 +729,49 @@ def transcript_status(job_id: str):
     })
 
 
+@app.route("/transcript/<job_id>/approve", methods=["POST"])
+@login_required
+def transcript_approve(job_id: str):
+    from transcript_worker import continue_audio_transcript
+
+    job = db.get_transcript_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    if job["status"] != "awaiting_approval":
+        return jsonify({"error": "Job is not awaiting approval."}), 400
+
+    thread = threading.Thread(
+        target=continue_audio_transcript,
+        args=(job_id, job["video_id"]),
+        daemon=True,
+    )
+    thread.start()
+    return jsonify({"ok": True})
+
+
+@app.route("/transcript/<job_id>/summarize", methods=["POST"])
+@login_required
+def transcript_summarize(job_id: str):
+    from transcript_worker import generate_transcript_summary
+
+    job = db.get_transcript_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    if job["status"] != "done":
+        return jsonify({"error": "Transcript not ready."}), 400
+    if not job["transcript"]:
+        return jsonify({"error": "No transcript to summarize."}), 400
+
+    db.update_transcript_job(job_id, status="summarizing")
+    thread = threading.Thread(
+        target=generate_transcript_summary,
+        args=(job_id,),
+        daemon=True,
+    )
+    thread.start()
+    return jsonify({"ok": True})
+
+
 @app.route("/transcript/download/<job_id>")
 @login_required
 def transcript_download(job_id: str):
@@ -744,18 +787,13 @@ def transcript_download(job_id: str):
     summary = job["summary"] or ""
     transcript = job["transcript"] or ""
 
-    content = (
-        f"YouTube Transcript\n"
-        f"URL: {video_url}\n"
-        f"{'=' * 60}\n\n"
-        f"SUMMARY\n"
-        f"{'-' * 60}\n"
-        f"{summary}\n\n"
-        f"{'=' * 60}\n\n"
-        f"FULL TRANSCRIPT\n"
-        f"{'-' * 60}\n"
-        f"{transcript}\n"
-    )
+    sections = [
+        f"YouTube Transcript\nURL: {video_url}\n{'=' * 60}\n",
+        f"FULL TRANSCRIPT\n{'-' * 60}\n{transcript}\n",
+    ]
+    if summary:
+        sections.insert(1, f"SUMMARY\n{'-' * 60}\n{summary}\n\n{'=' * 60}\n")
+    content = "\n".join(sections)
 
     safe_id = job["video_id"]
     return Response(
