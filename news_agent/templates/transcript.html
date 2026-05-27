@@ -12,50 +12,7 @@
           <h6 class="mb-0 fw-semibold">已转录视频</h6>
           <button class="btn btn-link btn-sm p-0 text-muted" onclick="refreshSidebar()" title="刷新">↺</button>
         </div>
-        <div id="sidebar-list" style="overflow-y:auto; max-height:75vh">
-          {% if sidebar_jobs %}
-            {% for job in sidebar_jobs %}
-            <div class="sidebar-item p-2 rounded mb-1 border position-relative"
-                 style="cursor:pointer; font-size:.82rem"
-                 onclick="loadJob('{{ job.job_id }}')"
-                 title="{{ job.video_url }}">
-              <div class="fw-medium text-truncate" style="max-width:100%; padding-right:{% if is_admin %}1.4rem{% else %}0{% endif %}">
-                {{ job.video_title or job.video_id }}
-              </div>
-              {% if job.video_author %}
-              <div class="text-muted text-truncate" style="font-size:.75rem">{{ job.video_author }}</div>
-              {% endif %}
-              <div class="d-flex justify-content-between align-items-center mt-1 gap-1">
-                {% if job.mode == 'diarization' %}
-                  <span class="badge bg-primary" style="font-size:.68rem">区分发言人</span>
-                {% else %}
-                  <span class="badge bg-secondary" style="font-size:.68rem">不区分</span>
-                {% endif %}
-                <span class="text-muted" style="font-size:.72rem; flex-shrink:0">
-                  {{ job.created_at[:10] }}
-                </span>
-                {% if job.status == 'done' %}
-                  <span class="text-success" style="font-size:.72rem">✓</span>
-                {% elif job.status == 'error' %}
-                  <span class="text-danger" style="font-size:.72rem">✗</span>
-                {% else %}
-                  <span class="text-warning" style="font-size:.72rem">…</span>
-                {% endif %}
-              </div>
-              {% if is_admin %}
-              <button class="btn btn-link p-0 text-danger position-absolute"
-                      style="top:.4rem; right:.4rem; font-size:.75rem; line-height:1"
-                      title="删除"
-                      data-job-id="{{ job.job_id }}"
-                      data-title="{{ (job.video_title or job.video_id)|e }}"
-                      onclick="event.stopPropagation(); confirmDelete(this.dataset.jobId, this.dataset.title)">✕</button>
-              {% endif %}
-            </div>
-            {% endfor %}
-          {% else %}
-            <p class="text-muted small mb-0">暂无转录记录。</p>
-          {% endif %}
-        </div>
+        <div id="sidebar-list" style="overflow-y:auto; max-height:75vh"></div>
       </div>
     </div>
   </div>
@@ -159,9 +116,9 @@
             <span class="text-muted small ms-2">使用 Qwen 对转录内容进行摘要</span>
           </div>
 
-          <div id="summary-spinner-area" class="d-flex align-items-center gap-2"
-               style="display:none !important">
-            <span class="spinner-border spinner-border-sm text-primary"></span>
+          <!-- No d-flex class here — JS controls display entirely -->
+          <div id="summary-spinner-area" style="display:none">
+            <span class="spinner-border spinner-border-sm text-primary me-2"></span>
             <span class="text-muted small">正在生成 AI 摘要…</span>
           </div>
 
@@ -195,7 +152,7 @@
       </div>
       <div class="modal-body py-2">
         <p class="small mb-1">确认删除以下记录？此操作不可撤销。</p>
-        <p id="delete-target-title" class="fw-semibold small text-truncate mb-0"></p>
+        <p id="delete-target-title" class="fw-semibold small mb-0" style="word-break:break-word"></p>
       </div>
       <div class="modal-footer border-0 pt-1">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">取消</button>
@@ -215,6 +172,8 @@ let _currentJobId  = null;
 let _activeBtn     = null;
 let _deleteJobId   = null;
 let _deleteModal   = null;
+
+const _isAdmin = {{ 'true' if is_admin else 'false' }};
 
 document.getElementById('yt-url-input').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') { e.preventDefault(); submitUrl('no_diarization'); }
@@ -257,8 +216,6 @@ function submitUrl(mode) {
 
 // ── Sidebar ──────────────────────────────────────────────────────────────────
 
-const _isAdmin = {{ 'true' if is_admin else 'false' }};
-
 function loadJob(jobId) {
   resetResultCard();
   _currentJobId = jobId;
@@ -279,49 +236,82 @@ function renderSidebar(jobs) {
     list.innerHTML = '<p class="text-muted small mb-0">暂无转录记录。</p>';
     return;
   }
-  list.innerHTML = jobs.map(j => {
-    const title  = j.video_title  || j.video_id;
-    const author = j.video_author || '';
-    const deleteBtn = _isAdmin
-      ? `<button class="btn btn-link p-0 text-danger position-absolute"
-                 style="top:.4rem; right:.4rem; font-size:.75rem; line-height:1"
-                 title="删除"
-                 data-job-id="${escHtml(j.job_id)}"
-                 data-title="${escHtml(title)}"
-                 onclick="event.stopPropagation(); confirmDelete(this.dataset.jobId, this.dataset.title)">✕</button>`
-      : '';
+
+  // Group by author, sort videos by title within each group
+  const groups = {};
+  for (const j of jobs) {
+    const author = j.video_author || '其他';
+    if (!groups[author]) groups[author] = [];
+    groups[author].push(j);
+  }
+  for (const g of Object.values(groups)) {
+    g.sort((a, b) => (a.video_title || a.video_id).localeCompare(b.video_title || b.video_id, 'zh'));
+  }
+
+  let groupIdx = 0;
+  const html = Object.entries(groups).map(([author, gJobs]) => {
+    const groupId = `grp${groupIdx++}`;
+    const items = gJobs.map(j => {
+      const title = j.video_title || j.video_id;
+      const deleteBtn = _isAdmin
+        ? `<button class="btn btn-link p-0 text-danger position-absolute"
+                   style="top:.3rem; right:.3rem; font-size:.75rem; line-height:1"
+                   title="删除"
+                   data-job-id="${escHtml(j.job_id)}"
+                   data-title="${escHtml(title)}"
+                   onclick="event.stopPropagation(); confirmDelete(this.dataset.jobId, this.dataset.title)">✕</button>`
+        : '';
+      const statusIcon = j.status === 'done'  ? '<span class="text-success" style="font-size:.72rem">✓</span>'
+                       : j.status === 'error' ? '<span class="text-danger"  style="font-size:.72rem">✗</span>'
+                       :                        '<span class="text-warning" style="font-size:.72rem">…</span>';
+      const modeBadge = `<span class="badge ${j.mode === 'diarization' ? 'bg-primary' : 'bg-secondary'}" style="font-size:.65rem">${j.mode === 'diarization' ? '区分' : '不区分'}</span>`;
+      return `
+        <div class="sidebar-item p-2 rounded mb-1 border position-relative"
+             style="cursor:pointer; font-size:.82rem"
+             onclick="loadJob('${escHtml(j.job_id)}')"
+             title="${escHtml(j.video_url || '')}">
+          <div class="fw-medium" style="word-break:break-word; padding-right:${_isAdmin ? '1.4rem' : '0'}">${escHtml(title)}</div>
+          <div class="d-flex align-items-center mt-1 gap-1">
+            ${modeBadge}
+            <span class="text-muted ms-auto" style="font-size:.7rem; flex-shrink:0">${j.created_at.slice(0,10)}</span>
+            ${statusIcon}
+          </div>
+          ${deleteBtn}
+        </div>`;
+    }).join('');
+
     return `
-    <div class="sidebar-item p-2 rounded mb-1 border position-relative"
-         style="cursor:pointer; font-size:.82rem"
-         onclick="loadJob('${j.job_id}')"
-         title="${j.video_url}">
-      <div class="fw-medium text-truncate" style="max-width:100%; padding-right:${_isAdmin ? '1.4rem' : '0'}">${escHtml(title)}</div>
-      ${author ? `<div class="text-muted text-truncate" style="font-size:.75rem">${escHtml(author)}</div>` : ''}
-      <div class="d-flex justify-content-between align-items-center mt-1 gap-1">
-        <span class="badge ${j.mode === 'diarization' ? 'bg-primary' : 'bg-secondary'}" style="font-size:.68rem">
-          ${j.mode === 'diarization' ? '区分发言人' : '不区分'}
-        </span>
-        <span class="text-muted" style="font-size:.72rem; flex-shrink:0">${j.created_at.slice(0,10)}</span>
-        <span class="${j.status==='done'?'text-success':j.status==='error'?'text-danger':'text-warning'}" style="font-size:.72rem">
-          ${j.status==='done'?'✓':j.status==='error'?'✗':'…'}
-        </span>
-      </div>
-      ${deleteBtn}
-    </div>`;
+      <div class="mb-2">
+        <div class="d-flex align-items-center px-2 py-1 rounded mb-1"
+             style="cursor:pointer; background:#f0f2f5; font-size:.8rem; font-weight:600; user-select:none"
+             onclick="toggleGroup('${groupId}')">
+          <span class="flex-grow-1" style="word-break:break-word">${escHtml(author)}</span>
+          <span id="${groupId}-arrow" style="font-size:.65rem; margin-left:.4rem; flex-shrink:0; transition:transform .15s">▼</span>
+        </div>
+        <div id="${groupId}-items">${items}</div>
+      </div>`;
   }).join('');
+
+  list.innerHTML = html;
+}
+
+function toggleGroup(groupId) {
+  const el    = document.getElementById(`${groupId}-items`);
+  const arrow = document.getElementById(`${groupId}-arrow`);
+  const collapsed = el.style.display === 'none';
+  el.style.display        = collapsed ? 'block' : 'none';
+  arrow.style.transform   = collapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────────
 
 function confirmDelete(jobId, title) {
-  console.log('[delete] confirmDelete called, jobId=', jobId, 'title=', title);
   _deleteJobId = jobId;
   const modalEl = document.getElementById('deleteModal');
-  console.log('[delete] modalEl=', modalEl, 'is_admin rendered=', !!modalEl);
   if (!modalEl) { alert('删除对话框未找到，请确认当前账号为管理员。'); return; }
   document.getElementById('delete-target-title').textContent = title;
   _deleteModal = new bootstrap.Modal(modalEl);
@@ -329,19 +319,13 @@ function confirmDelete(jobId, title) {
 }
 
 function executeDelete() {
-  console.log('[delete] executeDelete called, _deleteJobId=', _deleteJobId);
-  if (!_deleteJobId) { console.warn('[delete] no _deleteJobId, aborting'); return; }
+  if (!_deleteJobId) return;
   const jobId = _deleteJobId;
   if (_deleteModal) { _deleteModal.hide(); _deleteModal = null; }
 
-  console.log('[delete] fetching DELETE for jobId=', jobId);
   fetch(`/transcript/${jobId}/delete`, { method: 'POST' })
-    .then(r => {
-      console.log('[delete] response status=', r.status);
-      return r.json();
-    })
+    .then(r => r.json())
     .then(data => {
-      console.log('[delete] response data=', data);
       if (data.error) { alert('删除失败：' + data.error); return; }
       if (_currentJobId === jobId) {
         _currentJobId = null;
@@ -349,7 +333,7 @@ function executeDelete() {
       }
       refreshSidebar();
     })
-    .catch(err => { console.error('[delete] fetch error:', err); alert('请求失败，请重试。'); });
+    .catch(() => alert('请求失败，请重试。'));
 }
 
 // ── Polling ──────────────────────────────────────────────────────────────────
@@ -475,10 +459,10 @@ function setVideoMeta(title, author) {
   const titleEl  = document.getElementById('video-title');
   const authorEl = document.getElementById('video-author');
   if (title || author) {
-    titleEl.textContent  = title  || '';
-    authorEl.textContent = author || '';
-    authorEl.style.display = author ? 'block' : 'none';
-    metaEl.style.display = 'block';
+    titleEl.textContent     = title  || '';
+    authorEl.textContent    = author || '';
+    authorEl.style.display  = author ? 'block' : 'none';
+    metaEl.style.display    = 'block';
   } else {
     metaEl.style.display = 'none';
   }
@@ -581,5 +565,8 @@ function showDonePanel(data, jobId) {
     setSummarySpinning(false);
   }
 }
+
+// ── Initial render ────────────────────────────────────────────────────────────
+renderSidebar({{ sidebar_jobs | tojson }});
 </script>
 {% endblock %}
