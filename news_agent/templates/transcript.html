@@ -46,7 +46,7 @@
               <button class="btn btn-link p-0 text-danger position-absolute"
                       style="top:.4rem; right:.4rem; font-size:.75rem; line-height:1"
                       title="删除"
-                      onclick="event.stopPropagation(); confirmDelete('{{ job.job_id }}', {{ (job.video_title or job.video_id)|tojson }})">✕</button>
+                      onclick="event.stopPropagation(); confirmDelete('{{ job.job_id }}', {{ (job.video_title or job.video_id)|tojson|e }})">✕</button>
               {% endif %}
             </div>
             {% endfor %}
