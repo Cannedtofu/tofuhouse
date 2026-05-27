@@ -13,9 +13,10 @@ from flask import Flask, g, jsonify, redirect, render_template, request, send_fi
 
 import db
 from config import ADMIN_EMAIL, EMAIL_WHITELIST, NITTER_FETCH_PERIOD_HOURS, SECRET_KEY
-from digest import build_digest
+from email_digest import build_email_digest
 from pipeline import run_fetch_and_summarize
-from summarizer import generate_batch_digest, summarize_single_article
+from ai_digest import generate_batch_digest
+from article_summarizer import summarize_single_article
 
 # ---------------------------------------------------------------------------
 # Logging — console + rotating file
@@ -123,7 +124,7 @@ def _scheduled_digest_send():
     Runs every 6 hours; fetch is skipped if a manual fetch is already in progress.
     """
     from email_sender import send_digest as _send_email
-    from summarizer import generate_batch_digest
+    from ai_digest import generate_batch_digest
 
     users = db.get_users_due_for_digest()
     if not users:
@@ -550,7 +551,7 @@ def digest():
     today = date.today().isoformat()
     date_from = request.args.get("date_from", today)
     date_to = request.args.get("date_to", today)
-    md = build_digest(date_from=date_from, date_to=date_to)
+    md = build_email_digest(date_from=date_from, date_to=date_to)
     return app.response_class(md, mimetype="text/plain; charset=utf-8")
 
 

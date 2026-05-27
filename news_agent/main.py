@@ -8,7 +8,7 @@ import sys
 from datetime import date
 
 import db
-from digest import build_digest
+from email_digest import build_email_digest
 from email_sender import send_digest
 from pipeline import run_fetch_and_summarize
 
@@ -30,7 +30,7 @@ def main():
         logger.info("  [%s] %s", s["name"], status)
     logger.info("Fetch complete: %d total new articles.", result["total_new"])
 
-    digest_md = build_digest()
+    digest_md = build_email_digest()
     if not digest_md.strip():
         logger.warning("Digest is empty — nothing to send.")
         sys.exit(0)

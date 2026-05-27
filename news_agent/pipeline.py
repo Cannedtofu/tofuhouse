@@ -12,7 +12,7 @@ import db
 from config import MIN_CONTENT_WORDS, NITTER_INTER_SOURCE_DELAY
 from fetchers.rss import fetch_nitter_hybrid, fetch_rss
 from fetchers.web import fetch_web
-from summarizer import summarize_new_articles
+from article_summarizer import summarize_new_articles
 
 logger = logging.getLogger(__name__)
 
