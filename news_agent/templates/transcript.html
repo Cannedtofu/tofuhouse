@@ -46,7 +46,9 @@
               <button class="btn btn-link p-0 text-danger position-absolute"
                       style="top:.4rem; right:.4rem; font-size:.75rem; line-height:1"
                       title="删除"
-                      onclick="event.stopPropagation(); confirmDelete('{{ job.job_id }}', {{ (job.video_title or job.video_id)|tojson|e }})">✕</button>
+                      data-job-id="{{ job.job_id }}"
+                      data-title="{{ (job.video_title or job.video_id)|e }}"
+                      onclick="event.stopPropagation(); confirmDelete(this.dataset.jobId, this.dataset.title)">✕</button>
               {% endif %}
             </div>
             {% endfor %}
@@ -284,7 +286,9 @@ function renderSidebar(jobs) {
       ? `<button class="btn btn-link p-0 text-danger position-absolute"
                  style="top:.4rem; right:.4rem; font-size:.75rem; line-height:1"
                  title="删除"
-                 onclick="event.stopPropagation(); confirmDelete('${j.job_id}', ${JSON.stringify(title)})">✕</button>`
+                 data-job-id="${escHtml(j.job_id)}"
+                 data-title="${escHtml(title)}"
+                 onclick="event.stopPropagation(); confirmDelete(this.dataset.jobId, this.dataset.title)">✕</button>`
       : '';
     return `
     <div class="sidebar-item p-2 rounded mb-1 border position-relative"
