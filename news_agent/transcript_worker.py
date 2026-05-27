@@ -94,50 +94,62 @@ def _parse_vtt(content: str) -> str:
 
 def _fetch_transcript_fast(video_id: str) -> str | None:
     """
-    Download English subtitles via yt-dlp (caption file only, no audio).
-    Uses YOUTUBE_COOKIES_FILE to bypass YouTube's cloud-IP block.
-    Returns plain text, or None if no English captions exist (triggers audio fallback).
+    Download subtitles via yt-dlp (caption file only, no audio).
+    Tries preferred languages first (English + Chinese); if none found,
+    retries with all available languages as a catch-all.
+    Returns plain text, or None to trigger the audio fallback.
     """
     import yt_dlp  # noqa: PLC0415
 
     tmp_dir = tempfile.mkdtemp(prefix="transcript_sub_")
     try:
-        ydl_opts = {
+        base_opts = {
             "writesubtitles": True,
             "writeautomaticsub": True,
-            "subtitleslangs": ["en", "en-US", "en-GB", "en-AU"],
             "skip_download": True,
             "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
             "quiet": True,
             "no_warnings": True,
         }
         if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
-            ydl_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
+            base_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
         if SOCKS_PROXY:
-            ydl_opts["proxy"] = SOCKS_PROXY
+            base_opts["proxy"] = SOCKS_PROXY
         else:
             logger.warning(
                 "yt-dlp subtitle: no proxy configured — may be blocked by YouTube on cloud IPs. "
                 "Set SOCKS_PROXY in .env."
             )
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+        def _try_download(langs: list[str]) -> str | None:
+            opts = {**base_opts, "subtitleslangs": langs}
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+            for ext in (".vtt", ".srt"):
+                for fname in sorted(os.listdir(tmp_dir)):
+                    if fname.endswith(ext):
+                        with open(os.path.join(tmp_dir, fname), encoding="utf-8") as f:
+                            raw = f.read()
+                        text = _parse_vtt(raw)
+                        if text:
+                            return text
+            return None
 
-        # Find the downloaded subtitle file (.vtt preferred, .srt fallback)
-        for ext in (".vtt", ".srt"):
-            for fname in os.listdir(tmp_dir):
-                if fname.endswith(ext):
-                    with open(os.path.join(tmp_dir, fname), encoding="utf-8") as f:
-                        raw = f.read()
-                    text = _parse_vtt(raw)
-                    if text:
-                        logger.info(
-                            "Subtitle fetched via yt-dlp for %s (%d chars)", video_id, len(text)
-                        )
-                        return text
+        # Pass 1: preferred languages (English + Chinese variants)
+        preferred = ["en", "en-US", "en-GB", "en-AU", "zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK"]
+        text = _try_download(preferred)
+        if text:
+            logger.info("Subtitle fetched via yt-dlp for %s (%d chars)", video_id, len(text))
+            return text
 
-        logger.info("No English subtitle file found for %s — will try audio fallback", video_id)
+        # Pass 2: accept any available language
+        logger.info("No preferred-language subtitles for %s — retrying with all languages", video_id)
+        text = _try_download(["all"])
+        if text:
+            logger.info("Subtitle fetched (any language) via yt-dlp for %s (%d chars)", video_id, len(text))
+            return text
+
+        logger.info("No subtitle file found for %s — will try audio fallback", video_id)
         return None
 
     except Exception as exc:
