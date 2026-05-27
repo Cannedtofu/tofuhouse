@@ -685,7 +685,20 @@ def admin_update_user_digest(user_id: int):
 @app.route("/transcript")
 @login_required
 def transcript_page():
-    sidebar_jobs = db.list_transcript_jobs(limit=60)
+    rows = db.list_transcript_jobs(limit=60)
+    sidebar_jobs = [
+        {
+            "job_id":       r["job_id"],
+            "video_id":     r["video_id"],
+            "video_url":    r["video_url"],
+            "video_title":  r["video_title"],
+            "video_author": r["video_author"],
+            "mode":         r["mode"],
+            "status":       r["status"],
+            "created_at":   r["created_at"],
+        }
+        for r in rows
+    ]
     is_admin = g.current_user["email"] == ADMIN_EMAIL
     return render_template("transcript.html", sidebar_jobs=sidebar_jobs, is_admin=is_admin)
 
