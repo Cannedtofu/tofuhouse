@@ -212,6 +212,7 @@ let _pollInterval  = null;
 let _currentJobId  = null;
 let _activeBtn     = null;
 let _deleteJobId   = null;
+let _deleteModal   = null;
 
 document.getElementById('yt-url-input').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') { e.preventDefault(); submitUrl('no_diarization'); }
@@ -315,13 +316,14 @@ function escHtml(s) {
 function confirmDelete(jobId, title) {
   _deleteJobId = jobId;
   document.getElementById('delete-target-title').textContent = title;
-  new bootstrap.Modal(document.getElementById('deleteModal')).show();
+  _deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  _deleteModal.show();
 }
 
 function executeDelete() {
   if (!_deleteJobId) return;
   const jobId = _deleteJobId;
-  bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+  if (_deleteModal) { _deleteModal.hide(); _deleteModal = null; }
 
   fetch(`/transcript/${jobId}/delete`, { method: 'POST' })
     .then(r => r.json())
@@ -338,22 +340,25 @@ function executeDelete() {
 
 // ── Polling ──────────────────────────────────────────────────────────────────
 
+function fetchStatus(jobId) {
+  fetch(`/transcript/status/${jobId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        stopPolling();
+        showErrorPanel(data.error);
+        clearAllBtnBusy();
+        return;
+      }
+      handleStatusUpdate(data, jobId);
+    })
+    .catch(() => {});
+}
+
 function startPolling(jobId) {
   stopPolling();
-  _pollInterval = setInterval(() => {
-    fetch(`/transcript/status/${jobId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          stopPolling();
-          showErrorPanel(data.error);
-          clearAllBtnBusy();
-          return;
-        }
-        handleStatusUpdate(data, jobId);
-      })
-      .catch(() => {});
-  }, 3000);
+  fetchStatus(jobId);
+  _pollInterval = setInterval(() => fetchStatus(jobId), 3000);
 }
 
 function stopPolling() {
