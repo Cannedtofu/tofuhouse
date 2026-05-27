@@ -260,6 +260,37 @@ def _transcribe_audio_file(audio_path: str, diarize: bool = False) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Video metadata
+# ---------------------------------------------------------------------------
+
+def _fetch_video_metadata(video_id: str) -> tuple[str | None, str | None]:
+    """Return (title, uploader) for a YouTube video. Non-fatal — returns (None, None) on failure."""
+    import yt_dlp
+
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+    }
+    if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
+        opts["cookiefile"] = YOUTUBE_COOKIES_FILE
+    if SOCKS_PROXY:
+        opts["proxy"] = SOCKS_PROXY
+
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(
+                f"https://www.youtube.com/watch?v={video_id}", download=False
+            )
+            title  = info.get("title")
+            author = info.get("uploader") or info.get("channel")
+            return title, author
+    except Exception as exc:
+        logger.warning("Could not fetch metadata for %s: %s", video_id, exc)
+        return None, None
+
+
+# ---------------------------------------------------------------------------
 # Shared audio pipeline helper
 # ---------------------------------------------------------------------------
 
@@ -379,6 +410,11 @@ def process_transcript_job(job_id: str, video_url: str, video_id: str,
     try:
         db.update_transcript_job(job_id, status="processing")
         logger.info("Transcript job %s started for %s (mode=%s)", job_id, video_id, mode)
+
+        title, author = _fetch_video_metadata(video_id)
+        if title or author:
+            db.set_transcript_metadata(job_id, video_title=title, video_author=author)
+            logger.info("Metadata for %s: title=%r author=%r", video_id, title, author)
 
         if mode == "diarization":
             _run_audio_transcript(job_id, video_id, diarize=True)

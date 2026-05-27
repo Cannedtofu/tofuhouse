@@ -685,7 +685,8 @@ def admin_update_user_digest(user_id: int):
 @login_required
 def transcript_page():
     sidebar_jobs = db.list_transcript_jobs(limit=60)
-    return render_template("transcript.html", sidebar_jobs=sidebar_jobs)
+    is_admin = g.current_user["email"] == ADMIN_EMAIL
+    return render_template("transcript.html", sidebar_jobs=sidebar_jobs, is_admin=is_admin)
 
 
 @app.route("/transcript/jobs")
@@ -695,12 +696,14 @@ def transcript_jobs_list():
     jobs = db.list_transcript_jobs(limit=60)
     return jsonify([
         {
-            "job_id":     j["job_id"],
-            "video_id":   j["video_id"],
-            "video_url":  j["video_url"],
-            "mode":       j["mode"],
-            "status":     j["status"],
-            "created_at": j["created_at"],
+            "job_id":       j["job_id"],
+            "video_id":     j["video_id"],
+            "video_url":    j["video_url"],
+            "video_title":  j["video_title"],
+            "video_author": j["video_author"],
+            "mode":         j["mode"],
+            "status":       j["status"],
+            "created_at":   j["created_at"],
         }
         for j in jobs
     ])
@@ -751,6 +754,8 @@ def transcript_status(job_id: str):
         "job_id":        job["job_id"],
         "status":        job["status"],
         "mode":          job["mode"],
+        "video_title":   job["video_title"],
+        "video_author":  job["video_author"],
         "summary":       job["summary"],
         "transcript":    job["transcript"],
         "error_message": job["error_message"],
@@ -797,6 +802,15 @@ def transcript_summarize(job_id: str):
         daemon=True,
     )
     thread.start()
+    return jsonify({"ok": True})
+
+
+@app.route("/transcript/<job_id>/delete", methods=["POST"])
+@login_required
+def transcript_delete(job_id: str):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "Not authorised."}), 403
+    db.delete_transcript_job(job_id)
     return jsonify({"ok": True})
 
 

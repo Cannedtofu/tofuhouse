@@ -102,6 +102,8 @@ def init_db():
                 job_id        TEXT    PRIMARY KEY,
                 video_url     TEXT    NOT NULL,
                 video_id      TEXT    NOT NULL,
+                video_title   TEXT,
+                video_author  TEXT,
                 mode          TEXT    NOT NULL DEFAULT 'no_diarization',
                 status        TEXT    NOT NULL DEFAULT 'pending',
                 transcript    TEXT,
@@ -172,6 +174,14 @@ def init_db():
                 "CREATE INDEX IF NOT EXISTS idx_transcript_jobs_video"
                 " ON transcript_jobs(video_id, mode)"
             )
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE transcript_jobs ADD COLUMN video_title TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE transcript_jobs ADD COLUMN video_author TEXT")
         except Exception:
             pass
 
@@ -692,7 +702,7 @@ def list_transcript_jobs(limit: int = 60) -> list:
     """Return recent transcript jobs ordered newest-first (for sidebar)."""
     with get_conn() as conn:
         return conn.execute(
-            """SELECT job_id, video_id, video_url, mode, status, created_at
+            """SELECT job_id, video_id, video_url, video_title, video_author, mode, status, created_at
                FROM transcript_jobs
                ORDER BY created_at DESC LIMIT ?""",
             (limit,),
@@ -726,3 +736,22 @@ def get_transcript_job(job_id: str) -> Optional[sqlite3.Row]:
         return conn.execute(
             "SELECT * FROM transcript_jobs WHERE job_id = ?", (job_id,)
         ).fetchone()
+
+
+def set_transcript_metadata(job_id: str, video_title: Optional[str], video_author: Optional[str]) -> None:
+    """Store video title and author fetched from YouTube."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            """UPDATE transcript_jobs
+               SET video_title=COALESCE(?, video_title),
+                   video_author=COALESCE(?, video_author),
+                   updated_at=?
+               WHERE job_id=?""",
+            (video_title, video_author, now, job_id),
+        )
+
+
+def delete_transcript_job(job_id: str) -> None:
+    with get_conn() as conn:
+        conn.execute("DELETE FROM transcript_jobs WHERE job_id = ?", (job_id,))

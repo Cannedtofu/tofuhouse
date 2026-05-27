@@ -15,13 +15,16 @@
         <div id="sidebar-list" style="overflow-y:auto; max-height:75vh">
           {% if sidebar_jobs %}
             {% for job in sidebar_jobs %}
-            <div class="sidebar-item p-2 rounded mb-1 border"
+            <div class="sidebar-item p-2 rounded mb-1 border position-relative"
                  style="cursor:pointer; font-size:.82rem"
                  onclick="loadJob('{{ job.job_id }}')"
                  title="{{ job.video_url }}">
-              <div class="fw-medium text-truncate" style="max-width:100%">
-                {{ job.video_id }}
+              <div class="fw-medium text-truncate" style="max-width:100%; padding-right:{% if is_admin %}1.4rem{% else %}0{% endif %}">
+                {{ job.video_title or job.video_id }}
               </div>
+              {% if job.video_author %}
+              <div class="text-muted text-truncate" style="font-size:.75rem">{{ job.video_author }}</div>
+              {% endif %}
               <div class="d-flex justify-content-between align-items-center mt-1 gap-1">
                 {% if job.mode == 'diarization' %}
                   <span class="badge bg-primary" style="font-size:.68rem">区分发言人</span>
@@ -39,6 +42,12 @@
                   <span class="text-warning" style="font-size:.72rem">…</span>
                 {% endif %}
               </div>
+              {% if is_admin %}
+              <button class="btn btn-link p-0 text-danger position-absolute"
+                      style="top:.4rem; right:.4rem; font-size:.75rem; line-height:1"
+                      title="删除"
+                      onclick="event.stopPropagation(); confirmDelete('{{ job.job_id }}', {{ (job.video_title or job.video_id)|tojson }})">✕</button>
+              {% endif %}
             </div>
             {% endfor %}
           {% else %}
@@ -86,6 +95,12 @@
 
     <!-- Status / result card -->
     <div id="result-card" class="card p-4" style="display:none">
+
+      <!-- Video metadata header -->
+      <div id="video-meta" class="mb-3" style="display:none">
+        <div id="video-title" class="fw-semibold" style="font-size:1.05rem"></div>
+        <div id="video-author" class="text-muted small"></div>
+      </div>
 
       <!-- Status indicator -->
       <div id="status-indicator" class="d-flex align-items-center gap-2 mb-3 flex-wrap">
@@ -166,13 +181,37 @@
 
   </div><!-- /col-md-9 -->
 </div><!-- /row -->
+
+<!-- ── Admin delete confirm modal ── -->
+{% if is_admin %}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title text-danger">删除转录记录</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body py-2">
+        <p class="small mb-1">确认删除以下记录？此操作不可撤销。</p>
+        <p id="delete-target-title" class="fw-semibold small text-truncate mb-0"></p>
+      </div>
+      <div class="modal-footer border-0 pt-1">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-sm btn-danger" onclick="executeDelete()">确认删除</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
 let _pollInterval  = null;
 let _currentJobId  = null;
-let _activeBtn     = null;   // which submit button is busy
+let _activeBtn     = null;
+let _deleteJobId   = null;
 
 document.getElementById('yt-url-input').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') { e.preventDefault(); submitUrl('no_diarization'); }
@@ -203,7 +242,6 @@ function submitUrl(mode) {
       _currentJobId = data.job_id;
       showResultCard('pending', '正在排队…', mode);
       if (data.cached) {
-        // Already done — one status poll will render results immediately
         setStatusText('已找到缓存结果，正在加载…');
       }
       startPolling(_currentJobId);
@@ -215,6 +253,8 @@ function submitUrl(mode) {
 }
 
 // ── Sidebar ──────────────────────────────────────────────────────────────────
+
+const _isAdmin = {{ 'true' if is_admin else 'false' }};
 
 function loadJob(jobId) {
   resetResultCard();
@@ -236,25 +276,64 @@ function renderSidebar(jobs) {
     list.innerHTML = '<p class="text-muted small mb-0">暂无转录记录。</p>';
     return;
   }
-  list.innerHTML = jobs.map(j => `
-    <div class="sidebar-item p-2 rounded mb-1 border"
+  list.innerHTML = jobs.map(j => {
+    const title  = j.video_title  || j.video_id;
+    const author = j.video_author || '';
+    const deleteBtn = _isAdmin
+      ? `<button class="btn btn-link p-0 text-danger position-absolute"
+                 style="top:.4rem; right:.4rem; font-size:.75rem; line-height:1"
+                 title="删除"
+                 onclick="event.stopPropagation(); confirmDelete('${j.job_id}', ${JSON.stringify(title)})">✕</button>`
+      : '';
+    return `
+    <div class="sidebar-item p-2 rounded mb-1 border position-relative"
          style="cursor:pointer; font-size:.82rem"
          onclick="loadJob('${j.job_id}')"
          title="${j.video_url}">
-      <div class="fw-medium text-truncate">${j.video_id}</div>
+      <div class="fw-medium text-truncate" style="max-width:100%; padding-right:${_isAdmin ? '1.4rem' : '0'}">${escHtml(title)}</div>
+      ${author ? `<div class="text-muted text-truncate" style="font-size:.75rem">${escHtml(author)}</div>` : ''}
       <div class="d-flex justify-content-between align-items-center mt-1 gap-1">
-        <span class="badge ${j.mode === 'diarization' ? 'bg-primary' : 'bg-secondary'}"
-              style="font-size:.68rem">
+        <span class="badge ${j.mode === 'diarization' ? 'bg-primary' : 'bg-secondary'}" style="font-size:.68rem">
           ${j.mode === 'diarization' ? '区分发言人' : '不区分'}
         </span>
         <span class="text-muted" style="font-size:.72rem; flex-shrink:0">${j.created_at.slice(0,10)}</span>
-        <span class="${j.status==='done'?'text-success':j.status==='error'?'text-danger':'text-warning'}"
-              style="font-size:.72rem">
+        <span class="${j.status==='done'?'text-success':j.status==='error'?'text-danger':'text-warning'}" style="font-size:.72rem">
           ${j.status==='done'?'✓':j.status==='error'?'✗':'…'}
         </span>
       </div>
-    </div>
-  `).join('');
+      ${deleteBtn}
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+function confirmDelete(jobId, title) {
+  _deleteJobId = jobId;
+  document.getElementById('delete-target-title').textContent = title;
+  new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function executeDelete() {
+  if (!_deleteJobId) return;
+  const jobId = _deleteJobId;
+  bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+
+  fetch(`/transcript/${jobId}/delete`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert('删除失败：' + data.error); return; }
+      if (_currentJobId === jobId) {
+        _currentJobId = null;
+        resetResultCard();
+      }
+      refreshSidebar();
+    })
+    .catch(() => alert('请求失败，请重试。'));
 }
 
 // ── Polling ──────────────────────────────────────────────────────────────────
@@ -285,6 +364,7 @@ function handleStatusUpdate(data, jobId) {
   const status = data.status;
   updateStatusBadge(status);
   setModeBadge(data.mode);
+  setVideoMeta(data.video_title, data.video_author);
 
   if (status === 'pending') {
     setStatusText('正在排队…');
@@ -371,6 +451,20 @@ function showSummaryContent(text) {
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
+function setVideoMeta(title, author) {
+  const metaEl   = document.getElementById('video-meta');
+  const titleEl  = document.getElementById('video-title');
+  const authorEl = document.getElementById('video-author');
+  if (title || author) {
+    titleEl.textContent  = title  || '';
+    authorEl.textContent = author || '';
+    authorEl.style.display = author ? 'block' : 'none';
+    metaEl.style.display = 'block';
+  } else {
+    metaEl.style.display = 'none';
+  }
+}
+
 function setBtnBusy(mode, busy) {
   const id  = mode === 'diarization' ? 'btn-diarize' : 'btn-no-diarize';
   const btn = document.getElementById(id);
@@ -402,6 +496,7 @@ function resetResultCard() {
   document.getElementById('error-panel').style.display    = 'none';
   document.getElementById('done-panel').style.display     = 'none';
   document.getElementById('approval-panel').style.display = 'none';
+  document.getElementById('video-meta').style.display     = 'none';
   document.getElementById('transcript-content').textContent = '';
   document.getElementById('summary-content').textContent    = '';
   document.getElementById('mode-badge').style.display       = 'none';
@@ -456,6 +551,7 @@ function showDonePanel(data, jobId) {
   updateStatusBadge('done');
   setStatusText('转录完成。');
   setModeBadge(data.mode);
+  setVideoMeta(data.video_title, data.video_author);
   document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
   document.getElementById('download-btn').href = `/transcript/download/${jobId}`;
   document.getElementById('done-panel').style.display = 'block';
