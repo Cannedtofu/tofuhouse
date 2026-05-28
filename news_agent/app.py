@@ -770,6 +770,7 @@ def transcript_status(job_id: str):
         "mode":          job["mode"],
         "video_title":   job["video_title"],
         "video_author":  job["video_author"],
+        "video_url":     job["video_url"],
         "summary":       job["summary"],
         "transcript":    job["transcript"],
         "error_message": job["error_message"],

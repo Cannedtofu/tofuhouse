@@ -95,8 +95,10 @@ def _fetch_transcript_fast(video_id: str) -> str | None:
             "writeautomaticsub": True,
             "skip_download": True,
             "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
-            "quiet": True,
-            "no_warnings": True,
+            "quiet": False,
+            "no_warnings": False,
+            "socket_timeout": 30,
+            "retries": 5,
         }
         if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
             base_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
@@ -105,19 +107,29 @@ def _fetch_transcript_fast(video_id: str) -> str | None:
         else:
             logger.warning("yt-dlp subtitle: no proxy configured — may be blocked on cloud IPs")
 
-        def _try_download(langs: list[str]) -> str | None:
-            opts = {**base_opts, "subtitleslangs": langs}
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+        def _collect_files() -> str | None:
             for ext in (".vtt", ".srt"):
                 for fname in sorted(os.listdir(tmp_dir)):
                     if fname.endswith(ext):
-                        with open(os.path.join(tmp_dir, fname), encoding="utf-8") as f:
+                        fpath = os.path.join(tmp_dir, fname)
+                        with open(fpath, encoding="utf-8") as f:
                             raw = f.read()
                         text = _parse_vtt(raw)
                         if text:
+                            logger.info("  using subtitle file %s (%d chars raw)", fname, len(raw))
                             return text
+                        logger.warning("  subtitle file %s parsed to empty text", fname)
             return None
+
+        def _try_download(langs: list[str]) -> str | None:
+            opts = {**base_opts, "subtitleslangs": langs}
+            try:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+            except Exception as exc:
+                logger.warning("yt-dlp subtitle download error (langs=%s) for %s: %s", langs, video_id, exc)
+                return None
+            return _collect_files()
 
         preferred = ["en", "en-US", "en-GB", "en-AU", "zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK"]
         text = _try_download(preferred)
@@ -131,11 +143,11 @@ def _fetch_transcript_fast(video_id: str) -> str | None:
             logger.info("Subtitle fetched (any language) for %s (%d chars)", video_id, len(text))
             return text
 
-        logger.info("No subtitle file found for %s", video_id)
+        logger.info("No subtitle file found for %s — listing tmp dir: %s", video_id, os.listdir(tmp_dir))
         return None
 
     except Exception as exc:
-        logger.info("yt-dlp subtitle download failed for %s: %s", video_id, exc)
+        logger.warning("yt-dlp subtitle fast path failed for %s: %s", video_id, exc)
         return None
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -239,7 +251,7 @@ def _transcribe_audio_file(audio_path: str, diarize: bool = False) -> str:
     if diarize:
         kwargs["diarization_enabled"] = True
 
-    response = Recognition.call(**kwargs)
+    response = Recognition().call(**kwargs)
 
     if response.status_code != 200:
         raise RuntimeError(

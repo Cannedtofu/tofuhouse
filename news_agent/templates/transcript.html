@@ -59,6 +59,10 @@
       <div id="video-meta" class="mb-3" style="display:none">
         <div id="video-title" class="fw-semibold" style="font-size:1.05rem"></div>
         <div id="video-author" class="text-muted small"></div>
+        <div id="video-url-row" class="text-muted small" style="display:none">
+          <a id="video-url-link" href="#" target="_blank" rel="noopener"
+             style="font-size:.8rem; word-break:break-all"></a>
+        </div>
       </div>
 
       <!-- Status indicator -->
@@ -367,7 +371,7 @@ function handleStatusUpdate(data, jobId) {
   const status = data.status;
   updateStatusBadge(status);
   setModeBadge(data.mode);
-  setVideoMeta(data.video_title, data.video_author);
+  setVideoMeta(data.video_title, data.video_author, data.video_url);
 
   if (status === 'pending') {
     setStatusText('正在排队…');
@@ -454,15 +458,24 @@ function showSummaryContent(text) {
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
-function setVideoMeta(title, author) {
+function setVideoMeta(title, author, url) {
   const metaEl   = document.getElementById('video-meta');
   const titleEl  = document.getElementById('video-title');
   const authorEl = document.getElementById('video-author');
-  if (title || author) {
+  const urlRow   = document.getElementById('video-url-row');
+  const urlLink  = document.getElementById('video-url-link');
+  if (title || author || url) {
     titleEl.textContent     = title  || '';
     authorEl.textContent    = author || '';
     authorEl.style.display  = author ? 'block' : 'none';
-    metaEl.style.display    = 'block';
+    if (url) {
+      urlLink.href        = url;
+      urlLink.textContent = url;
+      urlRow.style.display = 'block';
+    } else {
+      urlRow.style.display = 'none';
+    }
+    metaEl.style.display = 'block';
   } else {
     metaEl.style.display = 'none';
   }
@@ -554,7 +567,7 @@ function showDonePanel(data, jobId) {
   updateStatusBadge('done');
   setStatusText('转录完成。');
   setModeBadge(data.mode);
-  setVideoMeta(data.video_title, data.video_author);
+  setVideoMeta(data.video_title, data.video_author, data.video_url);
   document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
   document.getElementById('download-btn').href = `/transcript/download/${jobId}`;
   document.getElementById('done-panel').style.display = 'block';
