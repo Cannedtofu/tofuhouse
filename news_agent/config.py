@@ -15,6 +15,7 @@ NITTER_INSTANCES = (
 QWEN_API_KEY = os.getenv("QWEN_API_KEY", "")
 QWEN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 QWEN_SUMMARY_MODEL = "qwen-plus"        # fast + cheap, used for article summaries
+QWEN_TRANSLATION_MODEL: str = os.getenv("QWEN_TRANSLATION_MODEL", QWEN_SUMMARY_MODEL)
 QWEN_VISION_MODEL = "qwen3-vl-flash"       # vision model, used for browser-use fallback only
 MIN_BROWSER_FALLBACK_CHARS = 300        # Playwright result shorter than this triggers agent fallback
 

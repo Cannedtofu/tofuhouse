@@ -773,6 +773,7 @@ def transcript_status(job_id: str):
         "video_url":     job["video_url"],
         "summary":       job["summary"],
         "transcript":    job["transcript"],
+        "transcript_zh": job["transcript_zh"],
         "error_message": job["error_message"],
     })
 
@@ -820,6 +821,24 @@ def transcript_summarize(job_id: str):
     return jsonify({"ok": True})
 
 
+@app.route("/transcript/<job_id>/translate", methods=["POST"])
+@login_required
+def transcript_translate(job_id: str):
+    from transcript_worker import translate_transcript
+
+    job = db.get_transcript_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    if job["status"] != "done":
+        return jsonify({"error": "Transcript not ready."}), 400
+    if not job["transcript"]:
+        return jsonify({"error": "No transcript to translate."}), 400
+
+    db.update_transcript_job(job_id, status="translating")
+    threading.Thread(target=translate_transcript, args=(job_id,), daemon=True).start()
+    return jsonify({"ok": True})
+
+
 @app.route("/transcript/<job_id>/delete", methods=["POST"])
 @login_required
 def transcript_delete(job_id: str):
@@ -840,24 +859,36 @@ def transcript_download(job_id: str):
     if job["status"] != "done":
         return jsonify({"error": "Transcript not ready yet."}), 400
 
+    from flask import request as flask_request
+    version = flask_request.args.get("version", "original")  # "original" or "chinese"
     video_url = job["video_url"]
     summary = job["summary"] or ""
-    transcript = job["transcript"] or ""
+
+    if version == "chinese":
+        transcript = job["transcript_zh"] or ""
+        if not transcript and not summary:
+            return jsonify({"error": "No Chinese content available."}), 400
+        label = "中文版本"
+        suffix = "zh"
+    else:
+        transcript = job["transcript"] or ""
+        label = "原文版本"
+        suffix = "original"
 
     sections = [
-        f"YouTube Transcript\nURL: {video_url}\n{'=' * 60}\n",
-        f"FULL TRANSCRIPT\n{'-' * 60}\n{transcript}\n",
+        f"YouTube Transcript — {label}\nURL: {video_url}\n{'=' * 60}\n",
+        f"完整转录文本\n{'-' * 60}\n{transcript}\n" if transcript else "",
     ]
     if summary:
-        sections.insert(1, f"SUMMARY\n{'-' * 60}\n{summary}\n\n{'=' * 60}\n")
-    content = "\n".join(sections)
+        sections.insert(1, f"中文摘要\n{'-' * 60}\n{summary}\n\n{'=' * 60}\n")
+    content = "\n".join(s for s in sections if s)
 
     safe_id = job["video_id"]
     return Response(
         content,
         mimetype="text/plain; charset=utf-8",
         headers={
-            "Content-Disposition": f'attachment; filename="transcript_{safe_id}.txt"'
+            "Content-Disposition": f'attachment; filename="transcript_{safe_id}_{suffix}.txt"'
         },
     )
 

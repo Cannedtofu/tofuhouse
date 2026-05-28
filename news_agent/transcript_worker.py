@@ -26,7 +26,7 @@ import shutil
 import tempfile
 
 import db
-from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL, SOCKS_PROXY, YOUTUBE_COOKIES_FILE
+from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL, QWEN_TRANSLATION_MODEL, SOCKS_PROXY, YOUTUBE_COOKIES_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -82,75 +82,91 @@ def _parse_vtt(content: str) -> str:
 
 def _fetch_transcript_fast(video_id: str) -> str | None:
     """
-    Try to download subtitles via yt-dlp (caption file only, no audio).
-    Pass 1: English + Chinese; Pass 2: any language.
+    Probe available subtitles via yt-dlp extract_info, pick the best VTT URL,
+    download it through yt-dlp's own networking (proxy-aware), then parse.
     Returns plain text or None to trigger audio fallback.
     """
     import yt_dlp
 
-    tmp_dir = tempfile.mkdtemp(prefix="transcript_sub_")
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "socket_timeout": 30,
+        "retries": 5,
+    }
+    if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
+        ydl_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
+    if SOCKS_PROXY:
+        ydl_opts["proxy"] = SOCKS_PROXY
+    else:
+        logger.warning("yt-dlp subtitle: no proxy configured — may be blocked on cloud IPs")
+
+    url = f"https://www.youtube.com/watch?v={video_id}"
+
+    # Step 1: probe what subtitle tracks actually exist
     try:
-        base_opts = {
-            "writesubtitles": True,
-            "writeautomaticsub": True,
-            "skip_download": True,
-            "outtmpl": os.path.join(tmp_dir, "%(id)s.%(ext)s"),
-            "quiet": False,
-            "no_warnings": False,
-            "socket_timeout": 30,
-            "retries": 5,
-        }
-        if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
-            base_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
-        if SOCKS_PROXY:
-            base_opts["proxy"] = SOCKS_PROXY
-        else:
-            logger.warning("yt-dlp subtitle: no proxy configured — may be blocked on cloud IPs")
-
-        def _collect_files() -> str | None:
-            for ext in (".vtt", ".srt"):
-                for fname in sorted(os.listdir(tmp_dir)):
-                    if fname.endswith(ext):
-                        fpath = os.path.join(tmp_dir, fname)
-                        with open(fpath, encoding="utf-8") as f:
-                            raw = f.read()
-                        text = _parse_vtt(raw)
-                        if text:
-                            logger.info("  using subtitle file %s (%d chars raw)", fname, len(raw))
-                            return text
-                        logger.warning("  subtitle file %s parsed to empty text", fname)
-            return None
-
-        def _try_download(langs: list[str]) -> str | None:
-            opts = {**base_opts, "subtitleslangs": langs}
-            try:
-                with yt_dlp.YoutubeDL(opts) as ydl:
-                    ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
-            except Exception as exc:
-                logger.warning("yt-dlp subtitle download error (langs=%s) for %s: %s", langs, video_id, exc)
-                return None
-            return _collect_files()
-
-        preferred = ["en", "en-US", "en-GB", "en-AU", "zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK"]
-        text = _try_download(preferred)
-        if text:
-            logger.info("Subtitle fetched via yt-dlp for %s (%d chars)", video_id, len(text))
-            return text
-
-        logger.info("No preferred-language subtitles for %s — retrying with all languages", video_id)
-        text = _try_download(["all"])
-        if text:
-            logger.info("Subtitle fetched (any language) for %s (%d chars)", video_id, len(text))
-            return text
-
-        logger.info("No subtitle file found for %s — listing tmp dir: %s", video_id, os.listdir(tmp_dir))
-        return None
-
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
     except Exception as exc:
-        logger.warning("yt-dlp subtitle fast path failed for %s: %s", video_id, exc)
+        logger.warning("yt-dlp extract_info failed for %s: %s", video_id, exc)
         return None
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    subtitles = info.get("subtitles") or {}
+    auto_caps  = info.get("automatic_captions") or {}
+    logger.info(
+        "Subtitle tracks for %s — manual: %s  auto: %s",
+        video_id, sorted(subtitles.keys()), sorted(auto_caps.keys()),
+    )
+
+    def _pick_vtt(pool: dict, langs: list[str]) -> tuple[str | None, str | None]:
+        """Return (url, lang) for the first matching VTT track."""
+        for lang in langs:
+            for fmt in pool.get(lang, []):
+                if fmt.get("ext") == "vtt":
+                    return fmt["url"], lang
+        return None, None
+
+    preferred = ["en", "en-US", "en-GB", "en-AU", "en-orig",
+                 "zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK"]
+
+    sub_url, sub_lang = _pick_vtt(subtitles, preferred)          # manual first
+    if not sub_url:
+        sub_url, sub_lang = _pick_vtt(auto_caps, preferred)      # then auto-generated
+    if not sub_url:
+        # fall back to any language that has a VTT track
+        for pool in (subtitles, auto_caps):
+            for lang, fmts in pool.items():
+                for fmt in fmts:
+                    if fmt.get("ext") == "vtt":
+                        sub_url, sub_lang = fmt["url"], lang
+                        break
+                if sub_url:
+                    break
+            if sub_url:
+                break
+
+    if not sub_url:
+        logger.info("No VTT subtitle track available for %s", video_id)
+        return None
+
+    # Step 2: download the VTT through yt-dlp's networking (proxy-aware)
+    logger.info("Downloading subtitle for %s (lang=%s)", video_id, sub_lang)
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            resp = ydl.urlopen(sub_url)
+            vtt_content = resp.read().decode("utf-8")
+    except Exception as exc:
+        logger.warning("Failed to fetch subtitle VTT for %s: %s", video_id, exc)
+        return None
+
+    text = _parse_vtt(vtt_content)
+    if text:
+        logger.info("Subtitle extracted for %s (%d chars)", video_id, len(text))
+        return text
+
+    logger.warning("Subtitle for %s parsed to empty string (raw %d chars)", video_id, len(vtt_content))
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -230,39 +246,63 @@ def _format_diarized_sentences(sentences: list) -> str:
 
 def _transcribe_audio_file(audio_path: str, diarize: bool = False) -> str:
     """
-    Transcribe a full audio file with paraformer-v2 via DashScope Recognition.
-    paraformer-v2 supports up to 2 GB / 12 hours per call (diarization recommended ≤2 h).
-    No chunking needed — the full file is sent in one call, which gives consistent
-    speaker IDs throughout when diarization is enabled.
+    Transcribe a full audio file with paraformer-v2 via DashScope Transcription API.
+    Transcription.async_call submits the job; Transcription.wait blocks until done.
+    The result JSON is fetched from the transcription_url in the response.
     """
+    import json
+    import urllib.request
+
     import dashscope
-    from dashscope.audio.asr import Recognition
+    from dashscope.audio.asr import Transcription
 
     dashscope.api_key = QWEN_API_KEY
     file_uri = f"file://{os.path.abspath(audio_path)}"
 
-    audio_fmt = os.path.splitext(audio_path)[1].lstrip(".") or "mp3"
-    kwargs: dict = dict(
-        model="paraformer-v2",
-        file=file_uri,
-        format=audio_fmt,
-        language_hints=["zh", "en"],
-    )
+    call_kwargs: dict = {
+        "model": "paraformer-v2",
+        "file_urls": [file_uri],
+        "language_hints": ["zh", "en"],
+    }
     if diarize:
-        kwargs["diarization_enabled"] = True
+        call_kwargs["diarization_enabled"] = True
 
-    response = Recognition().call(**kwargs)
-
-    if response.status_code != 200:
+    task_resp = Transcription.async_call(**call_kwargs)
+    if task_resp.status_code != 200:
         raise RuntimeError(
-            f"paraformer-v2 error {response.status_code}: {response.message}"
+            f"Transcription submit error {task_resp.status_code}: {task_resp.message}"
         )
 
-    output    = response.output or {}
-    sentences = output.get("sentence_info") or []
+    resp = Transcription.wait(task_resp)
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"Transcription error {resp.status_code}: {resp.message}"
+        )
+
+    results = (resp.output or {}).get("results") or []
+    if not results:
+        raise RuntimeError("Transcription returned no results")
+
+    result = results[0]
+    if result.get("subtask_status") != "SUCCEEDED":
+        raise RuntimeError(f"Transcription subtask status: {result.get('subtask_status')}")
+
+    trans_url = result.get("transcription_url")
+    if not trans_url:
+        raise RuntimeError("No transcription_url in result")
+
+    with urllib.request.urlopen(trans_url) as f:
+        trans_data = json.loads(f.read().decode("utf-8"))
+
+    transcripts = trans_data.get("transcripts") or []
+    if not transcripts:
+        return trans_data.get("text", "")
+
+    channel   = transcripts[0]
+    sentences = channel.get("sentences") or []
 
     if not sentences:
-        return output.get("text", "") or ""
+        return channel.get("text", "")
 
     if diarize:
         return _format_diarized_sentences(sentences)
@@ -327,56 +367,94 @@ def _run_audio_transcript(job_id: str, video_id: str, diarize: bool = False) -> 
 # ---------------------------------------------------------------------------
 
 _TRANSCRIPT_SUMMARY_SYSTEM = (
-    "You are a helpful assistant that summarizes video transcripts clearly and concisely. "
-    "Respond in the same language as the majority of the transcript content."
+    "You are a helpful assistant that summarizes video transcripts. "
+    "Always write your summary in Simplified Chinese (简体中文), "
+    "regardless of the language of the input transcript."
 )
 
 _TRANSCRIPT_SUMMARY_PROMPT = """\
-Please summarize the following video transcript in three clearly labeled sections:
+Summarize the following video transcript in Simplified Chinese using three clearly labeled sections:
 
-**Overview** (2-3 sentences): What is this video about?
+**概述** (2-3 sentences): What is this video about?
 
-**Key Topics** (bulleted list): What are the main subjects covered?
+**主要话题** (bulleted list): What are the main subjects covered?
 
-**Main Takeaways** (bulleted list): What are the key conclusions or insights?
+**核心要点** (bulleted list): What are the key conclusions or insights?
 
 Transcript:
 {transcript}"""
 
 _CHUNK_SUMMARY_PROMPT = """\
-Summarize the key points from this section (part {part} of {total}) of a video transcript. \
-Be concise and factual.
+Summarize the key points from this section (part {part} of {total}) of a video transcript \
+in Simplified Chinese. Be concise and factual.
 
 Transcript section:
 {transcript}"""
 
 _FINAL_SUMMARY_PROMPT = """\
-Based on these section-by-section summaries from a longer video transcript, \
-write a final summary in three clearly labeled sections:
+Based on these section summaries from a longer video transcript, \
+write a final summary in Simplified Chinese using three clearly labeled sections:
 
-**Overview** (2-3 sentences): What is this video about?
+**概述** (2-3 sentences): What is this video about?
 
-**Key Topics** (bulleted list): What are the main subjects covered?
+**主要话题** (bulleted list): What are the main subjects covered?
 
-**Main Takeaways** (bulleted list): What are the key conclusions or insights?
+**核心要点** (bulleted list): What are the key conclusions or insights?
 
 Section summaries:
 {summaries}"""
 
+_TRANSLATE_SYSTEM = (
+    "You are a professional translator. Translate the given text into Simplified Chinese. "
+    "Output only the translated text. Preserve speaker labels like [Speaker A] unchanged."
+)
 
-def _qwen_chat(prompt: str, max_tokens: int = 1024) -> str:
+_TRANSLATE_PROMPT = """\
+Translate the following video transcript into Simplified Chinese.
+Output only the translated text, no explanations.
+
+{text}"""
+
+
+def _qwen_chat(prompt: str, max_tokens: int = 1024, model: str | None = None,
+               system: str | None = None) -> str:
     from openai import OpenAI
     client = OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL)
     resp = client.chat.completions.create(
-        model=QWEN_SUMMARY_MODEL,
+        model=model or QWEN_SUMMARY_MODEL,
         messages=[
-            {"role": "system", "content": _TRANSCRIPT_SUMMARY_SYSTEM},
+            {"role": "system", "content": system or _TRANSCRIPT_SUMMARY_SYSTEM},
             {"role": "user",   "content": prompt},
         ],
         temperature=0.2,
         max_tokens=max_tokens,
     )
     return resp.choices[0].message.content.strip()
+
+
+def _translate_to_chinese(text: str) -> str:
+    """Translate transcript text to Simplified Chinese, chunking if needed."""
+    if len(text) <= _MAX_CHARS_PER_LLM_CALL:
+        return _qwen_chat(
+            _TRANSLATE_PROMPT.format(text=text),
+            max_tokens=4096,
+            model=QWEN_TRANSLATION_MODEL,
+            system=_TRANSLATE_SYSTEM,
+        )
+    chunks = [
+        text[i : i + _MAX_CHARS_PER_LLM_CALL]
+        for i in range(0, len(text), _MAX_CHARS_PER_LLM_CALL)
+    ]
+    logger.info("Translating in %d chunks", len(chunks))
+    return "".join(
+        _qwen_chat(
+            _TRANSLATE_PROMPT.format(text=chunk),
+            max_tokens=4096,
+            model=QWEN_TRANSLATION_MODEL,
+            system=_TRANSLATE_SYSTEM,
+        )
+        for chunk in chunks
+    )
 
 
 def _summarize_transcript(transcript: str) -> str:
@@ -461,22 +539,56 @@ def continue_audio_transcript(job_id: str, video_id: str) -> None:
         db.update_transcript_job(job_id, status="error", error_message=str(exc))
 
 
-def generate_transcript_summary(job_id: str) -> None:
+def translate_transcript(job_id: str) -> None:
     """
-    User-activated summarization. Sets status 'summarizing' before being called.
-    On success: status stays 'done' with summary populated.
-    On failure: reverts to 'done' without summary so user can retry.
+    User-activated translation. Called from app.py after status is set to 'translating'.
+    Translates the original transcript to Simplified Chinese and stores in transcript_zh.
+    On failure: reverts to 'done' so user can retry.
     """
     try:
         job = db.get_transcript_job(job_id)
         transcript = job["transcript"] if job else None
         if not transcript:
+            logger.error("Job %s has no transcript to translate", job_id)
+            db.update_transcript_job(job_id, status="done")
+            return
+
+        logger.info("Translating transcript for job %s (%d chars)", job_id, len(transcript))
+        transcript_zh = _translate_to_chinese(transcript)
+        db.update_transcript_job(job_id, status="done", transcript_zh=transcript_zh)
+        logger.info("Translation done for job %s (%d chars)", job_id, len(transcript_zh))
+
+    except Exception as exc:
+        logger.exception("Translation for job %s failed: %s", job_id, exc)
+        db.update_transcript_job(job_id, status="done")  # revert so user can retry
+
+
+def generate_transcript_summary(job_id: str) -> None:
+    """
+    User-activated summarization. Sets status 'summarizing' before being called.
+    Uses transcript_zh as source if available (Chinese → Chinese summary);
+    otherwise summarizes the original transcript and instructs the LLM to output Chinese.
+    On failure: reverts to 'done' so user can retry.
+    """
+    try:
+        job = db.get_transcript_job(job_id)
+        if not job:
+            logger.error("Job %s not found", job_id)
+            db.update_transcript_job(job_id, status="done")
+            return
+
+        # Prefer the Chinese transcript as input so the summary is purely Chinese→Chinese
+        source = job["transcript_zh"] or job["transcript"]
+        if not source:
             logger.error("Job %s has no transcript to summarize", job_id)
             db.update_transcript_job(job_id, status="done")
             return
 
-        logger.info("Summarizing transcript for job %s (%d chars)", job_id, len(transcript))
-        summary = _summarize_transcript(transcript)
+        logger.info(
+            "Summarizing transcript for job %s (%d chars, source=%s)",
+            job_id, len(source), "zh" if job["transcript_zh"] else "original",
+        )
+        summary = _summarize_transcript(source)
         db.update_transcript_job(job_id, status="done", summary=summary)
         logger.info("Summary generated for job %s", job_id)
 

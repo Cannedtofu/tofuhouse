@@ -89,15 +89,18 @@
         </div>
       </div>
 
-      <!-- Done panel: transcript + optional summary -->
+      <!-- Done panel: transcript + translation + summary -->
       <div id="done-panel" style="display:none">
 
-        <!-- Download button -->
-        <div class="d-flex justify-content-end mb-3">
-          <a id="download-btn" href="#" class="btn btn-sm btn-outline-secondary">⬇ 下载 .txt</a>
+        <!-- Download buttons -->
+        <div class="d-flex justify-content-end gap-2 mb-3">
+          <a id="download-original-btn" href="#"
+             class="btn btn-sm btn-outline-secondary">⬇ 下载原文</a>
+          <a id="download-zh-btn" href="#"
+             class="btn btn-sm btn-outline-secondary" style="display:none">⬇ 下载中文</a>
         </div>
 
-        <!-- Full transcript (primary output) -->
+        <!-- Original transcript -->
         <div class="mb-4">
           <div class="fw-semibold mb-2"
                style="font-size:1rem; border-left:4px solid #198754; padding-left:.6rem;">
@@ -105,39 +108,63 @@
           </div>
           <div id="transcript-content"
                style="font-size:.88rem; line-height:1.75; background:#f8f9fa;
-                      border-radius:6px; padding:1rem; max-height:500px;
+                      border-radius:6px; padding:1rem; max-height:400px;
                       overflow-y:auto; white-space:pre-wrap; word-break:break-word;">
           </div>
         </div>
 
-        <!-- AI summary section (user-activated) -->
-        <div id="summary-section">
+        <!-- Chinese translation section -->
+        <div id="translation-section" class="mb-4">
+          <div id="translation-generate-area">
+            <button class="btn btn-sm btn-outline-secondary" onclick="requestTranslation()">
+              🌐 翻译为中文
+            </button>
+            <span class="text-muted small ms-2">将转录文本翻译为简体中文</span>
+          </div>
+          <div id="translation-spinner-area" style="display:none">
+            <span class="spinner-border spinner-border-sm text-secondary me-2"></span>
+            <span class="text-muted small">正在翻译为中文…</span>
+          </div>
+          <div id="translation-content-area" style="display:none">
+            <div class="fw-semibold mb-2"
+                 style="font-size:1rem; border-left:4px solid #6610f2; padding-left:.6rem;">
+              中文翻译
+            </div>
+            <div id="transcript-zh-content"
+                 style="font-size:.88rem; line-height:1.75; background:#f8f9fa;
+                        border-radius:6px; padding:1rem; max-height:400px;
+                        overflow-y:auto; white-space:pre-wrap; word-break:break-word;">
+            </div>
+          </div>
+        </div>
 
+        <!-- Chinese summary section (user-activated) -->
+        <div id="summary-section">
           <div id="summary-generate-area">
             <button class="btn btn-sm btn-outline-primary" onclick="generateSummary()">
-              ✨ 生成 AI 摘要
+              ✨ 生成中文摘要
             </button>
-            <span class="text-muted small ms-2">使用 Qwen 对转录内容进行摘要</span>
+            <span class="text-muted small ms-2" id="summary-hint">
+              直接从原文生成中文摘要（或先翻译再摘要）
+            </span>
           </div>
-
-          <!-- No d-flex class here — JS controls display entirely -->
+          <!-- JS controls display — no d-flex class -->
           <div id="summary-spinner-area" style="display:none">
             <span class="spinner-border spinner-border-sm text-primary me-2"></span>
-            <span class="text-muted small">正在生成 AI 摘要…</span>
+            <span class="text-muted small">正在生成中文摘要…</span>
           </div>
-
           <div id="summary-content-area" style="display:none">
             <div class="fw-semibold mb-2"
                  style="font-size:1rem; border-left:4px solid #0d6efd; padding-left:.6rem;">
-              AI 摘要
+              中文摘要
             </div>
             <div id="summary-content"
                  style="font-size:.93rem; line-height:1.7; background:#f8f9fa;
                         border-radius:6px; padding:1rem; white-space:pre-wrap; word-break:break-word;">
             </div>
           </div>
-
         </div>
+
       </div>
 
     </div><!-- /result-card -->
@@ -384,8 +411,11 @@ function handleStatusUpdate(data, jobId) {
     clearAllBtnBusy();
     setStatusText('未找到字幕，需确认是否下载音频。');
     document.getElementById('approval-panel').style.display = 'block';
+  } else if (status === 'translating') {
+    setStatusText('正在翻译为中文…');
+    setTranslationState('spinning');
   } else if (status === 'summarizing') {
-    setStatusText('正在生成 AI 摘要…');
+    setStatusText('正在生成中文摘要…');
     setSummarySpinning(true);
   } else if (status === 'done') {
     stopPolling();
@@ -441,6 +471,53 @@ function generateSummary() {
       setSummarySpinning(false);
       alert('请求失败，请重试。');
     });
+}
+
+// ── Translation ───────────────────────────────────────────────────────────────
+
+function requestTranslation() {
+  setTranslationState('spinning');
+  fetch(`/transcript/${_currentJobId}/translate`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        setTranslationState('idle');
+        alert('翻译请求失败：' + data.error);
+        return;
+      }
+      updateStatusBadge('translating');
+      startPolling(_currentJobId);
+    })
+    .catch(() => {
+      setTranslationState('idle');
+      alert('请求失败，请重试。');
+    });
+}
+
+function setTranslationState(state, zhText, jobId) {
+  const genArea  = document.getElementById('translation-generate-area');
+  const spinner  = document.getElementById('translation-spinner-area');
+  const content  = document.getElementById('translation-content-area');
+  const zhEl     = document.getElementById('transcript-zh-content');
+  const dlZh     = document.getElementById('download-zh-btn');
+
+  genArea.style.display = 'none';
+  spinner.style.display = 'none';
+  content.style.display = 'none';
+
+  if (state === 'idle') {
+    genArea.style.display = 'block';
+    if (dlZh) dlZh.style.display = 'none';
+  } else if (state === 'spinning') {
+    spinner.style.display = 'block';
+  } else if (state === 'done') {
+    zhEl.textContent = zhText || '';
+    content.style.display = 'block';
+    if (dlZh && jobId) {
+      dlZh.href = `/transcript/download/${jobId}?version=chinese`;
+      dlZh.style.display = 'inline-block';
+    }
+  }
 }
 
 function setSummarySpinning(spinning) {
@@ -513,9 +590,11 @@ function resetResultCard() {
   document.getElementById('done-panel').style.display     = 'none';
   document.getElementById('approval-panel').style.display = 'none';
   document.getElementById('video-meta').style.display     = 'none';
-  document.getElementById('transcript-content').textContent = '';
-  document.getElementById('summary-content').textContent    = '';
-  document.getElementById('mode-badge').style.display       = 'none';
+  document.getElementById('transcript-content').textContent    = '';
+  document.getElementById('transcript-zh-content').textContent = '';
+  document.getElementById('summary-content').textContent       = '';
+  document.getElementById('mode-badge').style.display          = 'none';
+  setTranslationState('idle');
   setSummarySpinning(false);
 }
 
@@ -535,6 +614,7 @@ function updateStatusBadge(status) {
     pending:           ['bg-secondary',        '等待中'],
     processing:        ['bg-warning text-dark', '处理中'],
     awaiting_approval: ['bg-warning text-dark', '待确认'],
+    translating:       ['bg-info text-dark',    '翻译中'],
     summarizing:       ['bg-info text-dark',    '摘要生成中'],
     done:              ['bg-success',           '完成'],
     error:             ['bg-danger',            '错误'],
@@ -569,8 +649,23 @@ function showDonePanel(data, jobId) {
   setModeBadge(data.mode);
   setVideoMeta(data.video_title, data.video_author, data.video_url);
   document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
-  document.getElementById('download-btn').href = `/transcript/download/${jobId}`;
+  document.getElementById('download-original-btn').href = `/transcript/download/${jobId}?version=original`;
   document.getElementById('done-panel').style.display = 'block';
+
+  // Translation section
+  if (data.transcript_zh) {
+    setTranslationState('done', data.transcript_zh, jobId);
+  } else {
+    setTranslationState('idle');
+  }
+
+  // Summary hint: update to reflect whether Chinese transcript is available
+  const hint = document.getElementById('summary-hint');
+  if (hint) {
+    hint.textContent = data.transcript_zh
+      ? '基于中文翻译生成摘要'
+      : '直接从原文生成中文摘要（或先翻译再摘要）';
+  }
 
   if (data.summary) {
     showSummaryContent(data.summary);

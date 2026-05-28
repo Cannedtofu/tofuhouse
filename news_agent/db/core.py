@@ -183,3 +183,7 @@ def init_db():
             conn.execute("ALTER TABLE transcript_jobs ADD COLUMN video_author TEXT")
         except Exception:
             pass
+        try:
+            conn.execute("ALTER TABLE transcript_jobs ADD COLUMN transcript_zh TEXT")
+        except Exception:
+            pass

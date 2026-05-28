@@ -48,6 +48,7 @@ def update_transcript_job(
     job_id: str,
     status: str,
     transcript: Optional[str] = None,
+    transcript_zh: Optional[str] = None,
     summary: Optional[str] = None,
     error_message: Optional[str] = None,
 ):
@@ -57,11 +58,12 @@ def update_transcript_job(
         conn.execute(
             """UPDATE transcript_jobs
                SET status=?, transcript=COALESCE(?, transcript),
+                   transcript_zh=COALESCE(?, transcript_zh),
                    summary=COALESCE(?, summary),
                    error_message=COALESCE(?, error_message),
                    updated_at=?
                WHERE job_id=?""",
-            (status, transcript, summary, error_message, now, job_id),
+            (status, transcript, transcript_zh, summary, error_message, now, job_id),
         )
 
 
