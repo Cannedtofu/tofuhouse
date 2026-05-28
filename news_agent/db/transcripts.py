@@ -51,6 +51,7 @@ def update_transcript_job(
     transcript_zh: Optional[str] = None,
     summary: Optional[str] = None,
     error_message: Optional[str] = None,
+    audio_path: Optional[str] = None,
 ):
     """Update a transcript job's status and optional result fields."""
     now = datetime.now(timezone.utc).isoformat()
@@ -61,9 +62,10 @@ def update_transcript_job(
                    transcript_zh=COALESCE(?, transcript_zh),
                    summary=COALESCE(?, summary),
                    error_message=COALESCE(?, error_message),
+                   audio_path=COALESCE(?, audio_path),
                    updated_at=?
                WHERE job_id=?""",
-            (status, transcript, transcript_zh, summary, error_message, now, job_id),
+            (status, transcript, transcript_zh, summary, error_message, audio_path, now, job_id),
         )
 
 

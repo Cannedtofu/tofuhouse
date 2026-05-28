@@ -26,7 +26,19 @@ import shutil
 import tempfile
 
 import db
-from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL, QWEN_TRANSLATION_MODEL, SOCKS_PROXY, YOUTUBE_COOKIES_FILE
+import secrets
+
+import audio_registry
+from config import (
+    APP_BASE_URL,
+    AUDIO_CACHE_DIR,
+    QWEN_API_KEY,
+    QWEN_BASE_URL,
+    QWEN_SUMMARY_MODEL,
+    QWEN_TRANSLATION_MODEL,
+    SOCKS_PROXY,
+    YOUTUBE_COOKIES_FILE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -247,8 +259,10 @@ def _format_diarized_sentences(sentences: list) -> str:
 def _transcribe_audio_file(audio_path: str, diarize: bool = False) -> str:
     """
     Transcribe a full audio file with paraformer-v2 via DashScope Transcription API.
-    Transcription.async_call submits the job; Transcription.wait blocks until done.
-    The result JSON is fetched from the transcription_url in the response.
+
+    DashScope is a cloud service and cannot access local file:// paths. We register
+    the audio file under a random token and serve it over HTTP from this app for the
+    duration of the transcription call, then unregister it.
     """
     import json
     import urllib.request
@@ -257,57 +271,67 @@ def _transcribe_audio_file(audio_path: str, diarize: bool = False) -> str:
     from dashscope.audio.asr import Transcription
 
     dashscope.api_key = QWEN_API_KEY
-    file_uri = f"file://{os.path.abspath(audio_path)}"
 
-    call_kwargs: dict = {
-        "model": "paraformer-v2",
-        "file_urls": [file_uri],
-        "language_hints": ["zh", "en"],
-    }
-    if diarize:
-        call_kwargs["diarization_enabled"] = True
+    token = secrets.token_urlsafe(32)
+    audio_registry.register(token, audio_path)
+    public_url = f"{APP_BASE_URL}/transcript/temp-audio/{token}"
+    logger.info("Registered audio for DashScope at %s…/temp-audio/<token>", APP_BASE_URL)
 
-    task_resp = Transcription.async_call(**call_kwargs)
-    if task_resp.status_code != 200:
-        raise RuntimeError(
-            f"Transcription submit error {task_resp.status_code}: {task_resp.message}"
-        )
+    try:
+        call_kwargs: dict = {
+            "model": "paraformer-v2",
+            "file_urls": [public_url],
+            "language_hints": ["zh", "en"],
+        }
+        if diarize:
+            call_kwargs["diarization_enabled"] = True
 
-    resp = Transcription.wait(task_resp)
-    if resp.status_code != 200:
-        raise RuntimeError(
-            f"Transcription error {resp.status_code}: {resp.message}"
-        )
+        task_resp = Transcription.async_call(**call_kwargs)
+        if task_resp.status_code != 200:
+            raise RuntimeError(
+                f"Transcription submit error {task_resp.status_code}: {task_resp.message}"
+            )
 
-    results = (resp.output or {}).get("results") or []
-    if not results:
-        raise RuntimeError("Transcription returned no results")
+        resp = Transcription.wait(task_resp)
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Transcription error {resp.status_code}: {resp.message}"
+            )
 
-    result = results[0]
-    if result.get("subtask_status") != "SUCCEEDED":
-        raise RuntimeError(f"Transcription subtask status: {result.get('subtask_status')}")
+        results = (resp.output or {}).get("results") or []
+        if not results:
+            raise RuntimeError("Transcription returned no results")
 
-    trans_url = result.get("transcription_url")
-    if not trans_url:
-        raise RuntimeError("No transcription_url in result")
+        result = results[0]
+        if result.get("subtask_status") != "SUCCEEDED":
+            raise RuntimeError(
+                f"Transcription subtask FAILED: {result.get('message') or result.get('subtask_status')}"
+            )
 
-    with urllib.request.urlopen(trans_url) as f:
-        trans_data = json.loads(f.read().decode("utf-8"))
+        trans_url = result.get("transcription_url")
+        if not trans_url:
+            raise RuntimeError("No transcription_url in result")
 
-    transcripts = trans_data.get("transcripts") or []
-    if not transcripts:
-        return trans_data.get("text", "")
+        with urllib.request.urlopen(trans_url) as f:
+            trans_data = json.loads(f.read().decode("utf-8"))
 
-    channel   = transcripts[0]
-    sentences = channel.get("sentences") or []
+        transcripts = trans_data.get("transcripts") or []
+        if not transcripts:
+            return trans_data.get("text", "")
 
-    if not sentences:
-        return channel.get("text", "")
+        channel   = transcripts[0]
+        sentences = channel.get("sentences") or []
 
-    if diarize:
-        return _format_diarized_sentences(sentences)
+        if not sentences:
+            return channel.get("text", "")
 
-    return " ".join(s.get("text", "") for s in sentences)
+        if diarize:
+            return _format_diarized_sentences(sentences)
+
+        return " ".join(s.get("text", "") for s in sentences)
+
+    finally:
+        audio_registry.unregister(token)
 
 
 # ---------------------------------------------------------------------------
@@ -345,21 +369,54 @@ def _fetch_video_metadata(video_id: str) -> tuple[str | None, str | None]:
 # Shared audio pipeline helper
 # ---------------------------------------------------------------------------
 
-def _run_audio_transcript(job_id: str, video_id: str, diarize: bool = False) -> None:
-    """Download full audio, transcribe in one paraformer-v2 call, store transcript."""
-    tmp_dir = tempfile.mkdtemp(prefix="transcript_")
+def _persist_audio(job_id: str, src_path: str) -> str:
+    """Move downloaded audio to a persistent cache dir and return the new path."""
+    os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
+    ext = os.path.splitext(src_path)[1] or ".m4a"
+    dest = os.path.join(AUDIO_CACHE_DIR, f"{job_id}{ext}")
+    shutil.move(src_path, dest)
+    return dest
+
+
+def _run_audio_transcript(
+    job_id: str,
+    video_id: str,
+    diarize: bool = False,
+    existing_audio_path: str | None = None,
+) -> None:
+    """
+    Download (or reuse cached) audio, transcribe with paraformer-v2, store transcript.
+
+    Audio is moved to AUDIO_CACHE_DIR immediately after download so it survives a
+    transcription failure. It is deleted only after successful transcription.
+    Pass existing_audio_path to skip the download step (retry flow).
+    """
+    if existing_audio_path and os.path.isfile(existing_audio_path):
+        audio_path = existing_audio_path
+        logger.info("Reusing cached audio at %s for job %s", audio_path, job_id)
+    else:
+        tmp_dir = tempfile.mkdtemp(prefix="transcript_")
+        try:
+            raw_path = _download_audio(video_id, tmp_dir)
+            logger.info("Audio downloaded to %s", raw_path)
+            audio_path = _persist_audio(job_id, raw_path)
+            logger.info("Audio persisted to %s", audio_path)
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+        db.update_transcript_job(job_id, status="processing", audio_path=audio_path)
+
+    logger.info("Transcribing full audio with paraformer-v2 (diarize=%s)", diarize)
+    transcript = _transcribe_audio_file(audio_path, diarize=diarize)
+
+    db.update_transcript_job(job_id, status="done", transcript=transcript)
+    logger.info("Audio transcript job %s done (%d chars)", job_id, len(transcript))
+
     try:
-        audio_path = _download_audio(video_id, tmp_dir)
-        logger.info("Audio downloaded to %s", audio_path)
-
-        logger.info("Transcribing full audio with paraformer-v2 (diarize=%s)", diarize)
-        transcript = _transcribe_audio_file(audio_path, diarize=diarize)
-
-        db.update_transcript_job(job_id, status="done", transcript=transcript)
-        logger.info("Audio transcript job %s done (%d chars)", job_id, len(transcript))
-
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        os.remove(audio_path)
+        logger.info("Deleted cached audio %s after successful transcription", audio_path)
+    except OSError:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -404,16 +461,9 @@ write a final summary in Simplified Chinese using three clearly labeled sections
 Section summaries:
 {summaries}"""
 
-_TRANSLATE_SYSTEM = (
-    "You are a professional translator. Translate the given text into Simplified Chinese. "
-    "Output only the translated text. Preserve speaker labels like [Speaker A] unchanged."
-)
-
-_TRANSLATE_PROMPT = """\
-Translate the following video transcript into Simplified Chinese.
-Output only the translated text, no explanations.
-
-{text}"""
+# qwen-mt-lite has a smaller token budget; 4000 chars ≈ 1000 English tokens,
+# leaving headroom for system message and output tokens.
+_MT_CHUNK_CHARS = 4000
 
 
 def _qwen_chat(prompt: str, max_tokens: int = 1024, model: str | None = None,
@@ -432,29 +482,69 @@ def _qwen_chat(prompt: str, max_tokens: int = 1024, model: str | None = None,
     return resp.choices[0].message.content.strip()
 
 
-def _translate_to_chinese(text: str) -> str:
-    """Translate transcript text to Simplified Chinese, chunking if needed."""
-    if len(text) <= _MAX_CHARS_PER_LLM_CALL:
-        return _qwen_chat(
-            _TRANSLATE_PROMPT.format(text=text),
-            max_tokens=4096,
-            model=QWEN_TRANSLATION_MODEL,
-            system=_TRANSLATE_SYSTEM,
-        )
-    chunks = [
-        text[i : i + _MAX_CHARS_PER_LLM_CALL]
-        for i in range(0, len(text), _MAX_CHARS_PER_LLM_CALL)
-    ]
-    logger.info("Translating in %d chunks", len(chunks))
-    return "".join(
-        _qwen_chat(
-            _TRANSLATE_PROMPT.format(text=chunk),
-            max_tokens=4096,
-            model=QWEN_TRANSLATION_MODEL,
-            system=_TRANSLATE_SYSTEM,
-        )
-        for chunk in chunks
+def _split_into_chunks(text: str, max_chars: int) -> list[str]:
+    """Split text into chunks ≤ max_chars, breaking at sentence/paragraph boundaries."""
+    if len(text) <= max_chars:
+        return [text]
+    chunks = []
+    remaining = text
+    while remaining:
+        if len(remaining) <= max_chars:
+            chunks.append(remaining)
+            break
+        cut = -1
+        for sep in ("\n\n", "\n", ". ", "! ", "? "):
+            pos = remaining.rfind(sep, max_chars // 2, max_chars)
+            if pos != -1:
+                cut = pos + len(sep)
+                break
+        if cut < 0:
+            cut = max_chars
+        chunks.append(remaining[:cut])
+        remaining = remaining[cut:]
+    return chunks
+
+
+def _translate_chunk(text: str, prev_translated_tail: str = "") -> str:
+    """Translate one chunk via qwen-mt-lite with optional preceding-context for continuity."""
+    from openai import OpenAI
+    client = OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL)
+    system = (
+        "You are a professional translator. Translate the user's text into Simplified Chinese. "
+        "Output only the translated text. Preserve speaker labels like [Speaker A] unchanged."
     )
+    if prev_translated_tail:
+        system += (
+            "\n\nFor continuity, the immediately preceding passage was already translated as:\n"
+            + prev_translated_tail
+        )
+    resp = client.chat.completions.create(
+        model=QWEN_TRANSLATION_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": text},
+        ],
+        max_tokens=4096,
+        extra_body={"translation_options": {"source_lang": "auto", "target_lang": "Chinese"}},
+    )
+    return resp.choices[0].message.content.strip()
+
+
+def _translate_to_chinese(text: str) -> str:
+    """Translate transcript text to Simplified Chinese using qwen-mt-lite."""
+    chunks = _split_into_chunks(text, _MT_CHUNK_CHARS)
+    if len(chunks) == 1:
+        logger.info("Translating single chunk (%d chars)", len(text))
+        return _translate_chunk(text)
+    logger.info("Translating in %d chunks (total %d chars)", len(chunks), len(text))
+    results = []
+    prev_tail = ""
+    for i, chunk in enumerate(chunks):
+        translated = _translate_chunk(chunk, prev_tail)
+        results.append(translated)
+        prev_tail = translated[-200:] if len(translated) > 200 else translated
+        logger.info("Translated chunk %d/%d", i + 1, len(chunks))
+    return "".join(results)
 
 
 def _summarize_transcript(transcript: str) -> str:
@@ -536,6 +626,30 @@ def continue_audio_transcript(job_id: str, video_id: str) -> None:
         _run_audio_transcript(job_id, video_id, diarize=False)
     except Exception as exc:
         logger.exception("Audio fallback job %s failed: %s", job_id, exc)
+        db.update_transcript_job(job_id, status="error", error_message=str(exc))
+
+
+def retry_audio_transcript(job_id: str) -> None:
+    """
+    Retry transcription for a failed job, reusing the cached audio file (no re-download).
+    Called when status is 'error' and audio_path is set in the DB.
+    """
+    try:
+        job = db.get_transcript_job(job_id)
+        if not job:
+            logger.error("retry_audio_transcript: job %s not found", job_id)
+            return
+        audio_path = job["audio_path"]
+        if not audio_path or not os.path.isfile(audio_path):
+            raise FileNotFoundError(
+                f"Cached audio not found at {audio_path!r} — re-submit the URL to re-download"
+            )
+        diarize = job["mode"] == "diarization"
+        db.update_transcript_job(job_id, status="processing")
+        logger.info("Retrying transcription for job %s (audio=%s)", job_id, audio_path)
+        _run_audio_transcript(job_id, job["video_id"], diarize=diarize, existing_audio_path=audio_path)
+    except Exception as exc:
+        logger.exception("Retry transcription for job %s failed: %s", job_id, exc)
         db.update_transcript_job(job_id, status="error", error_message=str(exc))
 
 

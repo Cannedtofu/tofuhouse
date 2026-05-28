@@ -425,7 +425,7 @@ function handleStatusUpdate(data, jobId) {
   } else if (status === 'error') {
     stopPolling();
     clearAllBtnBusy();
-    showErrorPanel(data.error_message || '处理失败，请重试。');
+    showErrorPanel(data.error_message || '处理失败，请重试。', data.has_cached_audio, jobId);
     refreshSidebar();
   }
 }
@@ -635,12 +635,34 @@ function setStatusText(msg) {
   document.getElementById('status-text').textContent = msg;
 }
 
-function showErrorPanel(msg) {
+function showErrorPanel(msg, hasCachedAudio, jobId) {
   updateStatusBadge('error');
   setStatusText('处理失败');
   const el = document.getElementById('error-panel');
-  el.textContent   = msg;
+  el.innerHTML = '';
+  const msgEl = document.createElement('div');
+  msgEl.textContent = msg;
+  el.appendChild(msgEl);
+  if (hasCachedAudio && jobId) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-sm btn-warning mt-2';
+    btn.textContent = '重试转录（跳过下载）';
+    btn.onclick = () => retryTranscription(jobId);
+    el.appendChild(btn);
+  }
   el.style.display = 'block';
+}
+
+function retryTranscription(jobId) {
+  fetch(`/transcript/${jobId}/retry`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); return; }
+      document.getElementById('error-panel').style.display = 'none';
+      setStatusText('重新转录中…');
+      startPolling(jobId);
+    })
+    .catch(() => alert('请求失败，请重试。'));
 }
 
 function showDonePanel(data, jobId) {

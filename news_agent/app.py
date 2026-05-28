@@ -758,23 +758,36 @@ def transcript_process():
     return jsonify({"job_id": job_id, "cached": False})
 
 
+@app.route("/transcript/temp-audio/<token>")
+def transcript_temp_audio(token: str):
+    """Serve a registered audio file to DashScope during transcription (no auth needed)."""
+    import audio_registry
+    path = audio_registry.lookup(token)
+    if not path or not os.path.isfile(path):
+        from flask import abort
+        abort(404)
+    return send_file(path)
+
+
 @app.route("/transcript/status/<job_id>")
 @login_required
 def transcript_status(job_id: str):
     job = db.get_transcript_job(job_id)
     if not job:
         return jsonify({"error": "Job not found."}), 404
+    has_cached_audio = bool(job["audio_path"] and os.path.isfile(job["audio_path"]))
     return jsonify({
-        "job_id":        job["job_id"],
-        "status":        job["status"],
-        "mode":          job["mode"],
-        "video_title":   job["video_title"],
-        "video_author":  job["video_author"],
-        "video_url":     job["video_url"],
-        "summary":       job["summary"],
-        "transcript":    job["transcript"],
-        "transcript_zh": job["transcript_zh"],
-        "error_message": job["error_message"],
+        "job_id":             job["job_id"],
+        "status":             job["status"],
+        "mode":               job["mode"],
+        "video_title":        job["video_title"],
+        "video_author":       job["video_author"],
+        "video_url":          job["video_url"],
+        "summary":            job["summary"],
+        "transcript":         job["transcript"],
+        "transcript_zh":      job["transcript_zh"],
+        "error_message":      job["error_message"],
+        "has_cached_audio":   has_cached_audio,
     })
 
 
@@ -836,6 +849,24 @@ def transcript_translate(job_id: str):
 
     db.update_transcript_job(job_id, status="translating")
     threading.Thread(target=translate_transcript, args=(job_id,), daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/transcript/<job_id>/retry", methods=["POST"])
+@login_required
+def transcript_retry(job_id: str):
+    """Retry a failed transcription using the cached audio file (no re-download)."""
+    from transcript_worker import retry_audio_transcript
+
+    job = db.get_transcript_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    if job["status"] not in ("error",):
+        return jsonify({"error": "Job is not in error state."}), 400
+    if not job["audio_path"] or not os.path.isfile(job["audio_path"]):
+        return jsonify({"error": "No cached audio available — re-submit the URL to re-download."}), 400
+
+    threading.Thread(target=retry_audio_transcript, args=(job_id,), daemon=True).start()
     return jsonify({"ok": True})
 
 
