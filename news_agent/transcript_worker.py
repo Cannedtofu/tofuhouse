@@ -150,18 +150,16 @@ def _download_audio(video_id: str, tmp_dir: str) -> str:
 
     output_template = os.path.join(tmp_dir, f"{video_id}.%(ext)s")
     ydl_opts = {
-        "format": "bestaudio/best",
+        # Prefer native m4a (no ffmpeg needed); fall back to any audio stream.
+        "format": "bestaudio[ext=m4a]/bestaudio/best",
         "outtmpl": output_template,
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "64",
-            }
-        ],
-        "postprocessor_args": {"ffmpeg": ["-ac", "1"]},
         "quiet": True,
         "no_warnings": True,
+        "socket_timeout": 60,
+        "retries": 10,
+        "fragment_retries": 10,
+        "file_access_retries": 5,
+        "retry_sleep_functions": {"http": lambda n: min(4 ** n, 60)},
     }
     if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
         ydl_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
@@ -231,10 +229,11 @@ def _transcribe_audio_file(audio_path: str, diarize: bool = False) -> str:
     dashscope.api_key = QWEN_API_KEY
     file_uri = f"file://{os.path.abspath(audio_path)}"
 
+    audio_fmt = os.path.splitext(audio_path)[1].lstrip(".") or "mp3"
     kwargs: dict = dict(
         model="paraformer-v2",
         file=file_uri,
-        format="mp3",
+        format=audio_fmt,
         language_hints=["zh", "en"],
     )
     if diarize:
