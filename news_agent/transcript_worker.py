@@ -42,7 +42,9 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
-_MAX_CHARS_PER_LLM_CALL = 12000
+# qwen-plus context window is 131k tokens; 80k chars ≈ 20k tokens, safe headroom for output.
+# A 3-hour interview (~160k chars) splits into ~2 chunks at this size.
+_MAX_CHARS_PER_LLM_CALL = 80000
 
 
 # ---------------------------------------------------------------------------
@@ -424,41 +426,81 @@ def _run_audio_transcript(
 # ---------------------------------------------------------------------------
 
 _TRANSCRIPT_SUMMARY_SYSTEM = (
-    "You are a helpful assistant that summarizes video transcripts. "
+    "You are an expert analyst summarizing video transcripts. "
+    "Your goal is to produce a content-dense summary that faithfully captures the specific topics "
+    "discussed, the distinct positions and arguments each speaker makes, concrete evidence or "
+    "examples cited, and any notable disagreements, qualifications, or unresolved questions. "
+    "Do not flatten differing views into a false consensus. Do not omit important nuance or "
+    "caveats that speakers explicitly stated. Preserve the intellectual substance of the "
+    "conversation — a reader who has not watched the video should come away with the actual "
+    "arguments, not just topic labels. "
     "Always write your summary in Simplified Chinese (简体中文), "
     "regardless of the language of the input transcript."
 )
 
 _TRANSCRIPT_SUMMARY_PROMPT = """\
-Summarize the following video transcript in Simplified Chinese using three clearly labeled sections:
+Analyze the following video transcript and write a detailed summary in Simplified Chinese. \
+Use these clearly labeled sections:
 
-**概述** (2-3 sentences): What is this video about?
+**概述**
+What is this video? Describe the format (interview, debate, lecture, panel, etc.), \
+who the speakers are (names, roles, affiliations if mentioned), and what the central \
+subject or question is. Be specific — avoid vague descriptions.
 
-**主要话题** (bulleted list): What are the main subjects covered?
+**议题与观点**
+For each major topic discussed, state: (1) what the topic is, and (2) what each speaker \
+specifically argued, claimed, or concluded about it. If speakers disagreed, capture both \
+positions and the basis for each. Use sub-headings for each distinct topic. \
+Do not merge opposing views into a single statement.
 
-**核心要点** (bulleted list): What are the key conclusions or insights?
+**关键论据与证据**
+List the concrete supporting material speakers used: specific data points, statistics, \
+research findings, historical examples, case studies, personal experiences, or named \
+sources. Attribute each to the speaker who cited it.
+
+**分歧与开放性问题**
+Note where speakers explicitly disagreed, hedged, or left questions unresolved. \
+Include any important caveats, acknowledged uncertainties, or areas marked for \
+further investigation.
 
 Transcript:
 {transcript}"""
 
 _CHUNK_SUMMARY_PROMPT = """\
-Summarize the key points from this section (part {part} of {total}) of a video transcript \
-in Simplified Chinese. Be concise and factual.
+This is part {part} of {total} of a video transcript. Extract and preserve the following \
+from this section — do NOT compress or paraphrase away detail:
+
+1. Each speaker's specific claims, arguments, and positions on topics raised in this section.
+2. Any concrete data, statistics, named examples, or cited sources.
+3. Explicit disagreements, qualifications, or hedges between speakers.
+4. Any key questions raised but not yet answered (they may be answered in a later section).
+
+If speaker labels are present (e.g. [Speaker A]), attribute every point to its speaker. \
+Write in Simplified Chinese.
 
 Transcript section:
 {transcript}"""
 
 _FINAL_SUMMARY_PROMPT = """\
-Based on these section summaries from a longer video transcript, \
-write a final summary in Simplified Chinese using three clearly labeled sections:
+Below are detailed notes extracted from each section of a longer video transcript. \
+Using these notes, write a complete summary in Simplified Chinese with these sections:
 
-**概述** (2-3 sentences): What is this video about?
+**概述**
+What is this video? Format, speakers (names/roles if known), and the central subject.
 
-**主要话题** (bulleted list): What are the main subjects covered?
+**议题与观点**
+For each major topic across all sections: what was argued, by whom, and with what reasoning. \
+Track how each speaker's position develops or stays consistent across sections. \
+Use sub-headings per topic. Preserve disagreements — do not merge opposing positions.
 
-**核心要点** (bulleted list): What are the key conclusions or insights?
+**关键论据与证据**
+Concrete supporting material cited: data, statistics, research, examples, named sources. \
+Attribute each to its speaker.
 
-Section summaries:
+**分歧与开放性问题**
+Where speakers disagreed, hedged, or left questions unresolved across the full video.
+
+Section notes:
 {summaries}"""
 
 # qwen-mt-lite has a smaller token budget; 4000 chars ≈ 1000 English tokens,
@@ -466,19 +508,21 @@ Section summaries:
 _MT_CHUNK_CHARS = 4000
 
 
-def _qwen_chat(prompt: str, max_tokens: int = 1024, model: str | None = None,
+def _qwen_chat(prompt: str, max_tokens: int | None = None, model: str | None = None,
                system: str | None = None) -> str:
     from openai import OpenAI
     client = OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL)
-    resp = client.chat.completions.create(
+    kwargs: dict = dict(
         model=model or QWEN_SUMMARY_MODEL,
         messages=[
             {"role": "system", "content": system or _TRANSCRIPT_SUMMARY_SYSTEM},
             {"role": "user",   "content": prompt},
         ],
         temperature=0.2,
-        max_tokens=max_tokens,
     )
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    resp = client.chat.completions.create(**kwargs)
     return resp.choices[0].message.content.strip()
 
 
@@ -548,30 +592,25 @@ def _translate_to_chinese(text: str) -> str:
 
 
 def _summarize_transcript(transcript: str) -> str:
-    if len(transcript) <= _MAX_CHARS_PER_LLM_CALL:
+    chunks = _split_into_chunks(transcript, _MAX_CHARS_PER_LLM_CALL)
+    if len(chunks) == 1:
         return _qwen_chat(
             _TRANSCRIPT_SUMMARY_PROMPT.format(transcript=transcript),
-            max_tokens=1024,
         )
 
-    raw_chunks = [
-        transcript[i : i + _MAX_CHARS_PER_LLM_CALL]
-        for i in range(0, len(transcript), _MAX_CHARS_PER_LLM_CALL)
-    ]
-    total = len(raw_chunks)
+    total = len(chunks)
     logger.info("Transcript too long (%d chars); summarizing in %d chunks", len(transcript), total)
 
     chunk_summaries = []
-    for i, chunk in enumerate(raw_chunks):
-        summary = _qwen_chat(
+    for i, chunk in enumerate(chunks):
+        notes = _qwen_chat(
             _CHUNK_SUMMARY_PROMPT.format(part=i + 1, total=total, transcript=chunk),
-            max_tokens=512,
         )
-        chunk_summaries.append(f"Part {i + 1}:\n{summary}")
+        chunk_summaries.append(f"Section {i + 1}:\n{notes}")
+        logger.info("Summarized chunk %d/%d", i + 1, total)
 
     return _qwen_chat(
         _FINAL_SUMMARY_PROMPT.format(summaries="\n\n".join(chunk_summaries)),
-        max_tokens=1024,
     )
 
 
