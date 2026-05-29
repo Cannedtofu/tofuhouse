@@ -94,10 +94,30 @@
 
         <!-- Download buttons -->
         <div class="d-flex justify-content-end gap-2 mb-3">
-          <a id="download-original-btn" href="#"
-             class="btn btn-sm btn-outline-secondary">⬇ 下载原文</a>
-          <a id="download-zh-btn" href="#"
-             class="btn btn-sm btn-outline-secondary" style="display:none">⬇ 下载中文</a>
+          <div class="btn-group" id="download-original-group">
+            <a id="download-original-txt" href="#"
+               class="btn btn-sm btn-outline-secondary">⬇ 原文 .txt</a>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+              <span class="visually-hidden">更多格式</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a id="download-original-pdf" class="dropdown-item" href="#">⬇ 原文 .pdf</a></li>
+            </ul>
+          </div>
+          <div class="btn-group" id="download-zh-group" style="display:none">
+            <a id="download-zh-txt" href="#"
+               class="btn btn-sm btn-outline-secondary">⬇ 中文 .txt</a>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+              <span class="visually-hidden">更多格式</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a id="download-zh-pdf" class="dropdown-item" href="#">⬇ 中文 .pdf</a></li>
+            </ul>
+          </div>
         </div>
 
         <!-- Original transcript -->
@@ -499,7 +519,7 @@ function setTranslationState(state, zhText, jobId) {
   const spinner  = document.getElementById('translation-spinner-area');
   const content  = document.getElementById('translation-content-area');
   const zhEl     = document.getElementById('transcript-zh-content');
-  const dlZh     = document.getElementById('download-zh-btn');
+  const dlZhGroup = document.getElementById('download-zh-group');
 
   genArea.style.display = 'none';
   spinner.style.display = 'none';
@@ -507,15 +527,16 @@ function setTranslationState(state, zhText, jobId) {
 
   if (state === 'idle') {
     genArea.style.display = 'block';
-    if (dlZh) dlZh.style.display = 'none';
+    if (dlZhGroup) dlZhGroup.style.display = 'none';
   } else if (state === 'spinning') {
     spinner.style.display = 'block';
   } else if (state === 'done') {
     zhEl.textContent = zhText || '';
     content.style.display = 'block';
-    if (dlZh && jobId) {
-      dlZh.href = `/transcript/download/${jobId}?version=chinese`;
-      dlZh.style.display = 'inline-block';
+    if (dlZhGroup && jobId) {
+      document.getElementById('download-zh-txt').href = `/transcript/download/${jobId}?version=chinese`;
+      document.getElementById('download-zh-pdf').href = `/transcript/download/${jobId}/pdf?version=chinese`;
+      dlZhGroup.style.display = 'inline-flex';
     }
   }
 }
@@ -671,7 +692,8 @@ function showDonePanel(data, jobId) {
   setModeBadge(data.mode);
   setVideoMeta(data.video_title, data.video_author, data.video_url);
   document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
-  document.getElementById('download-original-btn').href = `/transcript/download/${jobId}?version=original`;
+  document.getElementById('download-original-txt').href = `/transcript/download/${jobId}?version=original`;
+  document.getElementById('download-original-pdf').href = `/transcript/download/${jobId}/pdf?version=original`;
   document.getElementById('done-panel').style.display = 'block';
 
   // Translation section

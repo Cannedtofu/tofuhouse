@@ -879,26 +879,21 @@ def transcript_delete(job_id: str):
     return jsonify({"ok": True})
 
 
-@app.route("/transcript/download/<job_id>")
-@login_required
-def transcript_download(job_id: str):
-    from flask import Response
+def _safe_filename(title: str | None, fallback: str) -> str:
+    """Sanitize a video title for use as a filename (cross-platform safe)."""
+    import re
+    if not title:
+        return fallback
+    safe = re.sub(r'[\\/:*?"<>|\r\n\t]', "", title).strip()
+    return safe[:80] or fallback
 
-    job = db.get_transcript_job(job_id)
-    if not job:
-        return jsonify({"error": "Job not found."}), 404
-    if job["status"] != "done":
-        return jsonify({"error": "Transcript not ready yet."}), 400
 
-    from flask import request as flask_request
-    version = flask_request.args.get("version", "original")  # "original" or "chinese"
+def _transcript_text_content(job, version: str) -> tuple[str, str, str]:
+    """Return (text_content, label, suffix) for a transcript job."""
     video_url = job["video_url"]
     summary = job["summary"] or ""
-
     if version == "chinese":
         transcript = job["transcript_zh"] or ""
-        if not transcript and not summary:
-            return jsonify({"error": "No Chinese content available."}), 400
         label = "中文版本"
         suffix = "zh"
     else:
@@ -912,15 +907,144 @@ def transcript_download(job_id: str):
     ]
     if summary:
         sections.insert(1, f"中文摘要\n{'-' * 60}\n{summary}\n\n{'=' * 60}\n")
-    content = "\n".join(s for s in sections if s)
+    return "\n".join(s for s in sections if s), label, suffix
 
-    safe_id = job["video_id"]
+
+@app.route("/transcript/download/<job_id>")
+@login_required
+def transcript_download(job_id: str):
+    from flask import Response
+
+    job = db.get_transcript_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    if job["status"] != "done":
+        return jsonify({"error": "Transcript not ready yet."}), 400
+
+    version = request.args.get("version", "original")
+    if version == "chinese" and not job["transcript_zh"] and not job["summary"]:
+        return jsonify({"error": "No Chinese content available."}), 400
+
+    content, label, suffix = _transcript_text_content(job, version)
+    base = _safe_filename(job["video_title"], job["video_id"])
+    filename = f"{base}_{suffix}.txt"
     return Response(
         content,
         mimetype="text/plain; charset=utf-8",
-        headers={
-            "Content-Disposition": f'attachment; filename="transcript_{safe_id}_{suffix}.txt"'
-        },
+        headers={"Content-Disposition": f'attachment; filename*=UTF-8\'\'{__import__("urllib.parse", fromlist=[""]).parse.quote(filename)}'},
+    )
+
+
+@app.route("/transcript/download/<job_id>/pdf")
+@login_required
+def transcript_download_pdf(job_id: str):
+    from flask import Response as FlaskResponse
+    from html import escape
+    from playwright.sync_api import sync_playwright
+
+    job = db.get_transcript_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    if job["status"] != "done":
+        return jsonify({"error": "Transcript not ready yet."}), 400
+
+    version = request.args.get("version", "original")
+    if version == "chinese":
+        transcript_text = job["transcript_zh"] or ""
+        version_label = "中文版本"
+    else:
+        transcript_text = job["transcript"] or ""
+        version_label = "原文版本"
+
+    summary_text = job["summary"] or ""
+    title = job["video_title"] or job["video_id"]
+    author = job["video_author"] or ""
+    video_url = job["video_url"]
+
+    # Format transcript: highlight [Speaker X] labels
+    import re
+    def fmt_transcript(text: str) -> str:
+        escaped = escape(text)
+        return re.sub(
+            r'\[(Speaker [A-Z])\]',
+            r'<span class="speaker">[\1]</span>',
+            escaped,
+        )
+
+    summary_html = ""
+    if summary_text:
+        # Convert **bold** markdown to <strong>
+        formatted = escape(summary_text)
+        formatted = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', formatted)
+        formatted = formatted.replace('\n', '<br>')
+        summary_html = f'<div class="summary">{formatted}</div>'
+
+    transcript_html = f'<div class="transcript">{fmt_transcript(transcript_text)}</div>' if transcript_text else '<p class="none">（无转录文本）</p>'
+
+    author_html = f'<br><span>作者：{escape(author)}</span>' if author else ""
+    html = f"""<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<style>
+  @page {{ size: A4; margin: 2.5cm; }}
+  body {{
+    font-family: "Noto Serif CJK SC", "Source Han Serif SC", "STSong", "SimSun",
+                 "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-size: 10.5pt; line-height: 1.8; color: #1a1a1a;
+  }}
+  h1 {{ font-size: 15pt; font-weight: bold; margin: 0 0 6pt 0; line-height: 1.4; }}
+  .meta {{ font-size: 8.5pt; color: #555; margin-bottom: 18pt; }}
+  .meta a {{ color: #555; text-decoration: none; }}
+  h2 {{
+    font-size: 11.5pt; font-weight: bold; margin: 20pt 0 8pt 0;
+    padding-left: 8pt; border-left: 3pt solid #444; color: #222;
+  }}
+  .summary {{
+    background: #f7f7f7; padding: 12pt 14pt; border-radius: 4pt;
+    margin-bottom: 20pt; font-size: 10pt; line-height: 1.9;
+  }}
+  .transcript {{
+    white-space: pre-wrap; font-size: 10pt; line-height: 1.85;
+    word-break: break-word;
+  }}
+  .speaker {{ font-weight: bold; color: #333; }}
+  .none {{ color: #888; font-style: italic; }}
+  hr {{ border: none; border-top: 1px solid #ddd; margin: 16pt 0; }}
+</style>
+</head>
+<body>
+  <h1>{escape(title)}</h1>
+  <div class="meta">
+    {author_html}
+    <br>URL: <a href="{escape(video_url)}">{escape(video_url)}</a>
+    <br>版本：{version_label}
+  </div>
+  {"<h2>中文摘要</h2>" + summary_html if summary_html else ""}
+  {"<hr>" if summary_html else ""}
+  <h2>完整转录文本</h2>
+  {transcript_html}
+</body>
+</html>"""
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content(html, wait_until="domcontentloaded")
+        pdf_bytes = page.pdf(
+            format="A4",
+            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
+            print_background=True,
+        )
+        browser.close()
+
+    base = _safe_filename(job["video_title"], job["video_id"])
+    suffix = "zh" if version == "chinese" else "original"
+    filename = f"{base}_{suffix}.pdf"
+    return FlaskResponse(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename*=UTF-8\'\'{__import__("urllib.parse", fromlist=[""]).parse.quote(filename)}'},
     )
 
 
