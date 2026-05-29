@@ -4,6 +4,7 @@ import logging
 import os
 import threading
 import uuid
+from urllib.parse import quote as _url_quote
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from logging.handlers import RotatingFileHandler
@@ -931,7 +932,7 @@ def transcript_download(job_id: str):
     return Response(
         content,
         mimetype="text/plain; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename*=UTF-8\'\'{__import__("urllib.parse", fromlist=[""]).parse.quote(filename)}'},
+        headers={"Content-Disposition": f'attachment; filename*=UTF-8\'\'{_url_quote(filename)}'},
     )
 
 
@@ -1044,7 +1045,7 @@ def transcript_download_pdf(job_id: str):
     return FlaskResponse(
         pdf_bytes,
         mimetype="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename*=UTF-8\'\'{__import__("urllib.parse", fromlist=[""]).parse.quote(filename)}'},
+        headers={"Content-Disposition": f'attachment; filename*=UTF-8\'\'{_url_quote(filename)}'},
     )
 
 
