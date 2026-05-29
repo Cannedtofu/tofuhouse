@@ -31,6 +31,7 @@ import secrets
 import audio_registry
 from config import (
     APP_BASE_URL,
+    ASR_MODEL,
     AUDIO_CACHE_DIR,
     QWEN_API_KEY,
     QWEN_BASE_URL,
@@ -281,7 +282,7 @@ def _transcribe_audio_file(audio_path: str, diarize: bool = False) -> str:
 
     try:
         call_kwargs: dict = {
-            "model": "paraformer-v2",
+            "model": ASR_MODEL,
             "file_urls": [public_url],
             "language_hints": ["zh", "en"],
         }
