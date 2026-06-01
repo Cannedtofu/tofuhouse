@@ -346,6 +346,15 @@ def index():
     non_nitter_groups = [g for g in grouped_articles if g["type"] != "nitter"]
     nitter_groups = [g for g in grouped_articles if g["type"] == "nitter"]
 
+    # Auto-create 2 default presets for users who predate the preset system
+    uid = g.current_user["id"]
+    digest_presets = db.get_digest_presets(uid)
+    if not digest_presets:
+        default_sources = list(followed_ids) if followed_ids else []
+        db.create_digest_preset(uid, "简报 1", default_sources)
+        db.create_digest_preset(uid, "简报 2", default_sources)
+        digest_presets = db.get_digest_presets(uid)
+
     return render_template(
         "index.html",
         articles=articles_list,
@@ -358,7 +367,7 @@ def index():
         date_to=date_to,
         fetch_status=_fetch_status,
         is_admin=g.current_user["email"] == ADMIN_EMAIL,
-        digest_presets=db.get_digest_presets(g.current_user["id"]),
+        digest_presets=digest_presets,
     )
 
 
