@@ -147,9 +147,10 @@
                 <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
                         onclick="setAllSources(false)">清空</button>
               </li>
-              {% set type_groups = [('推特', 'nitter'), ('RSS', 'rss'), ('YouTube', 'youtube'), ('网站', 'web')] %}
-              {% for label, type_key in type_groups %}
-                {% set grp = all_sources | selectattr('type', 'equalto', type_key) | list %}
+              {% set nitter_grp  = all_sources | selectattr('type', 'equalto', 'nitter')  | list %}
+              {% set rss_web_grp = (all_sources | selectattr('type', 'equalto', 'rss') | list) + (all_sources | selectattr('type', 'equalto', 'web') | list) %}
+              {% set youtube_grp = all_sources | selectattr('type', 'equalto', 'youtube') | list %}
+              {% for label, grp in [('推特', nitter_grp), ('RSS / 网站', rss_web_grp), ('YouTube', youtube_grp)] %}
                 {% if grp %}
                 <li><hr class="dropdown-divider my-1"></li>
                 <li><span class="dropdown-header" style="font-size:.72rem">{{ label }}</span></li>

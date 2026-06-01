@@ -27,15 +27,18 @@ function render() {
   const container = document.getElementById('subscribe-body');
   const freqLabel = v => ({1:'每天', 3:'每 3 天', 7:'每周', 14:'每 2 周'}[v] || `每 ${v} 天`);
 
-  const TYPE_LABELS = { nitter: '推特', rss: 'RSS', youtube: 'YouTube', web: '网站' };
-  const TYPE_ORDER  = ['nitter', 'rss', 'youtube', 'web'];
+  const SOURCE_GROUPS = [
+    { label: '推特',       types: ['nitter'] },
+    { label: 'RSS / 网站', types: ['rss', 'web'] },
+    { label: 'YouTube',    types: ['youtube'] },
+  ];
 
   function buildSourceChecks(checkedIds, idPrefix) {
     let html = '';
-    TYPE_ORDER.forEach(type => {
-      const group = ALL_SOURCES.filter(s => s.type === type);
+    SOURCE_GROUPS.forEach(({ label, types }) => {
+      const group = ALL_SOURCES.filter(s => types.includes(s.type));
       if (!group.length) return;
-      html += `<div class="mb-1 mt-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em">${TYPE_LABELS[type] || type}</div>`;
+      html += `<div class="mb-1 mt-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em">${label}</div>`;
       html += '<div class="row row-cols-2 row-cols-md-3 g-1">';
       group.forEach(s => {
         const chk = checkedIds.includes(s.id) ? 'checked' : '';
