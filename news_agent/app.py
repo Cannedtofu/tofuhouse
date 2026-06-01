@@ -67,6 +67,17 @@ db.init_db()
 db.close_open_fetch_logs()
 db.seed_default_sources()
 
+# Any jobs left in a transient state from before the last restart can never
+# complete — the worker threads are gone. Reset them so users can retry.
+with db.core.get_conn() as _conn:
+    _conn.execute(
+        "UPDATE transcript_jobs SET status='done' WHERE status IN ('summarizing', 'translating')"
+    )
+    _conn.execute(
+        "UPDATE transcript_jobs SET status='error', error_message='Job interrupted by app restart'"
+        " WHERE status IN ('processing', 'pending')"
+    )
+
 
 # ---------------------------------------------------------------------------
 # Auth helpers
