@@ -89,6 +89,13 @@ def load_current_user():
     g.current_user = db.get_user_by_id(uid) if uid else None
 
 
+@app.context_processor
+def inject_template_globals():
+    return {
+        "is_admin": bool(g.current_user and g.current_user["email"] == ADMIN_EMAIL)
+    }
+
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -385,8 +392,6 @@ def index():
         date_from=date_from,
         date_to=date_to,
         fetch_status=_fetch_status,
-        is_admin=g.current_user["email"] == ADMIN_EMAIL,
-        digest_presets=digest_presets,
     )
 
 
@@ -995,6 +1000,15 @@ def logs_view():
 # ---------------------------------------------------------------------------
 # User settings
 # ---------------------------------------------------------------------------
+
+@app.route("/subscribe")
+@login_required
+def subscribe():
+    uid = g.current_user["id"]
+    digest_presets = db.get_digest_presets(uid)
+    all_sources = db.get_all_sources()
+    return render_template("subscribe.html", digest_presets=digest_presets, all_sources=all_sources)
+
 
 @app.route("/settings", methods=["GET", "POST"])
 @login_required

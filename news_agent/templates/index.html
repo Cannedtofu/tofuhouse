@@ -4,8 +4,6 @@
 {% block content %}
 {# Pass article data to JS as JSON #}
 <script id="articles-data" type="application/json">{{ articles | tojson }}</script>
-<script id="digest-presets-data" type="application/json">{{ digest_presets | tojson }}</script>
-<script id="all-sources-data" type="application/json">{{ all_sources | tojson }}</script>
 
 <!-- Two-panel layout — fills viewport below navbar -->
 <div class="row g-0" style="height: calc(100vh - 90px); min-height: 500px;">
@@ -120,10 +118,7 @@
           <span id="digest-label">✦ 生成一次性AI简报</span>
           <span id="digest-spinner" class="spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
-        <button id="email-settings-btn" type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEmailSettings()">
-          📧 设置邮件简报订阅
-        </button>
-        <button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
+<button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
           <span id="fetch-label">⬇ 抓取已选信息源</span>
           <span id="fetch-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
         </button>
@@ -152,15 +147,22 @@
                 <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
                         onclick="setAllSources(false)">清空</button>
               </li>
-              <li><hr class="dropdown-divider my-1"></li>
-              {% for s in all_sources %}
-              <li>
-                <label class="dropdown-item d-flex align-items-center gap-2 py-1">
-                  <input type="checkbox" name="source_ids" value="{{ s.id }}"
-                    {% if s.id in active_ids %}checked{% endif %}>
-                  <span>{{ s.name }} <small class="text-muted">({{ s.type }})</small></span>
-                </label>
-              </li>
+              {% set type_groups = [('推特', 'nitter'), ('RSS', 'rss'), ('YouTube', 'youtube'), ('网站', 'web')] %}
+              {% for label, type_key in type_groups %}
+                {% set grp = all_sources | selectattr('type', 'equalto', type_key) | list %}
+                {% if grp %}
+                <li><hr class="dropdown-divider my-1"></li>
+                <li><span class="dropdown-header" style="font-size:.72rem">{{ label }}</span></li>
+                {% for s in grp %}
+                <li>
+                  <label class="dropdown-item d-flex align-items-center gap-2 py-1">
+                    <input type="checkbox" name="source_ids" value="{{ s.id }}"
+                      {% if s.id in active_ids %}checked{% endif %}>
+                    <span>{{ s.name }}</span>
+                  </label>
+                </li>
+                {% endfor %}
+                {% endif %}
               {% endfor %}
             </ul>
           </div>
@@ -174,19 +176,7 @@
       <div id="fetch-toast" class="alert mb-0 mt-2" style="display:none"></div>
     </div>
 
-    <!-- Email settings panel -->
-    <div id="email-settings-panel" class="border-bottom flex-shrink-0" style="display:none">
-      <div class="d-flex justify-content-between align-items-center px-3 py-2 bg-light border-bottom">
-        <span class="fw-semibold small">📧 邮件简报设置</span>
-        <button type="button" class="btn-close btn-sm" onclick="closeEmailSettings()"></button>
-      </div>
-      <div class="px-4 py-3" style="max-height:380px; overflow-y:auto; background:#fff">
-        <p class="text-muted small mb-3">简报将发送至 <strong>{{ g.current_user.email }}</strong>，每 6 小时检查一次发送条件。</p>
-        <div id="email-settings-body"></div>
-      </div>
-    </div>
-
-    <!-- AI Digest panel (collapsible, sits between header and detail) -->
+<!-- AI Digest panel (collapsible, sits between header and detail) -->
     <div id="digest-panel" class="border-bottom flex-shrink-0" style="display:none">
       <div class="d-flex justify-content-between align-items-center px-3 py-2 bg-white border-bottom">
         <span class="fw-semibold small">✦ AI Digest</span>
@@ -279,8 +269,6 @@ function setAllSources(checked) {
 const ARTICLES = JSON.parse(document.getElementById('articles-data').textContent);
 const byId = {};
 ARTICLES.forEach(a => byId[a.id] = a);
-let DIGEST_PRESETS = JSON.parse(document.getElementById('digest-presets-data').textContent);
-const ALL_SOURCES  = JSON.parse(document.getElementById('all-sources-data').textContent);
 
 let currentId = null;
 // Per-article translation cache: id → bilingual markdown string
@@ -469,9 +457,6 @@ function _resetTranslateBtn(id) {
 
 // ---- AI Digest ----
 
-function _escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
 
 function _startDigest(label) {
   const btn = document.getElementById('digest-btn');
@@ -507,13 +492,6 @@ function generateDigest() {
   _submitDigest({ article_ids: ids });
 }
 
-function generateDigestPreset(presetId) {
-  const preset = DIGEST_PRESETS.find(p => p.id === presetId);
-  const dateFrom = document.querySelector('input[name="date_from"]').value || null;
-  const dateTo   = document.querySelector('input[name="date_to"]').value || null;
-  _startDigest(preset ? `✦ ${_escHtml(preset.name)} 生成中…` : '✦ 生成中…');
-  _submitDigest({ preset_id: presetId, date_from: dateFrom, date_to: dateTo });
-}
 
 function pollDigestStatus(jobId) {
   const interval = setInterval(() => {
@@ -546,145 +524,6 @@ function showDigestError(msg) {
   document.getElementById('digest-text').textContent = msg;
 }
 
-// ---- Email digest settings panel ----
-
-function toggleEmailSettings() {
-  const panel = document.getElementById('email-settings-panel');
-  if (panel.style.display === 'none' || !panel.style.display) {
-    renderEmailSettings();
-    panel.style.display = 'block';
-  } else {
-    panel.style.display = 'none';
-  }
-}
-
-function closeEmailSettings() {
-  document.getElementById('email-settings-panel').style.display = 'none';
-}
-
-function renderEmailSettings() {
-  const container = document.getElementById('email-settings-body');
-  const freqLabel = v => ({1:'每天', 3:'每 3 天', 7:'每周', 14:'每 2 周'}[v] || `每 ${v} 天`);
-  let html = '';
-
-  for (let slot = 0; slot < 2; slot++) {
-    const p = DIGEST_PRESETS[slot];
-    if (slot > 0) html += '<hr class="my-3">';
-
-    if (p) {
-      const srcChecks = ALL_SOURCES.map(s =>
-        `<div class="col"><div class="form-check">
-          <input type="checkbox" class="form-check-input preset-src-check"
-                 id="pedit-${p.id}-${s.id}" value="${s.id}"
-                 ${p.source_ids.includes(s.id) ? 'checked' : ''}>
-          <label class="form-check-label small" for="pedit-${p.id}-${s.id}">
-            ${_escHtml(s.name)} <span class="text-muted">(${s.type})</span>
-          </label>
-        </div></div>`
-      ).join('');
-      const freqOpts = [1,3,7,14].map(v =>
-        `<option value="${v}"${p.digest_frequency_days===v?' selected':''}>${freqLabel(v)}</option>`
-      ).join('');
-      html += `
-        <div class="preset-edit-block mb-2" data-preset-id="${p.id}">
-          <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="text-muted small flex-shrink-0 fw-semibold">简报 ${slot+1}</span>
-            <input type="text" class="form-control form-control-sm flex-grow-1"
-                   id="preset-name-${p.id}" value="${_escHtml(p.name)}" placeholder="简报名称">
-            <button class="btn btn-sm btn-outline-secondary flex-shrink-0"
-                    onclick="generateDigestPreset(${p.id})">✦ 生成</button>
-          </div>
-          <div class="row row-cols-2 row-cols-md-3 g-1 mb-2">${srcChecks}</div>
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <div class="form-check form-switch mb-0">
-              <input type="checkbox" class="form-check-input" id="pemail-${p.id}"
-                     ${p.digest_enabled ? 'checked' : ''}>
-              <label class="form-check-label small" for="pemail-${p.id}">邮件发送</label>
-            </div>
-            <select class="form-select form-select-sm w-auto" id="pfreq-${p.id}">${freqOpts}</select>
-            <button class="btn btn-sm btn-primary" onclick="saveEditPreset(${p.id})">保存</button>
-          </div>
-        </div>`;
-    } else {
-      const srcChecks = ALL_SOURCES.map(s =>
-        `<div class="col"><div class="form-check">
-          <input type="checkbox" class="form-check-input pnew-src-check-${slot}" id="pnew-${slot}-${s.id}" value="${s.id}">
-          <label class="form-check-label small" for="pnew-${slot}-${s.id}">
-            ${_escHtml(s.name)} <span class="text-muted">(${s.type})</span>
-          </label>
-        </div></div>`
-      ).join('');
-      html += `
-        <div id="new-preset-block-${slot}">
-          <div class="d-flex align-items-center mb-2 gap-2">
-            <span class="text-muted small flex-shrink-0 fw-semibold">简报 ${slot+1}</span>
-            <input type="text" class="form-control form-control-sm flex-grow-1"
-                   id="new-preset-name-${slot}" placeholder="简报名称（例：科技资讯）">
-            <button class="btn btn-sm btn-primary" onclick="saveNewPreset(${slot})">保存配置</button>
-          </div>
-          <div class="row row-cols-2 row-cols-md-3 g-1">${srcChecks}</div>
-        </div>`;
-    }
-  }
-
-  container.innerHTML = html;
-}
-
-function saveNewPreset(slot) {
-  const nameEl = document.getElementById(`new-preset-name-${slot}`);
-  const name = nameEl.value.trim();
-  if (!name) { nameEl.focus(); return; }
-  const sourceIds = Array.from(document.querySelectorAll(`.pnew-src-check-${slot}:checked`))
-    .map(el => parseInt(el.value));
-  fetch('/digest/presets', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, source_ids: sourceIds })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) { alert(data.error); return; }
-    DIGEST_PRESETS.push(data);
-    renderEmailSettings();
-  })
-  .catch(() => alert('保存失败'));
-}
-
-function saveEditPreset(id) {
-  const nameEl = document.getElementById(`preset-name-${id}`);
-  const name = nameEl.value.trim();
-  if (!name) { nameEl.focus(); return; }
-  const block = document.querySelector(`.preset-edit-block[data-preset-id="${id}"]`);
-  const sourceIds = Array.from(block.querySelectorAll('.preset-src-check:checked'))
-    .map(el => parseInt(el.value));
-  const digest_enabled = document.getElementById(`pemail-${id}`).checked;
-  const digest_frequency_days = parseInt(document.getElementById(`pfreq-${id}`).value);
-  fetch(`/digest/presets/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, source_ids: sourceIds, digest_enabled, digest_frequency_days })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) { alert(data.error); return; }
-    const idx = DIGEST_PRESETS.findIndex(p => p.id === id);
-    if (idx !== -1) DIGEST_PRESETS[idx] = { ...DIGEST_PRESETS[idx], name, source_ids: sourceIds, digest_enabled, digest_frequency_days };
-    const btn = block.querySelector('button.btn-primary');
-    if (btn) { const orig = btn.textContent; btn.textContent = '✓ 已保存'; setTimeout(() => { btn.textContent = orig; }, 1500); }
-  })
-  .catch(() => alert('保存失败'));
-}
-
-function deletePreset(id) {
-  if (!confirm('删除这个简报配置？')) return;
-  fetch(`/digest/presets/${id}`, { method: 'DELETE' })
-  .then(r => r.json())
-  .then(() => {
-    DIGEST_PRESETS = DIGEST_PRESETS.filter(p => p.id !== id);
-    renderEmailSettings();
-  })
-  .catch(() => alert('删除失败'));
-}
 
 function renderDigest(md) {
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
