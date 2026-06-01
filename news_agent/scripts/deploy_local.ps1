@@ -34,7 +34,7 @@ Write-Host ""
 Write-Host "==> Staging changes in news_agent..." -ForegroundColor Cyan
 git -C $gitRoot add $relPath
 
-$status = git -C $gitRoot status --short
+$status = git -C $gitRoot status --short -- $relPath
 if (-not $status) {
     Write-Host "Nothing to commit. Skipping to deploy." -ForegroundColor Yellow
 } else {
