@@ -406,8 +406,8 @@ def sources():
 
         if not name or not type_ or not raw_url:
             error = "All fields are required."
-        elif type_ not in ("rss", "nitter", "web"):
-            error = "Type must be rss, nitter, or web."
+        elif type_ not in ("rss", "nitter", "web", "youtube"):
+            error = "Type must be rss, nitter, web, or youtube."
         else:
             # For nitter, store only the handle (strip full x.com/twitter.com URLs)
             if type_ == "nitter":
