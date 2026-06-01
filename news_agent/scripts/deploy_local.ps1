@@ -25,16 +25,13 @@ if (-not $Message) {
 
 # --- Git: stage news_agent folder, commit, push ------------------------------
 $repoRoot = Split-Path -Parent $PSScriptRoot   # d:\代码项目\news_agent
-$gitRoot  = git -C $repoRoot rev-parse --show-toplevel 2>$null
-if (-not $gitRoot) {
-    Write-Error "Not inside a git repository."
-    exit 1
-}
+# Derive git root from known folder structure to avoid encoding issues with
+# git rev-parse --show-toplevel on Chinese paths in PowerShell 5.1 (GBK code page).
+$gitRoot  = Split-Path -Parent $repoRoot       # d:\代码项目
+$relPath  = Split-Path -Leaf $repoRoot         # news_agent
 
 Write-Host ""
 Write-Host "==> Staging changes in news_agent..." -ForegroundColor Cyan
-# Compute relative path from git root to repo folder (PS 5.1 compatible)
-$relPath = $repoRoot.Substring($gitRoot.Length).TrimStart('\', '/')
 git -C $gitRoot add $relPath
 
 $status = git -C $gitRoot status --short
