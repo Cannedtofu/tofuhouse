@@ -144,33 +144,56 @@
     </table>
   </div>
 
-  <!-- Admin: user follow lists -->
-  <div class="card p-4 mt-4">
-    <h5 class="mb-3">管理员：用户订阅来源</h5>
-    {% for u in all_users %}
-    <div id="follows-{{ u.id }}" class="mb-4">
-      <p class="fw-medium mb-1 small">{{ u.email }}</p>
-      <form method="post" action="/admin/users/{{ u.id }}/follows">
-        <div class="row row-cols-2 row-cols-md-3 g-1 mb-2">
-          {% for src in user_follows[u.id] %}
-          <div class="col">
-            <div class="form-check">
-              <input type="checkbox" name="source_ids" value="{{ src.id }}"
-                     class="form-check-input" id="src-{{ u.id }}-{{ src.id }}"
-                     {% if src.followed %}checked{% endif %}>
-              <label class="form-check-label small" for="src-{{ u.id }}-{{ src.id }}">
-                {{ src.name }}
-                <span class="text-muted">({{ src.type }})</span>
-              </label>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        <button type="submit" class="btn btn-sm btn-outline-primary">保存</button>
-      </form>
+  <!-- Admin: user follow lists (collapsed by default) -->
+  <div class="card mt-4">
+    <div class="card-header d-flex align-items-center gap-2 py-3 px-4"
+         style="cursor:pointer" data-bs-toggle="collapse"
+         data-bs-target="#admin-follows-panel" aria-expanded="false"
+         aria-controls="admin-follows-panel">
+      <span class="fw-medium me-auto">管理员：用户订阅来源</span>
+      <span class="text-muted small follows-caret">▸</span>
     </div>
-    {% if not loop.last %}<hr>{% endif %}
-    {% endfor %}
+    <div class="collapse" id="admin-follows-panel">
+      <div class="card-body px-4 pt-3 pb-2">
+        {% for u in all_users %}
+        <!-- Per-user collapsible row -->
+        <div id="follows-{{ u.id }}" class="mb-1">
+          <div class="d-flex align-items-center py-2 px-1 rounded"
+               style="cursor:pointer; user-select:none"
+               data-bs-toggle="collapse"
+               data-bs-target="#follows-body-{{ u.id }}"
+               aria-expanded="false"
+               aria-controls="follows-body-{{ u.id }}">
+            <span class="small fw-medium me-auto">{{ u.email }}</span>
+            {% set followed_count = user_follows[u.id] | selectattr("followed") | list | length %}
+            <span class="badge bg-secondary me-2" style="font-weight:400">{{ followed_count }} 个来源</span>
+            <span class="text-muted small user-caret-{{ u.id }}">▸</span>
+          </div>
+          <div class="collapse" id="follows-body-{{ u.id }}">
+            <form method="post" action="/admin/users/{{ u.id }}/follows" class="ps-1 pb-2">
+              <div class="row row-cols-2 row-cols-md-3 g-1 mb-2 mt-1">
+                {% for src in user_follows[u.id] %}
+                <div class="col">
+                  <div class="form-check">
+                    <input type="checkbox" name="source_ids" value="{{ src.id }}"
+                           class="form-check-input" id="src-{{ u.id }}-{{ src.id }}"
+                           {% if src.followed %}checked{% endif %}>
+                    <label class="form-check-label small" for="src-{{ u.id }}-{{ src.id }}">
+                      {{ src.name }}
+                      <span class="text-muted">({{ src.type }})</span>
+                    </label>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              <button type="submit" class="btn btn-sm btn-outline-primary">保存</button>
+            </form>
+          </div>
+        </div>
+        {% if not loop.last %}<hr class="my-1">{% endif %}
+        {% endfor %}
+      </div>
+    </div>
   </div>
 
   <!-- Admin: weekly token usage by user -->
@@ -210,6 +233,42 @@ if (ownFreqSelect) {
   ownFreqSelect.addEventListener('change', function() {
     document.getElementById('freq-label').textContent = this.value;
   });
+}
+
+// Rotate outer caret when the admin follows panel opens/closes
+const followsPanel = document.getElementById('admin-follows-panel');
+if (followsPanel) {
+  followsPanel.addEventListener('show.bs.collapse', () => {
+    document.querySelector('.follows-caret').textContent = '▾';
+  });
+  followsPanel.addEventListener('hide.bs.collapse', () => {
+    document.querySelector('.follows-caret').textContent = '▸';
+  });
+
+  // Rotate per-user carets
+  followsPanel.querySelectorAll('.collapse').forEach(el => {
+    const uid = el.id.replace('follows-body-', '');
+    el.addEventListener('show.bs.collapse', () => {
+      const c = document.querySelector(`.user-caret-${uid}`);
+      if (c) c.textContent = '▾';
+    });
+    el.addEventListener('hide.bs.collapse', () => {
+      const c = document.querySelector(`.user-caret-${uid}`);
+      if (c) c.textContent = '▸';
+    });
+  });
+
+  // After saving a follow list the page redirects to #follows-N —
+  // auto-expand the outer panel and the matching user row.
+  const hash = window.location.hash;
+  const m = hash.match(/^#follows-(\d+)$/);
+  if (m) {
+    bootstrap.Collapse.getOrCreateInstance(followsPanel, { toggle: false }).show();
+    const userBody = document.getElementById(`follows-body-${m[1]}`);
+    if (userBody) {
+      bootstrap.Collapse.getOrCreateInstance(userBody, { toggle: false }).show();
+    }
+  }
 }
 </script>
 {% endblock %}
