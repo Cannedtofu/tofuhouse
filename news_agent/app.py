@@ -328,6 +328,7 @@ def index():
         date_to=date_to,
         fetch_status=_fetch_status,
         is_admin=g.current_user["email"] == ADMIN_EMAIL,
+        digest_presets=db.get_digest_presets(g.current_user["id"]),
     )
 
 
@@ -779,13 +780,25 @@ def article_download_pdf(article_id: int):
 def digest_generate():
     data = request.get_json(force=True, silent=True) or {}
     article_ids = data.get("article_ids", [])
+    uid = g.current_user["id"] if g.current_user else None
+
+    # Preset-based generation: look up source_ids then query articles
+    preset_id = data.get("preset_id")
+    if preset_id:
+        preset = db.get_digest_preset(int(preset_id), uid)
+        if not preset:
+            return jsonify({"error": "Preset not found"}), 404
+        source_ids = preset["source_ids"] or None
+        date_from = data.get("date_from")
+        date_to = data.get("date_to")
+        articles = db.get_articles(date_from=date_from, date_to=date_to, source_ids=source_ids)
+        article_ids = [a["id"] for a in articles]
+
     if not article_ids:
         return jsonify({"error": "No article IDs provided"}), 400
 
     job_id = str(uuid.uuid4())
     _digest_jobs[job_id] = {"status": "running", "result": None}
-
-    uid = g.current_user["id"] if g.current_user else None
 
     def _run():
         try:
@@ -797,6 +810,49 @@ def digest_generate():
 
     threading.Thread(target=_run, daemon=True).start()
     return jsonify({"job_id": job_id})
+
+
+# ---------------------------------------------------------------------------
+# Digest preset CRUD
+# ---------------------------------------------------------------------------
+
+@app.route("/digest/presets", methods=["GET"])
+@login_required
+def digest_presets_list():
+    return jsonify(db.get_digest_presets(g.current_user["id"]))
+
+
+@app.route("/digest/presets", methods=["POST"])
+@login_required
+def digest_presets_create():
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or "").strip()
+    source_ids = [int(x) for x in data.get("source_ids", [])]
+    if not name:
+        return jsonify({"error": "Name required"}), 400
+    preset = db.create_digest_preset(g.current_user["id"], name, source_ids)
+    if preset is None:
+        return jsonify({"error": "最多只能创建 2 个简报配置"}), 400
+    return jsonify(preset), 201
+
+
+@app.route("/digest/presets/<int:preset_id>", methods=["PUT"])
+@login_required
+def digest_presets_update(preset_id: int):
+    data = request.get_json(force=True, silent=True) or {}
+    name = (data.get("name") or "").strip()
+    source_ids = [int(x) for x in data.get("source_ids", [])]
+    if not name:
+        return jsonify({"error": "Name required"}), 400
+    db.update_digest_preset(preset_id, g.current_user["id"], name, source_ids)
+    return jsonify({"ok": True})
+
+
+@app.route("/digest/presets/<int:preset_id>", methods=["DELETE"])
+@login_required
+def digest_presets_delete(preset_id: int):
+    db.delete_digest_preset(preset_id, g.current_user["id"])
+    return jsonify({"ok": True})
 
 
 @app.route("/digest/status/<job_id>")

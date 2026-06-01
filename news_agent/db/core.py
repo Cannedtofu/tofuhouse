@@ -113,6 +113,15 @@ def init_db():
             );
 
             CREATE INDEX IF NOT EXISTS idx_transcript_jobs_created ON transcript_jobs(created_at);
+
+            CREATE TABLE IF NOT EXISTS digest_presets (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                name            TEXT    NOT NULL,
+                source_ids_json TEXT    NOT NULL DEFAULT '[]',
+                created_at      TEXT    NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_digest_presets_user ON digest_presets(user_id);
         """)
         # Migrations for older databases
         try:

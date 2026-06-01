@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+
+
 ## Running the app
 
 ```bash
@@ -324,3 +326,28 @@ bash /opt/tofuhouse/news_agent/scripts/deploy.sh   # on server
 ```
 
 See `DEPLOY.md` for full deployment reference.
+
+
+---
+
+## Session Workflow
+
+- At session start: read `STATUS.md` — treat it as the source of truth for current state
+- After completing a major feature or meaningful fix: update `STATUS.md` before stopping
+- Do not update STATUS.md for small edits, typo fixes, or minor refactors
+
+---
+
+## Conventions
+
+- DB access always through `db/` layer — no raw SQL in routes or pipeline code
+- Config values always from `config.py` — no hardcoded strings, keys, or thresholds
+- Background tasks follow the existing `threading.Thread(target=fn, daemon=True).start()` pattern
+- New background jobs that need to survive restarts go in SQLite (follow `transcript_jobs`)
+- New background jobs that don't need persistence go in an in-memory dict (follow `_digest_jobs`)
+- New LLM calls use `QWEN_SUMMARY_MODEL` (qwen-plus) unless vision is required (`QWEN_VISION_MODEL`)
+- Chinese UI strings are intentional — do not translate or change them
+- Don't add type hints to existing files unless explicitly asked
+- Don't refactor code outside the scope of the current task — ask first
+- Write code directly; skip narrating what you're about to do
+- If something is ambiguous, ask one specific question before proceeding

@@ -60,6 +60,11 @@ from db.digests import (
     log_token_usage,
     get_token_usage_summary,
     get_token_usage_by_user_week,
+    get_digest_presets,
+    get_digest_preset,
+    create_digest_preset,
+    update_digest_preset,
+    delete_digest_preset,
 )
 from db.transcripts import (
     create_transcript_job,
@@ -91,6 +96,8 @@ __all__ = [
     # digests
     "get_all_digests_with_meta", "get_digest_cache", "save_digest_cache",
     "log_token_usage", "get_token_usage_summary", "get_token_usage_by_user_week",
+    "get_digest_presets", "get_digest_preset", "create_digest_preset",
+    "update_digest_preset", "delete_digest_preset",
     # transcripts
     "create_transcript_job", "get_done_transcript_job", "list_transcript_jobs",
     "update_transcript_job", "get_transcript_job", "set_transcript_metadata",

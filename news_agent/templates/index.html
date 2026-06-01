@@ -4,6 +4,8 @@
 {% block content %}
 {# Pass article data to JS as JSON #}
 <script id="articles-data" type="application/json">{{ articles | tojson }}</script>
+<script id="digest-presets-data" type="application/json">{{ digest_presets | tojson }}</script>
+<script id="all-sources-data" type="application/json">{{ all_sources | tojson }}</script>
 
 <!-- Two-panel layout — fills viewport below navbar -->
 <div class="row g-0" style="height: calc(100vh - 90px); min-height: 500px;">
@@ -71,10 +73,14 @@
         <span id="scheduler-badge" class="badge bg-success" style="display:none" title="Nitter 来源定时自动抓取">
           ⏱ 自动获取已开启
         </span>
-        <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary" onclick="generateDigest()">
-          <span id="digest-label">✦ AI 简报</span>
-          <span id="digest-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
-        </button>
+        <div class="btn-group">
+          <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary dropdown-toggle"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            <span id="digest-label">✦ AI 简报</span>
+            <span id="digest-spinner" class="spinner-border spinner-border-sm ms-1" style="display:none"></span>
+          </button>
+          <ul class="dropdown-menu" id="digest-dropdown-menu"></ul>
+        </div>
         <button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
           <span id="fetch-label">⬇ 立即获取</span>
           <span id="fetch-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
@@ -180,6 +186,19 @@
 
   </div>
 </div>
+
+<!-- Digest preset management modal -->
+<div class="modal fade" id="presetModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header py-2 px-4">
+        <h6 class="modal-title mb-0">管理简报配置</h6>
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body px-4 py-3" id="preset-modal-body"></div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -226,6 +245,8 @@ function setAllSources(checked) {
 const ARTICLES = JSON.parse(document.getElementById('articles-data').textContent);
 const byId = {};
 ARTICLES.forEach(a => byId[a.id] = a);
+let DIGEST_PRESETS = JSON.parse(document.getElementById('digest-presets-data').textContent);
+const ALL_SOURCES  = JSON.parse(document.getElementById('all-sources-data').textContent);
 
 let currentId = null;
 // Per-article translation cache: id → bilingual markdown string
@@ -405,31 +426,48 @@ function _resetTranslateBtn(id) {
 }
 
 // ---- AI Digest ----
-function generateDigest() {
-  const ids = ARTICLES.map(a => a.id);
-  if (ids.length === 0) {
-    alert('暂无文章可生成简报，请先应用筛选条件并获取文章。');
-    return;
+
+function _escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderDigestDropdown() {
+  const ul = document.getElementById('digest-dropdown-menu');
+  if (!ul) return;
+  let html = '';
+  if (DIGEST_PRESETS.length > 0) {
+    html += '<li><h6 class="dropdown-header small">预设简报</h6></li>';
+    DIGEST_PRESETS.forEach(p => {
+      const srcNames = p.source_ids.length
+        ? p.source_ids.map(id => { const s = ALL_SOURCES.find(s => s.id === id); return s ? s.name : ''; }).filter(Boolean).join(', ')
+        : '全部来源';
+      html += `<li><a class="dropdown-item small" href="#" onclick="generateDigestPreset(${p.id}); return false;">
+        ✦ ${_escHtml(p.name)}<br><span class="text-muted" style="font-size:.8em">${_escHtml(srcNames)}</span>
+      </a></li>`;
+    });
+    html += '<li><hr class="dropdown-divider my-1"></li>';
   }
+  html += `<li><a class="dropdown-item small" href="#" onclick="generateDigest(); return false;">✦ 当前文章</a></li>`;
+  html += `<li><hr class="dropdown-divider my-1"></li>`;
+  html += `<li><a class="dropdown-item small" href="#" onclick="openPresetModal(); return false;">⚙ 管理简报配置</a></li>`;
+  ul.innerHTML = html;
+}
 
+function _startDigest(label) {
   const btn = document.getElementById('digest-btn');
-  const label = document.getElementById('digest-label');
-  const spinner = document.getElementById('digest-spinner');
-  const panel = document.getElementById('digest-panel');
-  const spinnerPanel = document.getElementById('digest-spinner-panel');
-  const textEl = document.getElementById('digest-text');
-
   btn.disabled = true;
-  label.textContent = '生成中，晚点再回来看看吧…';
-  spinner.style.display = 'inline-block';
-  panel.style.display = 'block';
-  spinnerPanel.style.display = 'block';
-  textEl.textContent = '';
+  document.getElementById('digest-label').textContent = label || '生成中…';
+  document.getElementById('digest-spinner').style.display = 'inline-block';
+  document.getElementById('digest-panel').style.display = 'block';
+  document.getElementById('digest-spinner-panel').style.display = 'block';
+  document.getElementById('digest-text').textContent = '';
+}
 
+function _submitDigest(body) {
   fetch('/digest/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ article_ids: ids })
+    body: JSON.stringify(body)
   })
     .then(r => r.json())
     .then(data => {
@@ -437,6 +475,24 @@ function generateDigest() {
       if (data.job_id) { pollDigestStatus(data.job_id); }
     })
     .catch(() => showDigestError('请求失败。'));
+}
+
+function generateDigest() {
+  const ids = ARTICLES.map(a => a.id);
+  if (ids.length === 0) {
+    alert('暂无文章可生成简报，请先应用筛选条件并获取文章。');
+    return;
+  }
+  _startDigest('✦ 生成中…');
+  _submitDigest({ article_ids: ids });
+}
+
+function generateDigestPreset(presetId) {
+  const preset = DIGEST_PRESETS.find(p => p.id === presetId);
+  const dateFrom = document.querySelector('input[name="date_from"]').value || null;
+  const dateTo   = document.querySelector('input[name="date_to"]').value || null;
+  _startDigest(preset ? `✦ ${preset.name} 生成中…` : '✦ 生成中…');
+  _submitDigest({ preset_id: presetId, date_from: dateFrom, date_to: dateTo });
 }
 
 function pollDigestStatus(jobId) {
@@ -453,7 +509,6 @@ function pollDigestStatus(jobId) {
           clearInterval(interval);
           showDigestError(data.result || '简报生成失败。');
         }
-        // status === 'running': keep polling
       })
       .catch(() => { clearInterval(interval); showDigestError('轮询失败。'); });
   }, 2000);
@@ -470,6 +525,133 @@ function showDigestError(msg) {
   document.getElementById('digest-spinner-panel').style.display = 'none';
   document.getElementById('digest-text').textContent = msg;
 }
+
+// ---- Digest preset management ----
+
+function openPresetModal() {
+  renderPresetModal();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('presetModal')).show();
+}
+
+function renderPresetModal() {
+  const container = document.getElementById('preset-modal-body');
+  let html = '';
+
+  if (DIGEST_PRESETS.length === 0) {
+    html += '<p class="text-muted small mb-3">还没有简报配置。最多可创建 2 个，每个可选择不同的来源。</p>';
+  }
+
+  DIGEST_PRESETS.forEach((p, idx) => {
+    const srcChecks = ALL_SOURCES.map(s =>
+      `<div class="col"><div class="form-check">
+        <input type="checkbox" class="form-check-input preset-src-check" id="pedit-${p.id}-${s.id}" value="${s.id}"
+               ${p.source_ids.includes(s.id) ? 'checked' : ''}>
+        <label class="form-check-label small" for="pedit-${p.id}-${s.id}">
+          ${_escHtml(s.name)} <span class="text-muted">(${s.type})</span>
+        </label>
+      </div></div>`
+    ).join('');
+
+    html += `
+      <div class="preset-edit-block mb-3 pb-3 ${idx < DIGEST_PRESETS.length - 1 ? 'border-bottom' : ''}"
+           data-preset-id="${p.id}">
+        <div class="d-flex align-items-center mb-2">
+          <span class="text-muted small me-2">简报 ${idx + 1}</span>
+          <input type="text" class="form-control form-control-sm me-auto" style="max-width:260px"
+                 id="preset-name-${p.id}" value="${_escHtml(p.name)}" placeholder="简报名称">
+          <button class="btn btn-sm btn-outline-danger ms-2" onclick="deletePreset(${p.id})">删除</button>
+          <button class="btn btn-sm btn-primary ms-2" onclick="saveEditPreset(${p.id})">保存</button>
+        </div>
+        <div class="row row-cols-2 row-cols-md-3 g-1">${srcChecks}</div>
+      </div>`;
+  });
+
+  if (DIGEST_PRESETS.length < 2) {
+    const srcChecks = ALL_SOURCES.map(s =>
+      `<div class="col"><div class="form-check">
+        <input type="checkbox" class="form-check-input pnew-src-check" id="pnew-${s.id}" value="${s.id}">
+        <label class="form-check-label small" for="pnew-${s.id}">
+          ${_escHtml(s.name)} <span class="text-muted">(${s.type})</span>
+        </label>
+      </div></div>`
+    ).join('');
+
+    html += `
+      ${DIGEST_PRESETS.length > 0 ? '<hr class="my-3">' : ''}
+      <div id="new-preset-block">
+        <h6 class="small fw-semibold mb-2">${DIGEST_PRESETS.length > 0 ? '添加第二个简报' : '新建简报配置'}</h6>
+        <div class="d-flex align-items-center mb-2 gap-2">
+          <input type="text" class="form-control form-control-sm" style="max-width:260px"
+                 id="new-preset-name" placeholder="简报名称（例：科技资讯）">
+          <button class="btn btn-sm btn-primary" onclick="saveNewPreset()">保存配置</button>
+        </div>
+        <div class="row row-cols-2 row-cols-md-3 g-1">${srcChecks}</div>
+      </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function saveNewPreset() {
+  const nameEl = document.getElementById('new-preset-name');
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  const sourceIds = Array.from(document.querySelectorAll('.pnew-src-check:checked'))
+    .map(el => parseInt(el.value));
+  fetch('/digest/presets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, source_ids: sourceIds })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); return; }
+    DIGEST_PRESETS.push(data);
+    renderPresetModal();
+    renderDigestDropdown();
+  })
+  .catch(() => alert('保存失败'));
+}
+
+function saveEditPreset(id) {
+  const nameEl = document.getElementById(`preset-name-${id}`);
+  const name = nameEl.value.trim();
+  if (!name) { nameEl.focus(); return; }
+  const block = document.querySelector(`.preset-edit-block[data-preset-id="${id}"]`);
+  const sourceIds = Array.from(block.querySelectorAll('.preset-src-check:checked'))
+    .map(el => parseInt(el.value));
+  fetch(`/digest/presets/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, source_ids: sourceIds })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); return; }
+    const idx = DIGEST_PRESETS.findIndex(p => p.id === id);
+    if (idx !== -1) DIGEST_PRESETS[idx] = { id, name, source_ids: sourceIds };
+    renderDigestDropdown();
+    // show brief confirmation
+    const btn = block.querySelector('button.btn-primary');
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓ 已保存'; setTimeout(() => btn.textContent = orig, 1500); }
+  })
+  .catch(() => alert('保存失败'));
+}
+
+function deletePreset(id) {
+  if (!confirm('删除这个简报配置？')) return;
+  fetch(`/digest/presets/${id}`, { method: 'DELETE' })
+  .then(r => r.json())
+  .then(() => {
+    DIGEST_PRESETS = DIGEST_PRESETS.filter(p => p.id !== id);
+    renderPresetModal();
+    renderDigestDropdown();
+  })
+  .catch(() => alert('删除失败'));
+}
+
+// Initialize digest dropdown on page load
+renderDigestDropdown();
 
 function renderDigest(md) {
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

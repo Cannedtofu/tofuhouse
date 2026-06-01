@@ -112,6 +112,68 @@ def get_token_usage_summary(user_id: Optional[int] = None) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+# ---------------------------------------------------------------------------
+# Digest presets
+# ---------------------------------------------------------------------------
+
+MAX_PRESETS_PER_USER = 2
+
+
+def get_digest_presets(user_id: int) -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, name, source_ids_json FROM digest_presets WHERE user_id = ? ORDER BY id",
+            (user_id,),
+        ).fetchall()
+    return [
+        {"id": r["id"], "name": r["name"], "source_ids": json.loads(r["source_ids_json"] or "[]")}
+        for r in rows
+    ]
+
+
+def get_digest_preset(preset_id: int, user_id: int) -> Optional[dict]:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, name, source_ids_json FROM digest_presets WHERE id = ? AND user_id = ?",
+            (preset_id, user_id),
+        ).fetchone()
+    if not row:
+        return None
+    return {"id": row["id"], "name": row["name"], "source_ids": json.loads(row["source_ids_json"] or "[]")}
+
+
+def create_digest_preset(user_id: int, name: str, source_ids: list[int]) -> Optional[dict]:
+    """Returns the new preset, or None if the user already has MAX_PRESETS_PER_USER."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM digest_presets WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        if count >= MAX_PRESETS_PER_USER:
+            return None
+        cur = conn.execute(
+            "INSERT INTO digest_presets (user_id, name, source_ids_json, created_at) VALUES (?, ?, ?, ?)",
+            (user_id, name, json.dumps(source_ids), now),
+        )
+        return {"id": cur.lastrowid, "name": name, "source_ids": source_ids}
+
+
+def update_digest_preset(preset_id: int, user_id: int, name: str, source_ids: list[int]):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE digest_presets SET name = ?, source_ids_json = ? WHERE id = ? AND user_id = ?",
+            (name, json.dumps(source_ids), preset_id, user_id),
+        )
+
+
+def delete_digest_preset(preset_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM digest_presets WHERE id = ? AND user_id = ?",
+            (preset_id, user_id),
+        )
+
+
 def get_token_usage_by_user_week() -> list[sqlite3.Row]:
     """Token usage per user for the past 7 days, grouped by user email."""
     with get_conn() as conn:
