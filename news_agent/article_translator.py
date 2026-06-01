@@ -19,9 +19,7 @@ _TRANSLATE_SYSTEM = (
     "The user will send numbered paragraph tags: <p num=\"N\">text</p>. "
     "Translate each paragraph from English to Simplified Chinese. "
     "Return the same XML tags with translated content inside, e.g. <p num=\"N\">中文</p>. "
-    "Preserve markdown formatting inside each paragraph: "
-    "**bold**, *italic*, [link text](url), # headings. "
-    "Do NOT translate image markdown ![alt](url) — copy it unchanged. "
+    "Preserve inline markdown: **bold**, *italic*, [link text](url). "
     "Output ONLY the translated XML tags, nothing else."
 )
 
@@ -99,10 +97,21 @@ def translate_article_bilingual(content: str) -> str:
         len(to_translate), len(paragraphs),
     )
 
+    # Strip inline images before sending to the API — the translated Chinese blockquote
+    # should be text-only. The original English paragraph (emitted as-is above it)
+    # already carries the images, so nothing is lost.
+    _IMG_RE = re.compile(r'!\[[^\]]*\]\([^)]+\)')
+    to_translate_clean = [
+        (i, _IMG_RE.sub("", p).strip()) for i, p in to_translate
+    ]
+    # Drop paragraphs that became empty after stripping (image-only but _is_translatable
+    # returned True due to surrounding text — strip left nothing)
+    to_translate_clean = [(i, p) for i, p in to_translate_clean if p]
+
     # Batch translate
     all_zh: dict[int, str] = {}
-    for start in range(0, len(to_translate), _BATCH_SIZE):
-        batch = to_translate[start : start + _BATCH_SIZE]
+    for start in range(0, len(to_translate_clean), _BATCH_SIZE):
+        batch = to_translate_clean[start : start + _BATCH_SIZE]
         try:
             zh_map = _translate_batch(batch)
             all_zh.update(zh_map)
