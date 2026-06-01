@@ -43,9 +43,12 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
-# qwen-plus context window is 131k tokens; 80k chars ≈ 20k tokens, safe headroom for output.
-# A 3-hour interview (~160k chars) splits into ~2 chunks at this size.
-_MAX_CHARS_PER_LLM_CALL = 80000
+# Chunk sizes are calibrated to qwen-plus's 131k-token context window.
+# English: ~4 chars/token → 80k chars ≈ 20k tokens, plenty of headroom.
+# Chinese: ~1-1.5 chars/token → 40k chars ≈ 27-40k tokens, still safe with output budget.
+_MAX_CHARS_EN = 80_000
+_MAX_CHARS_ZH = 40_000
+_CHUNK_OVERLAP = 800   # raw chars from tail of previous chunk fed into next chunk for continuity
 
 
 # ---------------------------------------------------------------------------
@@ -426,82 +429,159 @@ def _run_audio_transcript(
 # Summarization — Qwen via DashScope
 # ---------------------------------------------------------------------------
 
-_TRANSCRIPT_SUMMARY_SYSTEM = (
-    "You are an expert analyst summarizing video transcripts. "
-    "Your goal is to produce a content-dense summary that faithfully captures the specific topics "
-    "discussed, the distinct positions and arguments each speaker makes, concrete evidence or "
-    "examples cited, and any notable disagreements, qualifications, or unresolved questions. "
-    "Do not flatten differing views into a false consensus. Do not omit important nuance or "
-    "caveats that speakers explicitly stated. Preserve the intellectual substance of the "
-    "conversation — a reader who has not watched the video should come away with the actual "
-    "arguments, not just topic labels. "
-    "Always write your summary in Simplified Chinese (简体中文), "
-    "regardless of the language of the input transcript."
+# ---------------------------------------------------------------------------
+# Summarization prompts — two strategies based on input language
+#
+# Strategy EN: English transcript → Chinese summary
+#   English proper nouns / technical terms preserved as-is.
+#   Chunk size: _MAX_CHARS_EN (80k chars ≈ 20k tokens).
+#
+# Strategy ZH: Chinese transcript (original or translated) → Chinese summary
+#   Fully Chinese throughout; prompt language is Chinese for better coherence.
+#   Chunk size: _MAX_CHARS_ZH (40k chars ≈ 27-40k tokens).
+#
+# Both strategies share the same 4-section output structure.
+# Multi-chunk calls include an 800-char raw overlap from the previous chunk
+# so the model retains context across boundaries.
+# ---------------------------------------------------------------------------
+
+# --- English input (EN → ZH) ---
+
+_EN_SYSTEM = (
+    "You are an expert analyst summarizing English-language video transcripts. "
+    "Produce a content-dense summary in Simplified Chinese (简体中文) that faithfully "
+    "captures the specific topics discussed, each speaker's distinct positions and arguments, "
+    "concrete evidence or examples cited, and any notable disagreements, qualifications, or "
+    "unresolved questions. "
+    "Preserve English names, organizations, and technical terms exactly as they appear; "
+    "add a Chinese rendering in parentheses only where it is widely established "
+    "(e.g. 苹果公司, 斯坦福大学). "
+    "Do not flatten differing views into a false consensus. "
+    "A reader who has not watched the video should come away with the actual arguments, "
+    "not just topic labels."
 )
 
-_TRANSCRIPT_SUMMARY_PROMPT = """\
-Analyze the following video transcript and write a detailed summary in Simplified Chinese. \
-Use these clearly labeled sections:
+_EN_SINGLE_PROMPT = """\
+Analyze the following English-language video transcript and write a detailed summary \
+in Simplified Chinese. Use these clearly labeled sections:
 
 **概述**
-What is this video? Describe the format (interview, debate, lecture, panel, etc.), \
-who the speakers are (names, roles, affiliations if mentioned), and what the central \
-subject or question is. Be specific — avoid vague descriptions.
+Format (interview, lecture, debate, panel, etc.), speakers (names, roles, affiliations \
+if mentioned), and the central subject or question. Be specific.
 
 **议题与观点**
-For each major topic discussed, state: (1) what the topic is, and (2) what each speaker \
-specifically argued, claimed, or concluded about it. If speakers disagreed, capture both \
-positions and the basis for each. Use sub-headings for each distinct topic. \
-Do not merge opposing views into a single statement.
+For each major topic: what it is, and what each speaker specifically argued, claimed, or \
+concluded. If speakers disagreed, present both positions and the basis for each. \
+Use sub-headings per topic. Do not merge opposing views.
 
 **关键论据与证据**
-List the concrete supporting material speakers used: specific data points, statistics, \
-research findings, historical examples, case studies, personal experiences, or named \
-sources. Attribute each to the speaker who cited it.
+Concrete supporting material: specific data points, statistics, research findings, \
+named examples, cited sources. Attribute each to its speaker.
 
 **分歧与开放性问题**
-Note where speakers explicitly disagreed, hedged, or left questions unresolved. \
-Include any important caveats, acknowledged uncertainties, or areas marked for \
-further investigation.
+Where speakers explicitly disagreed, hedged, or left questions unresolved. Include \
+acknowledged uncertainties or areas marked for further investigation.
 
 Transcript:
 {transcript}"""
 
-_CHUNK_SUMMARY_PROMPT = """\
-This is part {part} of {total} of a video transcript. Extract and preserve the following \
-from this section — do NOT compress or paraphrase away detail:
+_EN_CHUNK_PROMPT = """\
+This is part {part} of {total} of an English-language video transcript.{context_block}
+Extract and preserve the following — do NOT compress or paraphrase away detail. \
+Write in Simplified Chinese. Preserve English names, organizations, and technical terms as-is.
 
-1. Each speaker's specific claims, arguments, and positions on topics raised in this section.
+1. Each speaker's specific claims, arguments, and positions on topics in this section.
 2. Any concrete data, statistics, named examples, or cited sources.
 3. Explicit disagreements, qualifications, or hedges between speakers.
-4. Any key questions raised but not yet answered (they may be answered in a later section).
+4. Key questions raised but not yet answered in this section.
 
-If speaker labels are present (e.g. [Speaker A]), attribute every point to its speaker. \
-Write in Simplified Chinese.
+If speaker labels are present (e.g. [Speaker A]), attribute every point to its speaker.
 
 Transcript section:
 {transcript}"""
 
-_FINAL_SUMMARY_PROMPT = """\
-Below are detailed notes extracted from each section of a longer video transcript. \
-Using these notes, write a complete summary in Simplified Chinese with these sections:
+_EN_FINAL_PROMPT = """\
+Below are detailed notes from each section of an English-language video transcript. \
+Write a complete summary in Simplified Chinese with these sections:
 
 **概述**
-What is this video? Format, speakers (names/roles if known), and the central subject.
+Format, speakers (names/roles), and the central subject.
 
 **议题与观点**
 For each major topic across all sections: what was argued, by whom, and with what reasoning. \
 Track how each speaker's position develops or stays consistent across sections. \
-Use sub-headings per topic. Preserve disagreements — do not merge opposing positions.
+Sub-headings per topic. Preserve disagreements — do not merge opposing positions.
 
 **关键论据与证据**
-Concrete supporting material cited: data, statistics, research, examples, named sources. \
+Concrete supporting material: data, statistics, research, examples, named sources. \
 Attribute each to its speaker.
 
 **分歧与开放性问题**
 Where speakers disagreed, hedged, or left questions unresolved across the full video.
 
 Section notes:
+{summaries}"""
+
+
+# --- Chinese input (ZH → ZH) ---
+
+_ZH_SYSTEM = (
+    "你是一位专业分析师，负责总结中文视频转录文稿（原始语言为中文，或由英文翻译而来）。"
+    "请用简体中文撰写内容翔实的摘要，忠实呈现讨论的具体议题、每位发言人的立场与论点、"
+    "援引的具体证据或实例，以及任何明显的分歧、保留意见或未解决问题。"
+    "不得将不同观点合并为虚假共识，不得省略发言人明确表述的重要细节或注意事项。"
+    "读者在未观看视频的情况下，应能通过摘要了解实质论点，而非仅获得话题标签。"
+)
+
+_ZH_SINGLE_PROMPT = """\
+请分析以下中文视频转录文稿，用简体中文撰写详细摘要，包含以下明确标注的部分：
+
+**概述**
+视频形式（访谈、讲座、辩论、圆桌等）、发言人（姓名、身份、所属机构，如有提及）及核心议题或问题。请具体描述，避免模糊表述。
+
+**议题与观点**
+对于每个主要议题：说明议题内容，以及每位发言人的具体论点、主张或结论。如有分歧，分别呈现双方立场及其依据，使用小标题区分各议题，不得合并对立观点。
+
+**关键论据与证据**
+发言人援引的具体佐证材料：数据、统计数字、研究成果、具名实例、引用来源等。注明每项材料出自哪位发言人。
+
+**分歧与开放性问题**
+发言人之间的明确分歧、保留意见，或未能解决的问题；包括已承认的不确定性或有待进一步探讨的领域。
+
+转录文稿：
+{transcript}"""
+
+_ZH_CHUNK_PROMPT = """\
+这是中文视频转录文稿第 {part} 部分（共 {total} 部分）。{context_block}
+请从本节中提取并保留以下内容——不得压缩或意译掉任何细节。用简体中文作答。
+
+1. 每位发言人在本节中的具体主张、论点和立场。
+2. 援引的具体数据、统计数字、具名实例或来源出处。
+3. 明确的分歧、限定语或保留意见。
+4. 已提出但本节尚未解答的关键问题。
+
+如有发言人标签（如 [Speaker A] 或姓名），请保留并归因每个要点。
+
+本节转录文稿：
+{transcript}"""
+
+_ZH_FINAL_PROMPT = """\
+以下是中文视频转录文稿各节的详细摘录笔记。
+请据此用简体中文撰写完整摘要，包含以下部分：
+
+**概述**
+视频形式、发言人（姓名/身份）及核心议题。
+
+**议题与观点**
+梳理各节涉及的每个主要议题：论点内容、持论者及其推理依据。追踪每位发言人的立场在各节间的发展与一致性。每个议题使用小标题，保留分歧，不得合并对立观点。
+
+**关键论据与证据**
+援引的具体佐证材料：数据、统计数字、研究成果、具名实例、来源，并注明出处。
+
+**分歧与开放性问题**
+全片中发言人之间的分歧、保留意见或未解决问题。
+
+各节笔记：
 {summaries}"""
 
 # qwen-mt-lite has a smaller token budget; 4000 chars ≈ 1000 English tokens,
@@ -592,26 +672,72 @@ def _translate_to_chinese(text: str) -> str:
     return "".join(results)
 
 
+def _detect_language(text: str) -> str:
+    """Return 'zh' if the text is predominantly Chinese, else 'en'.
+    Samples the first 5 000 chars for speed; treats >20% CJK chars as Chinese."""
+    sample = text[:5000]
+    cjk = sum(1 for c in sample if '一' <= c <= '鿿')
+    non_space = sum(1 for c in sample if not c.isspace())
+    return 'zh' if non_space and cjk / non_space > 0.20 else 'en'
+
+
 def _summarize_transcript(transcript: str) -> str:
-    chunks = _split_into_chunks(transcript, _MAX_CHARS_PER_LLM_CALL)
+    lang = _detect_language(transcript)
+    max_chars = _MAX_CHARS_ZH if lang == 'zh' else _MAX_CHARS_EN
+    logger.info(
+        "Summarizing transcript: lang=%s, %d chars, chunk_size=%d",
+        lang, len(transcript), max_chars,
+    )
+
+    chunks = _split_into_chunks(transcript, max_chars)
+
+    # ---- Single-chunk path ----
     if len(chunks) == 1:
-        return _qwen_chat(
-            _TRANSCRIPT_SUMMARY_PROMPT.format(transcript=transcript),
-        )
+        if lang == 'zh':
+            return _qwen_chat(_ZH_SINGLE_PROMPT.format(transcript=transcript),
+                              system=_ZH_SYSTEM)
+        return _qwen_chat(_EN_SINGLE_PROMPT.format(transcript=transcript),
+                          system=_EN_SYSTEM)
 
+    # ---- Multi-chunk path ----
     total = len(chunks)
-    logger.info("Transcript too long (%d chars); summarizing in %d chunks", len(transcript), total)
+    logger.info("Transcript too long; summarizing in %d chunks (lang=%s)", total, lang)
 
-    chunk_summaries = []
+    chunk_summaries: list[str] = []
     for i, chunk in enumerate(chunks):
-        notes = _qwen_chat(
-            _CHUNK_SUMMARY_PROMPT.format(part=i + 1, total=total, transcript=chunk),
-        )
-        chunk_summaries.append(f"Section {i + 1}:\n{notes}")
-        logger.info("Summarized chunk %d/%d", i + 1, total)
+        # Feed the raw tail of the previous chunk for boundary continuity
+        if i > 0:
+            tail = chunks[i - 1][-_CHUNK_OVERLAP:]
+            if lang == 'zh':
+                context_block = f"\n\n【前节结尾（原文，供衔接参考）】\n{tail}"
+            else:
+                context_block = f"\n\n[Preceding passage for continuity]\n{tail}"
+        else:
+            context_block = ""
 
+        if lang == 'zh':
+            notes = _qwen_chat(
+                _ZH_CHUNK_PROMPT.format(part=i + 1, total=total,
+                                        transcript=chunk, context_block=context_block),
+                system=_ZH_SYSTEM,
+            )
+        else:
+            notes = _qwen_chat(
+                _EN_CHUNK_PROMPT.format(part=i + 1, total=total,
+                                        transcript=chunk, context_block=context_block),
+                system=_EN_SYSTEM,
+            )
+        chunk_summaries.append(f"Section {i + 1}:\n{notes}")
+        logger.info("Summarized chunk %d/%d (lang=%s)", i + 1, total, lang)
+
+    if lang == 'zh':
+        return _qwen_chat(
+            _ZH_FINAL_PROMPT.format(summaries="\n\n".join(chunk_summaries)),
+            system=_ZH_SYSTEM,
+        )
     return _qwen_chat(
-        _FINAL_SUMMARY_PROMPT.format(summaries="\n\n".join(chunk_summaries)),
+        _EN_FINAL_PROMPT.format(summaries="\n\n".join(chunk_summaries)),
+        system=_EN_SYSTEM,
     )
 
 
