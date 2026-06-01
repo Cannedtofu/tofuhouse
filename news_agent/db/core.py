@@ -32,7 +32,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS sources (
                 id           INTEGER PRIMARY KEY AUTOINCREMENT,
                 name         TEXT    NOT NULL,
-                type         TEXT    NOT NULL CHECK(type IN ('rss','nitter','web')),
+                type         TEXT    NOT NULL CHECK(type IN ('rss','nitter','web','youtube')),
                 url          TEXT    NOT NULL UNIQUE,
                 url_filter   TEXT,
                 last_fetched TEXT
@@ -216,3 +216,24 @@ def init_db():
             conn.execute("ALTER TABLE digest_presets ADD COLUMN digest_last_sent TEXT")
         except Exception:
             pass
+        # Widen sources.type CHECK to include 'youtube'
+        _src_check = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='sources'"
+        ).fetchone()
+        if _src_check and "'youtube'" not in _src_check[0]:
+            conn.executescript("""
+                PRAGMA foreign_keys=OFF;
+                CREATE TABLE sources_new (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name         TEXT    NOT NULL,
+                    type         TEXT    NOT NULL CHECK(type IN ('rss','nitter','web','youtube')),
+                    url          TEXT    NOT NULL UNIQUE,
+                    url_filter   TEXT,
+                    last_fetched TEXT
+                );
+                INSERT INTO sources_new SELECT id, name, type, url, url_filter, last_fetched
+                    FROM sources;
+                DROP TABLE sources;
+                ALTER TABLE sources_new RENAME TO sources;
+                PRAGMA foreign_keys=ON;
+            """)
