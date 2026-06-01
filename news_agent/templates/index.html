@@ -13,47 +13,91 @@
   <!-- LEFT: article list grouped by source -->
   <div class="col-4 border-end d-flex flex-column" style="height: 100%; overflow: hidden;">
     <div id="article-list" style="overflow-y: auto; flex: 1;">
-      {% if grouped_articles %}
-        {% for group in grouped_articles %}
+      {% set has_articles = non_nitter_groups or nitter_groups %}
+      {% if has_articles %}
+
+        {# --- Non-nitter sources (all collapsed by default) --- #}
+        {% for group in non_nitter_groups %}
           {% set grp_id = "src-grp-" ~ loop.index %}
-          {% set is_nitter = group.type == 'nitter' %}
           <div class="source-group">
             <div class="source-group-header px-3 py-2 d-flex align-items-center gap-2 border-bottom"
-                 data-bs-toggle="collapse"
-                 data-bs-target="#{{ grp_id }}"
-                 aria-expanded="{{ 'false' if is_nitter else 'true' }}"
+                 data-bs-toggle="collapse" data-bs-target="#{{ grp_id }}"
+                 aria-expanded="false"
                  style="cursor:pointer; background:#f1f3f5; user-select:none;">
               <span class="fw-semibold" style="font-size:.82rem">{{ group.name }}</span>
               <span class="badge rounded-pill ms-1
-                {% if group.type == 'nitter' %}bg-info text-dark
-                {% elif group.type == 'rss' %}bg-warning text-dark
-                {% else %}bg-success{% endif %}"
+                {% if group.type == 'rss' %}bg-warning text-dark{% else %}bg-success{% endif %}"
                 style="font-size:.65rem">{{ group.type }}</span>
               <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
               <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
             </div>
-            <div id="{{ grp_id }}" class="collapse {{ '' if is_nitter else 'show' }}">
+            <div id="{{ grp_id }}" class="collapse">
               {% for a in group.articles %}
                 <div class="article-list-item px-3 py-2 border-bottom position-relative"
-                     data-id="{{ a.id }}"
-                     onclick="selectArticle({{ a.id }})"
-                     style="cursor:pointer">
+                     data-id="{{ a.id }}" onclick="selectArticle({{ a.id }})" style="cursor:pointer">
                   <div class="fw-medium lh-sm pe-3" style="font-size:.88rem">{{ a.title or a.url }}</div>
                   <div class="text-muted" style="font-size:.75rem">
-                    {% set pub = a.published_at or a.fetched_at %}
-                    {% if pub %}{{ pub[:10] }}{% endif %}
+                    {% set pub = a.published_at or a.fetched_at %}{% if pub %}{{ pub[:10] }}{% endif %}
                   </div>
                   {% if is_admin %}
                   <button class="btn btn-link p-0 text-danger position-absolute top-50 end-0 translate-middle-y me-2"
                           style="font-size:.8rem; opacity:0.35; line-height:1;"
-                          onclick="event.stopPropagation(); deleteArticle({{ a.id }})"
-                          title="删除">✕</button>
+                          onclick="event.stopPropagation(); deleteArticle({{ a.id }})" title="删除">✕</button>
                   {% endif %}
                 </div>
               {% endfor %}
             </div>
           </div>
         {% endfor %}
+
+        {# --- All nitter sources nested under a single "推特" super-group --- #}
+        {% if nitter_groups %}
+          {% set ns = namespace(total=0) %}
+          {% for g in nitter_groups %}{% set ns.total = ns.total + g.articles|length %}{% endfor %}
+          <div class="source-group">
+            <div class="source-group-header px-3 py-2 d-flex align-items-center gap-2 border-bottom"
+                 data-bs-toggle="collapse" data-bs-target="#twitter-super-group"
+                 aria-expanded="false"
+                 style="cursor:pointer; background:#f1f3f5; user-select:none;">
+              <span class="fw-semibold" style="font-size:.82rem">推特</span>
+              <span class="badge bg-info text-dark rounded-pill ms-1" style="font-size:.65rem">nitter</span>
+              <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ ns.total }}</span>
+              <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
+            </div>
+            <div class="collapse" id="twitter-super-group">
+              {% for group in nitter_groups %}
+                {% set grp_id = "src-grp-nitter-" ~ loop.index %}
+                <div class="source-group">
+                  <div class="source-group-header px-3 ps-4 py-2 d-flex align-items-center gap-2 border-bottom"
+                       data-bs-toggle="collapse" data-bs-target="#{{ grp_id }}"
+                       aria-expanded="false"
+                       style="cursor:pointer; background:#f8f9fa; user-select:none;">
+                    <span class="fw-semibold" style="font-size:.82rem">{{ group.name }}</span>
+                    <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
+                    <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
+                  </div>
+                  <div id="{{ grp_id }}" class="collapse">
+                    {% for a in group.articles %}
+                      <div class="article-list-item px-3 ps-4 py-2 border-bottom position-relative"
+                           data-id="{{ a.id }}" onclick="selectArticle({{ a.id }})" style="cursor:pointer">
+                        <div class="fw-medium lh-sm pe-3" style="font-size:.88rem">{{ a.title or a.url }}</div>
+                        <div class="text-muted" style="font-size:.75rem">
+                          {% set pub = a.published_at or a.fetched_at %}{% if pub %}{{ pub[:10] }}{% endif %}
+                        </div>
+                        {% if is_admin %}
+                        <button class="btn btn-link p-0 text-danger position-absolute top-50 end-0 translate-middle-y me-2"
+                                style="font-size:.8rem; opacity:0.35; line-height:1;"
+                                onclick="event.stopPropagation(); deleteArticle({{ a.id }})" title="删除">✕</button>
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
       {% else %}
         <div class="text-center text-muted p-4">
           <p>暂无文章。</p>
@@ -73,14 +117,13 @@
         <span id="scheduler-badge" class="badge bg-success" style="display:none" title="Nitter 来源定时自动抓取">
           ⏱ 自动获取已开启
         </span>
-        <div class="btn-group">
-          <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary dropdown-toggle"
-                  data-bs-toggle="dropdown" aria-expanded="false">
-            <span id="digest-label">✦ AI 简报</span>
-            <span id="digest-spinner" class="spinner-border spinner-border-sm ms-1" style="display:none"></span>
-          </button>
-          <ul class="dropdown-menu" id="digest-dropdown-menu"></ul>
-        </div>
+        <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary" onclick="generateDigest()">
+          <span id="digest-label">✦ AI 简报</span>
+          <span id="digest-spinner" class="spinner-border spinner-border-sm ms-1" style="display:none"></span>
+        </button>
+        <button id="email-settings-btn" type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleEmailSettings()">
+          📧 邮件简报
+        </button>
         <button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
           <span id="fetch-label">⬇ 立即获取</span>
           <span id="fetch-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
@@ -130,6 +173,18 @@
       </form>
       <!-- Toast -->
       <div id="fetch-toast" class="alert mb-0 mt-2" style="display:none"></div>
+    </div>
+
+    <!-- Email settings panel -->
+    <div id="email-settings-panel" class="border-bottom flex-shrink-0" style="display:none">
+      <div class="d-flex justify-content-between align-items-center px-3 py-2 bg-light border-bottom">
+        <span class="fw-semibold small">📧 邮件简报设置</span>
+        <button type="button" class="btn-close btn-sm" onclick="closeEmailSettings()"></button>
+      </div>
+      <div class="px-4 py-3" style="max-height:380px; overflow-y:auto; background:#fff">
+        <p class="text-muted small mb-3">简报将发送至 <strong>{{ g.current_user.email }}</strong>，每 6 小时检查一次发送条件。</p>
+        <div id="email-settings-body"></div>
+      </div>
     </div>
 
     <!-- AI Digest panel (collapsible, sits between header and detail) -->
@@ -187,18 +242,6 @@
   </div>
 </div>
 
-<!-- Digest preset management modal -->
-<div class="modal fade" id="presetModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header py-2 px-4">
-        <h6 class="modal-title mb-0">管理简报配置</h6>
-        <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body px-4 py-3" id="preset-modal-body"></div>
-    </div>
-  </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -431,28 +474,6 @@ function _escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function renderDigestDropdown() {
-  const ul = document.getElementById('digest-dropdown-menu');
-  if (!ul) return;
-  let html = '';
-  if (DIGEST_PRESETS.length > 0) {
-    html += '<li><h6 class="dropdown-header small">预设简报</h6></li>';
-    DIGEST_PRESETS.forEach(p => {
-      const srcNames = p.source_ids.length
-        ? p.source_ids.map(id => { const s = ALL_SOURCES.find(s => s.id === id); return s ? s.name : ''; }).filter(Boolean).join(', ')
-        : '全部来源';
-      html += `<li><a class="dropdown-item small" href="#" onclick="generateDigestPreset(${p.id}); return false;">
-        ✦ ${_escHtml(p.name)}<br><span class="text-muted" style="font-size:.8em">${_escHtml(srcNames)}</span>
-      </a></li>`;
-    });
-    html += '<li><hr class="dropdown-divider my-1"></li>';
-  }
-  html += `<li><a class="dropdown-item small" href="#" onclick="generateDigest(); return false;">✦ 当前文章</a></li>`;
-  html += `<li><hr class="dropdown-divider my-1"></li>`;
-  html += `<li><a class="dropdown-item small" href="#" onclick="openPresetModal(); return false;">⚙ 管理简报配置</a></li>`;
-  ul.innerHTML = html;
-}
-
 function _startDigest(label) {
   const btn = document.getElementById('digest-btn');
   btn.disabled = true;
@@ -491,7 +512,7 @@ function generateDigestPreset(presetId) {
   const preset = DIGEST_PRESETS.find(p => p.id === presetId);
   const dateFrom = document.querySelector('input[name="date_from"]').value || null;
   const dateTo   = document.querySelector('input[name="date_to"]').value || null;
-  _startDigest(preset ? `✦ ${preset.name} 生成中…` : '✦ 生成中…');
+  _startDigest(preset ? `✦ ${_escHtml(preset.name)} 生成中…` : '✦ 生成中…');
   _submitDigest({ preset_id: presetId, date_from: dateFrom, date_to: dateTo });
 }
 
@@ -526,25 +547,36 @@ function showDigestError(msg) {
   document.getElementById('digest-text').textContent = msg;
 }
 
-// ---- Digest preset management ----
+// ---- Email digest settings panel ----
 
-function openPresetModal() {
-  renderPresetModal();
-  bootstrap.Modal.getOrCreateInstance(document.getElementById('presetModal')).show();
+function toggleEmailSettings() {
+  const panel = document.getElementById('email-settings-panel');
+  if (panel.style.display === 'none' || !panel.style.display) {
+    renderEmailSettings();
+    panel.style.display = 'block';
+  } else {
+    panel.style.display = 'none';
+  }
 }
 
-function renderPresetModal() {
-  const container = document.getElementById('preset-modal-body');
+function closeEmailSettings() {
+  document.getElementById('email-settings-panel').style.display = 'none';
+}
+
+function renderEmailSettings() {
+  const container = document.getElementById('email-settings-body');
+  const freqLabel = v => ({1:'每天', 3:'每 3 天', 7:'每周', 14:'每 2 周'}[v] || `每 ${v} 天`);
   let html = '';
 
   if (DIGEST_PRESETS.length === 0) {
-    html += '<p class="text-muted small mb-3">还没有简报配置。最多可创建 2 个，每个可选择不同的来源。</p>';
+    html += '<p class="text-muted small mb-3">还没有简报配置。最多可创建 2 个，每个可选择不同的来源并单独设置邮件发送频率。</p>';
   }
 
   DIGEST_PRESETS.forEach((p, idx) => {
     const srcChecks = ALL_SOURCES.map(s =>
       `<div class="col"><div class="form-check">
-        <input type="checkbox" class="form-check-input preset-src-check" id="pedit-${p.id}-${s.id}" value="${s.id}"
+        <input type="checkbox" class="form-check-input preset-src-check"
+               id="pedit-${p.id}-${s.id}" value="${s.id}"
                ${p.source_ids.includes(s.id) ? 'checked' : ''}>
         <label class="form-check-label small" for="pedit-${p.id}-${s.id}">
           ${_escHtml(s.name)} <span class="text-muted">(${s.type})</span>
@@ -552,17 +584,31 @@ function renderPresetModal() {
       </div></div>`
     ).join('');
 
+    const freqOpts = [1,3,7,14].map(v =>
+      `<option value="${v}"${p.digest_frequency_days===v?' selected':''}>${freqLabel(v)}</option>`
+    ).join('');
+
     html += `
-      <div class="preset-edit-block mb-3 pb-3 ${idx < DIGEST_PRESETS.length - 1 ? 'border-bottom' : ''}"
+      <div class="preset-edit-block ${idx < DIGEST_PRESETS.length-1 ? 'mb-3 pb-3 border-bottom' : 'mb-2'}"
            data-preset-id="${p.id}">
-        <div class="d-flex align-items-center mb-2">
-          <span class="text-muted small me-2">简报 ${idx + 1}</span>
-          <input type="text" class="form-control form-control-sm me-auto" style="max-width:260px"
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="text-muted small flex-shrink-0">简报 ${idx+1}</span>
+          <input type="text" class="form-control form-control-sm flex-grow-1"
                  id="preset-name-${p.id}" value="${_escHtml(p.name)}" placeholder="简报名称">
-          <button class="btn btn-sm btn-outline-danger ms-2" onclick="deletePreset(${p.id})">删除</button>
-          <button class="btn btn-sm btn-primary ms-2" onclick="saveEditPreset(${p.id})">保存</button>
+          <button class="btn btn-sm btn-outline-primary flex-shrink-0"
+                  onclick="generateDigestPreset(${p.id})">✦ 生成</button>
         </div>
-        <div class="row row-cols-2 row-cols-md-3 g-1">${srcChecks}</div>
+        <div class="row row-cols-2 row-cols-md-3 g-1 mb-2">${srcChecks}</div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="form-check form-switch mb-0">
+            <input type="checkbox" class="form-check-input" id="pemail-${p.id}"
+                   ${p.digest_enabled ? 'checked' : ''}>
+            <label class="form-check-label small" for="pemail-${p.id}">邮件发送</label>
+          </div>
+          <select class="form-select form-select-sm w-auto" id="pfreq-${p.id}">${freqOpts}</select>
+          <button class="btn btn-sm btn-primary" onclick="saveEditPreset(${p.id})">保存</button>
+          <button class="btn btn-sm btn-outline-danger ms-auto" onclick="deletePreset(${p.id})">删除</button>
+        </div>
       </div>`;
   });
 
@@ -575,7 +621,6 @@ function renderPresetModal() {
         </label>
       </div></div>`
     ).join('');
-
     html += `
       ${DIGEST_PRESETS.length > 0 ? '<hr class="my-3">' : ''}
       <div id="new-preset-block">
@@ -607,8 +652,7 @@ function saveNewPreset() {
   .then(data => {
     if (data.error) { alert(data.error); return; }
     DIGEST_PRESETS.push(data);
-    renderPresetModal();
-    renderDigestDropdown();
+    renderEmailSettings();
   })
   .catch(() => alert('保存失败'));
 }
@@ -620,20 +664,20 @@ function saveEditPreset(id) {
   const block = document.querySelector(`.preset-edit-block[data-preset-id="${id}"]`);
   const sourceIds = Array.from(block.querySelectorAll('.preset-src-check:checked'))
     .map(el => parseInt(el.value));
+  const digest_enabled = document.getElementById(`pemail-${id}`).checked;
+  const digest_frequency_days = parseInt(document.getElementById(`pfreq-${id}`).value);
   fetch(`/digest/presets/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, source_ids: sourceIds })
+    body: JSON.stringify({ name, source_ids: sourceIds, digest_enabled, digest_frequency_days })
   })
   .then(r => r.json())
   .then(data => {
     if (data.error) { alert(data.error); return; }
     const idx = DIGEST_PRESETS.findIndex(p => p.id === id);
-    if (idx !== -1) DIGEST_PRESETS[idx] = { id, name, source_ids: sourceIds };
-    renderDigestDropdown();
-    // show brief confirmation
+    if (idx !== -1) DIGEST_PRESETS[idx] = { ...DIGEST_PRESETS[idx], name, source_ids: sourceIds, digest_enabled, digest_frequency_days };
     const btn = block.querySelector('button.btn-primary');
-    if (btn) { const orig = btn.textContent; btn.textContent = '✓ 已保存'; setTimeout(() => btn.textContent = orig, 1500); }
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓ 已保存'; setTimeout(() => { btn.textContent = orig; }, 1500); }
   })
   .catch(() => alert('保存失败'));
 }
@@ -644,14 +688,10 @@ function deletePreset(id) {
   .then(r => r.json())
   .then(() => {
     DIGEST_PRESETS = DIGEST_PRESETS.filter(p => p.id !== id);
-    renderPresetModal();
-    renderDigestDropdown();
+    renderEmailSettings();
   })
   .catch(() => alert('删除失败'));
 }
-
-// Initialize digest dropdown on page load
-renderDigestDropdown();
 
 function renderDigest(md) {
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

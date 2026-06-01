@@ -204,3 +204,15 @@ def init_db():
             conn.execute("ALTER TABLE articles ADD COLUMN translated_content TEXT")
         except Exception:
             pass
+        try:
+            conn.execute("ALTER TABLE digest_presets ADD COLUMN digest_enabled INTEGER NOT NULL DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE digest_presets ADD COLUMN digest_frequency_days INTEGER NOT NULL DEFAULT 7")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE digest_presets ADD COLUMN digest_last_sent TEXT")
+        except Exception:
+            pass

@@ -4,49 +4,6 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-md-6 col-lg-5">
-    <div class="card p-4">
-      <h5 class="mb-4">邮件简报设置</h5>
-
-      {% if success %}
-      <div class="alert alert-success py-2 small">设置已保存。</div>
-      {% endif %}
-
-      <form method="post">
-        <div class="mb-3">
-          <div class="form-check form-switch">
-            <input type="checkbox" name="digest_enabled" class="form-check-input" id="digestEnabled"
-                   value="1" {% if user['digest_enabled'] %}checked{% endif %}>
-            <label class="form-check-label fw-medium" for="digestEnabled">
-              接收邮件简报
-            </label>
-          </div>
-          <div class="form-text">简报将发送至 <strong>{{ g.current_user.email }}</strong></div>
-        </div>
-
-        <div class="mb-4">
-          <label class="form-label fw-medium">发送频率</label>
-          <select name="digest_frequency_days" class="form-select">
-            <option value="1"  {% if user['digest_frequency_days'] == 1  %}selected{% endif %}>每天</option>
-            <option value="3"  {% if user['digest_frequency_days'] == 3  %}selected{% endif %}>每 3 天</option>
-            <option value="7"  {% if user['digest_frequency_days'] == 7  %}selected{% endif %}>每周</option>
-            <option value="14" {% if user['digest_frequency_days'] == 14 %}selected{% endif %}>每 2 周</option>
-          </select>
-          <div class="form-text">
-            简报将涵盖过去 <span id="freq-label">{{ user['digest_frequency_days'] }}</span> 天的内容，并在每个周期开始时发送。
-          </div>
-        </div>
-
-        {% if user['digest_last_sent'] %}
-        <p class="text-muted small mb-3">上次发送：{{ user['digest_last_sent'] }}</p>
-        {% endif %}
-
-        <button type="submit" class="btn btn-primary">保存</button>
-      </form>
-    </div>
-
-    <p class="text-muted small mt-3 px-1">
-      每 6 小时检查一次简报发送条件，请确保服务器上已正确配置 SMTP 邮件凭据。
-    </p>
 
     <!-- Token usage -->
     <div class="card p-4 mt-4">
@@ -228,12 +185,6 @@
 
 {% block scripts %}
 <script>
-const ownFreqSelect = document.querySelector('form[method="post"]:not([action]) select[name="digest_frequency_days"]');
-if (ownFreqSelect) {
-  ownFreqSelect.addEventListener('change', function() {
-    document.getElementById('freq-label').textContent = this.value;
-  });
-}
 
 // Rotate outer caret when the admin follows panel opens/closes
 const followsPanel = document.getElementById('admin-follows-panel');

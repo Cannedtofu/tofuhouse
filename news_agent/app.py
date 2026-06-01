@@ -212,6 +212,32 @@ def _scheduled_digest_send():
         except Exception as exc:
             logger_sched.error("Digest failed for %s: %s", user["email"], exc)
 
+    # --- Preset-based digest sending ---
+    presets_due = db.get_presets_due_for_email()
+    if presets_due:
+        logger_sched.info("Preset digest check: %d preset(s) due for email", len(presets_due))
+        for preset in presets_due:
+            preset_date_from = (date.today() - timedelta(days=preset["digest_frequency_days"])).isoformat()
+            source_ids = preset["source_ids"] or None
+            try:
+                articles = db.get_articles(date_from=preset_date_from, date_to=date_to, source_ids=source_ids)
+                article_ids = [a["id"] for a in articles]
+                if not article_ids:
+                    logger_sched.info("No articles for preset %d (%s), skipping", preset["id"], preset["user_email"])
+                    db.update_preset_last_sent(preset["id"])
+                    continue
+                logger_sched.info(
+                    "Generating preset digest '%s' for %s (%d articles)",
+                    preset["name"], preset["user_email"], len(article_ids),
+                )
+                md = generate_batch_digest(article_ids, user_id=preset["user_id"])
+                ok = _send_email(md, to_email=preset["user_email"], date_label=f"{preset_date_from} to {date_to}")
+                if ok:
+                    db.update_preset_last_sent(preset["id"])
+                    logger_sched.info("Preset digest '%s' sent to %s", preset["name"], preset["user_email"])
+            except Exception as exc:
+                logger_sched.error("Preset digest %d failed for %s: %s", preset["id"], preset["user_email"], exc)
+
 logger_sched = logging.getLogger("scheduler")
 _scheduler = BackgroundScheduler(daemon=True)
 
@@ -317,10 +343,14 @@ def index():
             })
         grouped_articles[source_order[sname]]["articles"].append(art)
 
+    non_nitter_groups = [g for g in grouped_articles if g["type"] != "nitter"]
+    nitter_groups = [g for g in grouped_articles if g["type"] == "nitter"]
+
     return render_template(
         "index.html",
         articles=articles_list,
-        grouped_articles=grouped_articles,
+        non_nitter_groups=non_nitter_groups,
+        nitter_groups=nitter_groups,
         all_sources=[dict(s) for s in all_sources],
         selected_source_ids=selected_source_ids,
         followed_source_ids=followed_ids,
@@ -844,7 +874,10 @@ def digest_presets_update(preset_id: int):
     source_ids = [int(x) for x in data.get("source_ids", [])]
     if not name:
         return jsonify({"error": "Name required"}), 400
-    db.update_digest_preset(preset_id, g.current_user["id"], name, source_ids)
+    digest_enabled = int(bool(data.get("digest_enabled", False)))
+    digest_frequency_days = int(data.get("digest_frequency_days", 7))
+    db.update_digest_preset(preset_id, g.current_user["id"], name, source_ids,
+                            digest_enabled=digest_enabled, digest_frequency_days=digest_frequency_days)
     return jsonify({"ok": True})
 
 
