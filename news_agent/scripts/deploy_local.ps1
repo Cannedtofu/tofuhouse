@@ -33,8 +33,8 @@ if (-not $gitRoot) {
 
 Write-Host ""
 Write-Host "==> Staging changes in news_agent..." -ForegroundColor Cyan
-# Stage only the news_agent subfolder relative to git root
-$relPath = (Resolve-Path -Relative -RelativeTo $gitRoot $repoRoot)
+# Compute relative path from git root to repo folder (PS 5.1 compatible)
+$relPath = $repoRoot.Substring($gitRoot.Length).TrimStart('\', '/')
 git -C $gitRoot add $relPath
 
 $status = git -C $gitRoot status --short

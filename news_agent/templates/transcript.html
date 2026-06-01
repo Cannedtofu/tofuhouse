@@ -720,5 +720,15 @@ function showDonePanel(data, jobId) {
 
 // ── Initial render ────────────────────────────────────────────────────────────
 renderSidebar({{ sidebar_jobs | tojson }});
+
+// Pre-fill URL from ?url= query param (e.g. clicked "转录此视频" from the feed)
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const preUrl = params.get('url');
+  if (preUrl) {
+    const input = document.getElementById('yt-url-input');
+    if (input) input.value = preUrl;
+  }
+})();
 </script>
 {% endblock %}

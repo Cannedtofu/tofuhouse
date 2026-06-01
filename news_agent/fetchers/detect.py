@@ -32,6 +32,7 @@ _TIMEOUT = 10
 _FEED_PATHS = ["/feed", "/rss", "/feed.xml", "/rss.xml", "/atom.xml", "/feeds/posts/default"]
 
 _X_PATTERN = re.compile(r"https?://(www\.)?(x|twitter)\.com/", re.I)
+_YOUTUBE_PATTERN = re.compile(r"https?://(?:www\.)?youtube\.com/", re.I)
 
 
 def _is_valid_feed(url: str) -> bool:
@@ -65,6 +66,18 @@ def _find_rss_in_html(html: str, base_url: str) -> str | None:
     return None
 
 
+def _youtube_feed_url(url: str) -> str | None:
+    """Return the RSS feed URL for a YouTube channel page, or None on failure."""
+    if "feeds/videos.xml" in url:
+        return url
+    html = _fetch_html(url)
+    if html:
+        feed_url = _find_rss_in_html(html, url)
+        if feed_url and "youtube.com/feeds" in feed_url:
+            return feed_url
+    return None
+
+
 def _probe_feed_paths(base_url: str) -> str | None:
     """Try common feed paths on the same domain and return the first that works."""
     parsed = urlparse(base_url)
@@ -93,6 +106,25 @@ def detect_source(raw_url: str) -> dict:
     url = raw_url.strip()
     if not url.startswith("http"):
         url = "https://" + url
+
+    # 0. YouTube channel URL → youtube type
+    if _YOUTUBE_PATTERN.match(url):
+        feed_url = _youtube_feed_url(url)
+        if feed_url and _is_valid_feed(feed_url):
+            return {
+                "type": "youtube",
+                "url": feed_url,
+                "display": f"YouTube 频道 RSS: {feed_url}",
+                "ok": True,
+                "error": None,
+            }
+        return {
+            "type": "youtube",
+            "url": url,
+            "display": "",
+            "ok": False,
+            "error": "找不到该 YouTube 频道的 RSS 地址，请确认链接是频道主页（如 youtube.com/@handle 或 /channel/UCxxx）。",
+        }
 
     # 1. X.com / Twitter → Nitter
     if _X_PATTERN.match(url):

@@ -346,13 +346,32 @@ def index():
     non_nitter_groups = [g for g in grouped_articles if g["type"] != "nitter"]
     nitter_groups = [g for g in grouped_articles if g["type"] == "nitter"]
 
-    # Auto-create 2 default presets for users who predate the preset system
+    # Auto-create 2 default presets for users who predate the preset system.
+    # Preset 1 inherits the user's existing digest_enabled + frequency so their
+    # old auto-email schedule carries over without any manual reconfiguration.
     uid = g.current_user["id"]
     digest_presets = db.get_digest_presets(uid)
     if not digest_presets:
         default_sources = list(followed_ids) if followed_ids else []
-        db.create_digest_preset(uid, "简报 1", default_sources)
+        p1 = db.create_digest_preset(uid, "简报 1", default_sources)
+        if p1:
+            db.update_digest_preset(
+                p1["id"], uid, "简报 1", default_sources,
+                digest_enabled=1 if g.current_user["digest_enabled"] else 0,
+                digest_frequency_days=g.current_user["digest_frequency_days"] or 7,
+            )
         db.create_digest_preset(uid, "简报 2", default_sources)
+        digest_presets = db.get_digest_presets(uid)
+    elif g.current_user["digest_enabled"] and not any(p["digest_enabled"] for p in digest_presets):
+        # One-time migration: presets were created before the inherit-fix was deployed.
+        # User has an active digest schedule at the user level but all presets are disabled.
+        # Carry the user-level settings into Preset 1 so auto-email keeps working.
+        p1 = digest_presets[0]
+        db.update_digest_preset(
+            p1["id"], uid, p1["name"], p1["source_ids"],
+            digest_enabled=1,
+            digest_frequency_days=g.current_user["digest_frequency_days"] or 7,
+        )
         digest_presets = db.get_digest_presets(uid)
 
     return render_template(

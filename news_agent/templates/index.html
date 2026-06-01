@@ -26,7 +26,9 @@
                  style="cursor:pointer; background:#f1f3f5; user-select:none;">
               <span class="fw-semibold" style="font-size:.82rem">{{ group.name }}</span>
               <span class="badge rounded-pill ms-1
-                {% if group.type == 'rss' %}bg-warning text-dark{% else %}bg-success{% endif %}"
+                {% if group.type == 'rss' %}bg-warning text-dark
+                {% elif group.type == 'youtube' %}bg-danger
+                {% else %}bg-success{% endif %}"
                 style="font-size:.65rem">{{ group.type }}</span>
               <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
               <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
@@ -209,6 +211,8 @@
           <div class="d-flex gap-2 flex-shrink-0 align-items-center">
             <a id="detail-link" href="#" target="_blank" rel="noopener"
                class="btn btn-sm btn-outline-secondary">打开 ↗</a>
+            <a id="transcript-link" href="#" target="_blank"
+               class="btn btn-sm btn-outline-danger" style="display:none">▶ 转录此视频</a>
             <!-- Translate button -->
             <button id="translate-btn" class="btn btn-sm btn-outline-primary" onclick="translateArticle()" style="display:none">
               <span id="translate-label">中文</span>
@@ -302,6 +306,14 @@ function selectArticle(id) {
 
   document.getElementById('detail-title').textContent = a.title || a.url;
   document.getElementById('detail-link').href = a.url;
+
+  const transcriptLink = document.getElementById('transcript-link');
+  if (a.url && a.url.includes('youtube.com/watch')) {
+    transcriptLink.href = '/transcript?url=' + encodeURIComponent(a.url);
+    transcriptLink.style.display = 'inline-block';
+  } else {
+    transcriptLink.style.display = 'none';
+  }
 
   const pub = (a.published_at || a.fetched_at || '').slice(0, 10);
   document.getElementById('detail-meta').textContent =
