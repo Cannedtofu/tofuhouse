@@ -116,3 +116,11 @@ def update_digest_abstract(article_id: int, abstract: str):
         conn.execute(
             "UPDATE articles SET digest_abstract = ? WHERE id = ?", (abstract, article_id)
         )
+
+
+def update_article_translation(article_id: int, translated_content: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE articles SET translated_content = ? WHERE id = ?",
+            (translated_content, article_id),
+        )

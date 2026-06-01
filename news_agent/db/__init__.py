@@ -32,6 +32,7 @@ from db.articles import (
     delete_article,
     get_digest_abstract,
     update_digest_abstract,
+    update_article_translation,
 )
 from db.fetch_log import (
     log_fetch_start,
@@ -79,7 +80,7 @@ __all__ = [
     # articles
     "insert_article", "get_article_by_id", "get_unsummarized_articles",
     "update_summary", "get_articles", "delete_article",
-    "get_digest_abstract", "update_digest_abstract",
+    "get_digest_abstract", "update_digest_abstract", "update_article_translation",
     # fetch log
     "log_fetch_start", "log_fetch_finish", "close_open_fetch_logs", "get_fetch_log",
     # users

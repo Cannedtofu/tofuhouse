@@ -104,6 +104,9 @@ _fetch_status: dict = {"running": False, "last_result": None}
 # Digest jobs — keyed by UUID, each: {"status": "running"|"done"|"error", "result": str}
 _digest_jobs: dict[str, dict] = {}
 
+# Article translation jobs — keyed by UUID
+_article_translation_jobs: dict[str, dict] = {}
+
 # ---------------------------------------------------------------------------
 # Periodic background scheduler
 # ---------------------------------------------------------------------------
@@ -514,6 +517,257 @@ def article_summarize(article_id: int):
         return jsonify({"summary": row["summary"]})
     summary = summarize_single_article(article_id)
     return jsonify({"summary": summary})
+
+
+@app.route("/articles/<int:article_id>/translate", methods=["POST"])
+@login_required
+def article_translate(article_id: int):
+    row = db.get_article_by_id(article_id)
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    row = dict(row)
+    # Return cached translation immediately
+    if row.get("translated_content"):
+        return jsonify({"status": "done", "content": row["translated_content"]})
+    if not row.get("content"):
+        return jsonify({"error": "Article has no content to translate."}), 400
+
+    job_id = str(uuid.uuid4())
+    _article_translation_jobs[job_id] = {"status": "running", "content": None}
+    original = row["content"]
+
+    def _run():
+        try:
+            from article_translator import translate_article_bilingual
+            result = translate_article_bilingual(original)
+            db.update_article_translation(article_id, result)
+            _article_translation_jobs[job_id] = {"status": "done", "content": result}
+        except Exception as exc:
+            logging.exception("Article translation failed")
+            _article_translation_jobs[job_id] = {"status": "error", "error": str(exc)}
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/articles/translate/status/<job_id>")
+@login_required
+def article_translate_status(job_id: str):
+    job = _article_translation_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify(job)
+
+
+def _inline_md_to_html(text: str) -> str:
+    """Convert inline markdown to HTML (images, links, bold, italic)."""
+    import re as _re
+    from html import escape as _esc
+    placeholders: dict[str, str] = {}
+    idx = 0
+
+    def _ph(val: str) -> str:
+        nonlocal idx
+        key = f"\x00PH{idx}\x00"
+        placeholders[key] = val
+        idx += 1
+        return key
+
+    # Images first (before links, so they aren't consumed by link regex)
+    text = _re.sub(
+        r'!\[([^\]]*)\]\(([^)]+)\)',
+        lambda m: _ph(f'<img src="{m.group(2)}" alt="{_esc(m.group(1))}" '
+                      f'style="max-width:100%;height:auto;display:block;margin:6pt 0">'),
+        text,
+    )
+    # Links
+    text = _re.sub(
+        r'\[([^\]]+)\]\(([^)]+)\)',
+        lambda m: _ph(f'<a href="{m.group(2)}">{_esc(m.group(1))}</a>'),
+        text,
+    )
+    text = _esc(text)
+    text = _re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+    text = _re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+    for key, val in placeholders.items():
+        text = text.replace(key, val)
+    return text
+
+
+def _md_to_html_for_pdf(md: str) -> str:
+    """Convert markdown article content to clean HTML for PDF rendering."""
+    import re as _re
+    lines = md.split("\n")
+    out: list[str] = []
+    in_code = False
+    in_bq = False
+    in_ul = False
+
+    def close_bq():
+        nonlocal in_bq
+        if in_bq:
+            out.append("</blockquote>")
+            in_bq = False
+
+    def close_ul():
+        nonlocal in_ul
+        if in_ul:
+            out.append("</ul>")
+            in_ul = False
+
+    for line in lines:
+        # Code fences
+        if line.startswith("```"):
+            close_bq(); close_ul()
+            if in_code:
+                out.append("</code></pre>")
+                in_code = False
+            else:
+                out.append("<pre><code>")
+                in_code = True
+            continue
+        if in_code:
+            from html import escape as _esc
+            out.append(_esc(line))
+            continue
+
+        # Headings
+        if line.startswith("### "):
+            close_bq(); close_ul()
+            out.append(f"<h3>{_inline_md_to_html(line[4:])}</h3>")
+        elif line.startswith("## "):
+            close_bq(); close_ul()
+            out.append(f"<h2>{_inline_md_to_html(line[3:])}</h2>")
+        elif line.startswith("# "):
+            close_bq(); close_ul()
+            out.append(f"<h1>{_inline_md_to_html(line[2:])}</h1>")
+        # Blockquotes (Chinese translations)
+        elif line.startswith("> "):
+            close_ul()
+            if not in_bq:
+                out.append('<blockquote class="zh">')
+                in_bq = True
+            out.append(f"<p>{_inline_md_to_html(line[2:])}</p>")
+        elif line.strip() == ">":
+            if not in_bq:
+                out.append('<blockquote class="zh">')
+                in_bq = True
+            out.append("<p></p>")
+        # List items
+        elif _re.match(r"^[-*] ", line):
+            close_bq()
+            if not in_ul:
+                out.append("<ul>")
+                in_ul = True
+            out.append(f"<li>{_inline_md_to_html(line[2:])}</li>")
+        # Horizontal rule
+        elif _re.fullmatch(r"[-*_]{3,}", line.strip()):
+            close_bq(); close_ul()
+            out.append("<hr>")
+        # Empty line
+        elif not line.strip():
+            close_bq(); close_ul()
+        # Normal paragraph
+        else:
+            close_bq(); close_ul()
+            out.append(f"<p>{_inline_md_to_html(line)}</p>")
+
+    close_bq(); close_ul()
+    return "\n".join(out)
+
+
+@app.route("/articles/<int:article_id>/download/pdf")
+@login_required
+def article_download_pdf(article_id: int):
+    from flask import Response as FlaskResponse
+    from html import escape
+    from playwright.sync_api import sync_playwright
+
+    row = db.get_article_by_id(article_id)
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    row = dict(row)
+
+    version = request.args.get("version", "original")
+    if version == "translated" and row.get("translated_content"):
+        content = row["translated_content"]
+        version_label = "中英双语"
+    else:
+        content = row.get("content") or ""
+        version_label = "原文"
+
+    title = row.get("title") or row.get("url", "")
+    source = row.get("source_name", "")
+    pub_date = (row.get("published_at") or row.get("fetched_at") or "")[:10]
+    url = row.get("url", "")
+
+    body_html = _md_to_html_for_pdf(content) if content else "<p>（暂无内容）</p>"
+
+    html = f"""<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<style>
+  @page {{ size: A4; margin: 2.5cm; }}
+  body {{
+    font-family: "Noto Serif CJK SC", "Source Han Serif SC", "STSong", "SimSun",
+                 "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", Georgia, serif;
+    font-size: 10.5pt; line-height: 1.85; color: #1a1a1a;
+  }}
+  h1 {{ font-size: 14pt; font-weight: bold; margin: 0 0 8pt 0; line-height: 1.4; }}
+  h2 {{ font-size: 12pt; font-weight: bold; margin: 16pt 0 6pt 0;
+        padding-left: 8pt; border-left: 3pt solid #444; color: #222; }}
+  h3 {{ font-size: 11pt; font-weight: bold; margin: 12pt 0 5pt 0; }}
+  .meta {{ font-size: 8.5pt; color: #666; margin-bottom: 18pt; }}
+  .meta a {{ color: #555; text-decoration: none; }}
+  p {{ margin: 0 0 8pt 0; }}
+  ul {{ margin: 0 0 8pt 1.5em; padding: 0; }}
+  li {{ margin-bottom: 4pt; }}
+  blockquote.zh {{
+    margin: 2pt 0 10pt 0; padding: 6pt 12pt;
+    border-left: 3pt solid #2563eb;
+    background: #eff6ff; color: #1e40af;
+    font-style: normal;
+  }}
+  blockquote.zh p {{ margin: 0; color: #1e40af; }}
+  pre {{ background: #f5f5f5; padding: 8pt; font-size: 9pt; overflow: hidden; }}
+  code {{ font-family: monospace; }}
+  img {{ max-width: 100%; height: auto; display: block; margin: 6pt 0; }}
+  hr {{ border: none; border-top: 1px solid #ddd; margin: 14pt 0; }}
+  a {{ color: #2563eb; }}
+</style>
+</head>
+<body>
+  <h1>{escape(title)}</h1>
+  <div class="meta">
+    {f'<span>{escape(source)}</span>' if source else ''}
+    {f' &nbsp;·&nbsp; <span>{pub_date}</span>' if pub_date else ''}
+    {f'<br><a href="{escape(url)}">{escape(url)}</a>' if url else ''}
+    &nbsp;·&nbsp; <span>{version_label}</span>
+  </div>
+  {body_html}
+</body>
+</html>"""
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content(html, wait_until="domcontentloaded")
+        pdf_bytes = page.pdf(
+            format="A4",
+            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
+            print_background=True,
+        )
+        browser.close()
+
+    safe_title = _safe_filename(title, str(article_id))
+    suffix = "bilingual" if version == "translated" else "original"
+    filename = f"{safe_title}_{suffix}.pdf"
+    return FlaskResponse(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{_url_quote(filename)}"},
+    )
 
 
 # ---------------------------------------------------------------------------

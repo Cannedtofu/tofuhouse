@@ -148,9 +148,25 @@
       <div id="detail-content" style="display:none">
         <div class="d-flex justify-content-between align-items-start mb-1">
           <h5 id="detail-title" class="mb-0 me-3"></h5>
-          <div class="d-flex gap-2 flex-shrink-0">
+          <div class="d-flex gap-2 flex-shrink-0 align-items-center">
             <a id="detail-link" href="#" target="_blank" rel="noopener"
                class="btn btn-sm btn-outline-secondary">打开 ↗</a>
+            <!-- Translate button -->
+            <button id="translate-btn" class="btn btn-sm btn-outline-primary" onclick="translateArticle()" style="display:none">
+              <span id="translate-label">中文</span>
+              <span id="translate-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
+            </button>
+            <!-- PDF download split-button -->
+            <div class="btn-group" id="pdf-download-group" style="display:none">
+              <a id="pdf-download-btn" href="#" class="btn btn-sm btn-outline-secondary">⬇ PDF</a>
+              <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">更多</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a id="pdf-original-btn" class="dropdown-item" href="#">⬇ 原文 PDF</a></li>
+                <li><a id="pdf-bilingual-btn" class="dropdown-item" href="#" style="display:none">⬇ 中英双语 PDF</a></li>
+              </ul>
+            </div>
             {% if is_admin %}
             <button id="detail-delete-btn" class="btn btn-sm btn-outline-danger"
                     onclick="deleteArticle(currentId)">删除</button>
@@ -167,6 +183,30 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+/* Article body — images */
+#detail-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 8px 0;
+  border-radius: 4px;
+}
+/* Article body — Chinese translation blockquotes */
+#detail-body blockquote {
+  border-left: 3px solid #2563eb;
+  margin: 3px 0 14px 0;
+  padding: 6px 14px;
+  background: #eff6ff;
+  color: #1e40af;
+  font-style: normal;
+  border-radius: 0 4px 4px 0;
+}
+#detail-body blockquote p { margin: 0; color: inherit; }
+/* Ensure pre/code doesn't overflow */
+#detail-body pre { overflow-x: auto; background: #f8f9fa; padding: 10px; border-radius: 4px; }
+#detail-body code { font-size: .88em; }
+</style>
 <script>
 // Show scheduler badge if APScheduler is active
 fetch('/scheduler/status').then(r => r.json()).then(data => {
@@ -188,6 +228,15 @@ const byId = {};
 ARTICLES.forEach(a => byId[a.id] = a);
 
 let currentId = null;
+// Per-article translation cache: id → bilingual markdown string
+const _translationCache = {};
+
+function _renderMarkdown(md) {
+  if (typeof marked !== 'undefined') {
+    return marked.parse(md, { breaks: true });
+  }
+  return md.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 function selectArticle(id) {
   currentId = id;
@@ -209,12 +258,146 @@ function selectArticle(id) {
 
   const raw = a.content || '（暂无内容）';
   const bodyEl = document.getElementById('detail-body');
-  if (typeof marked !== 'undefined') {
-    bodyEl.innerHTML = marked.parse(raw, { breaks: true });
-  } else {
-    bodyEl.textContent = raw;
-  }
+
+  // Show original content
+  bodyEl.innerHTML = _renderMarkdown(raw);
+
   document.getElementById('detail-panel').scrollTop = 0;
+
+  // Reset translate button
+  const translateBtn = document.getElementById('translate-btn');
+  const translateLabel = document.getElementById('translate-label');
+  const translateSpinner = document.getElementById('translate-spinner');
+  const pdfGroup = document.getElementById('pdf-download-group');
+  const pdfBtn = document.getElementById('pdf-download-btn');
+  const pdfOriginalBtn = document.getElementById('pdf-original-btn');
+  const pdfBilingualBtn = document.getElementById('pdf-bilingual-btn');
+
+  if (a.content) {
+    translateBtn.style.display = 'inline-block';
+    translateLabel.textContent = '中文';
+    translateSpinner.style.display = 'none';
+    translateBtn.disabled = false;
+    translateBtn.dataset.mode = 'original';  // 'original' | 'translating' | 'bilingual'
+
+    pdfGroup.style.display = 'inline-flex';
+    pdfBtn.href = `/articles/${id}/download/pdf?version=original`;
+    pdfOriginalBtn.href = `/articles/${id}/download/pdf?version=original`;
+
+    // If cached translation exists, show bilingual option
+    if (_translationCache[id]) {
+      pdfBilingualBtn.href = `/articles/${id}/download/pdf?version=translated`;
+      pdfBilingualBtn.style.display = 'block';
+    } else {
+      pdfBilingualBtn.style.display = 'none';
+    }
+  } else {
+    translateBtn.style.display = 'none';
+    pdfGroup.style.display = 'none';
+  }
+}
+
+function translateArticle() {
+  if (!currentId) return;
+  const a = byId[currentId];
+  const id = currentId;
+  const bodyEl = document.getElementById('detail-body');
+  const translateBtn = document.getElementById('translate-btn');
+  const translateLabel = document.getElementById('translate-label');
+  const translateSpinner = document.getElementById('translate-spinner');
+  const mode = translateBtn.dataset.mode;
+
+  // Toggle: if already showing bilingual, switch back to original
+  if (mode === 'bilingual') {
+    bodyEl.innerHTML = _renderMarkdown(a.content || '');
+    translateLabel.textContent = '中文';
+    translateBtn.dataset.mode = 'original';
+    return;
+  }
+
+  // If cached, show immediately
+  if (_translationCache[id]) {
+    bodyEl.innerHTML = _renderMarkdown(_translationCache[id]);
+    translateLabel.textContent = '原文';
+    translateBtn.dataset.mode = 'bilingual';
+    return;
+  }
+
+  // Start translation
+  translateBtn.disabled = true;
+  translateLabel.textContent = '翻译中…';
+  translateSpinner.style.display = 'inline-block';
+  translateBtn.dataset.mode = 'translating';
+
+  fetch(`/articles/${id}/translate`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        _resetTranslateBtn(id);
+        alert('翻译失败：' + data.error);
+        return;
+      }
+      if (data.status === 'done') {
+        // Cached on server already
+        _translationCache[id] = data.content;
+        _showBilingual(id);
+        return;
+      }
+      if (data.job_id) {
+        _pollTranslation(id, data.job_id);
+      }
+    })
+    .catch(() => { _resetTranslateBtn(id); alert('翻译请求失败。'); });
+}
+
+function _pollTranslation(articleId, jobId) {
+  const interval = setInterval(() => {
+    if (currentId !== articleId) { clearInterval(interval); return; }
+    fetch(`/articles/translate/status/${jobId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'done') {
+          clearInterval(interval);
+          _translationCache[articleId] = data.content;
+          if (currentId === articleId) _showBilingual(articleId);
+        } else if (data.status === 'error') {
+          clearInterval(interval);
+          _resetTranslateBtn(articleId);
+          alert('翻译失败：' + (data.error || '未知错误'));
+        }
+        // status === 'running': keep polling
+      })
+      .catch(() => { clearInterval(interval); _resetTranslateBtn(articleId); });
+  }, 2000);
+}
+
+function _showBilingual(id) {
+  if (currentId !== id) return;
+  const bodyEl = document.getElementById('detail-body');
+  const translateBtn = document.getElementById('translate-btn');
+  const translateLabel = document.getElementById('translate-label');
+  const translateSpinner = document.getElementById('translate-spinner');
+  const pdfBilingualBtn = document.getElementById('pdf-bilingual-btn');
+
+  bodyEl.innerHTML = _renderMarkdown(_translationCache[id]);
+  translateLabel.textContent = '原文';
+  translateSpinner.style.display = 'none';
+  translateBtn.disabled = false;
+  translateBtn.dataset.mode = 'bilingual';
+
+  pdfBilingualBtn.href = `/articles/${id}/download/pdf?version=translated`;
+  pdfBilingualBtn.style.display = 'block';
+}
+
+function _resetTranslateBtn(id) {
+  if (currentId !== id) return;
+  const translateBtn = document.getElementById('translate-btn');
+  const translateLabel = document.getElementById('translate-label');
+  const translateSpinner = document.getElementById('translate-spinner');
+  translateBtn.disabled = false;
+  translateLabel.textContent = '中文';
+  translateSpinner.style.display = 'none';
+  translateBtn.dataset.mode = 'original';
 }
 
 // ---- AI Digest ----
