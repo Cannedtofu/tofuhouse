@@ -23,6 +23,10 @@ function _escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function setAllChecks(cls, checked) {
+  document.querySelectorAll(`.${cls}`).forEach(cb => cb.checked = checked);
+}
+
 function render() {
   const container = document.getElementById('subscribe-body');
   const freqLabel = v => ({1:'每天', 3:'每 3 天', 7:'每周', 14:'每 2 周'}[v] || `每 ${v} 天`);
@@ -68,6 +72,10 @@ function render() {
             <input type="text" class="form-control form-control-sm flex-grow-1"
                    id="preset-name-${p.id}" value="${_escHtml(p.name)}" placeholder="简报名称">
           </div>
+          <div class="d-flex gap-1 mb-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('pedit-${p.id}-src', true)">全选</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('pedit-${p.id}-src', false)">取消全选</button>
+          </div>
           ${buildSourceChecks(p.source_ids, `pedit-${p.id}`)}
           <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
             <div class="form-check form-switch mb-0">
@@ -87,6 +95,10 @@ function render() {
             <input type="text" class="form-control form-control-sm flex-grow-1"
                    id="new-preset-name-${slot}" placeholder="简报名称（例：科技资讯）">
             <button class="btn btn-sm btn-primary" onclick="saveNewPreset(${slot})">保存配置</button>
+          </div>
+          <div class="d-flex gap-1 mb-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('pnew-${slot}-src', true)">全选</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('pnew-${slot}-src', false)">取消全选</button>
           </div>
           ${buildSourceChecks([], `pnew-${slot}`)}
         </div>`;
