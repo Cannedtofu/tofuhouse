@@ -1006,7 +1006,7 @@ def logs_view():
 def subscribe():
     uid = g.current_user["id"]
     digest_presets = db.get_digest_presets(uid)
-    all_sources = db.get_all_sources()
+    all_sources = [dict(s) for s in db.get_all_sources()]
     return render_template("subscribe.html", digest_presets=digest_presets, all_sources=all_sources)
 
 
