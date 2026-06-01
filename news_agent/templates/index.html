@@ -256,15 +256,9 @@ function selectArticle(id) {
   document.getElementById('detail-meta').textContent =
     [a.source_name, pub].filter(Boolean).join(' · ');
 
-  const raw = a.content || '（暂无内容）';
   const bodyEl = document.getElementById('detail-body');
-
-  // Show original content
-  bodyEl.innerHTML = _renderMarkdown(raw);
-
   document.getElementById('detail-panel').scrollTop = 0;
 
-  // Reset translate button
   const translateBtn = document.getElementById('translate-btn');
   const translateLabel = document.getElementById('translate-label');
   const translateSpinner = document.getElementById('translate-spinner');
@@ -274,24 +268,34 @@ function selectArticle(id) {
   const pdfBilingualBtn = document.getElementById('pdf-bilingual-btn');
 
   if (a.content) {
+    // Restore bilingual view from DB-persisted translation (survives page refresh)
+    if (a.translated_content && !_translationCache[id]) {
+      _translationCache[id] = a.translated_content;
+    }
+
     translateBtn.style.display = 'inline-block';
-    translateLabel.textContent = '中文';
     translateSpinner.style.display = 'none';
     translateBtn.disabled = false;
-    translateBtn.dataset.mode = 'original';  // 'original' | 'translating' | 'bilingual'
-
     pdfGroup.style.display = 'inline-flex';
-    pdfBtn.href = `/articles/${id}/download/pdf?version=original`;
     pdfOriginalBtn.href = `/articles/${id}/download/pdf?version=original`;
 
-    // If cached translation exists, show bilingual option
     if (_translationCache[id]) {
+      // Already translated — show bilingual as the default view
+      bodyEl.innerHTML = _renderMarkdown(_translationCache[id]);
+      translateLabel.textContent = '原文';
+      translateBtn.dataset.mode = 'bilingual';
+      pdfBtn.href = `/articles/${id}/download/pdf?version=translated`;
       pdfBilingualBtn.href = `/articles/${id}/download/pdf?version=translated`;
       pdfBilingualBtn.style.display = 'block';
     } else {
+      bodyEl.innerHTML = _renderMarkdown(a.content || '（暂无内容）');
+      translateLabel.textContent = '中文';
+      translateBtn.dataset.mode = 'original';
+      pdfBtn.href = `/articles/${id}/download/pdf?version=original`;
       pdfBilingualBtn.style.display = 'none';
     }
   } else {
+    bodyEl.innerHTML = '（暂无内容）';
     translateBtn.style.display = 'none';
     pdfGroup.style.display = 'none';
   }
