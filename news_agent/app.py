@@ -139,44 +139,50 @@ def _scheduled_nitter_fetch():
 
 def _scheduled_digest_send():
     """
-    Send email digests to all users due for one.
-    All required sources are fetched once (union of followed sources, widest date
-    window) before the per-user digest/email loop, eliminating redundant fetches
-    when multiple users share sources.
-    Runs every 6 hours; fetch is skipped if a manual fetch is already in progress.
+    Send email digests via presets (the sole send path).
+    Users with digest_enabled but no presets get a default preset auto-created.
+    A single unified fetch covers all due presets before sending begins.
+    Runs every 6 hours.
     """
     from email_sender import send_digest as _send_email
     from ai_digest import generate_batch_digest
 
-    users = db.get_users_due_for_digest()
-    if not users:
+    # Migrate any users who have legacy digest_enabled but no presets yet.
+    for user in [dict(u) for u in db.get_users_due_for_digest()]:
+        if not db.get_digest_presets(user["id"]):
+            followed = db.get_followed_source_ids(user["id"])
+            db.create_digest_preset(user["id"], "简报 1", followed)
+            db.update_digest_preset(
+                db.get_digest_presets(user["id"])[0]["id"],
+                user["id"], "简报 1", followed,
+                digest_enabled=1,
+                digest_frequency_days=user["digest_frequency_days"] or 7,
+            )
+            logger_sched.info("Auto-created preset for legacy user %s", user["email"])
+
+    presets_due = db.get_presets_due_for_email()
+    if not presets_due:
         return
 
-    users = [dict(u) for u in users]
-    logger_sched.info("Digest check: %d user(s) due for email", len(users))
-
+    logger_sched.info("Digest send: %d preset(s) due", len(presets_due))
     date_to = date.today().isoformat()
 
-    # Resolve each user's date window and followed sources upfront.
-    for user in users:
-        user["_date_from"] = (date.today() - timedelta(days=user["digest_frequency_days"])).isoformat()
-        followed = db.get_followed_source_ids(user["id"])
-        user["_source_ids"] = followed if followed else None
-
-    # --- Single unified fetch ---
-    # Use the union of all users' followed sources (None = all sources).
-    if any(u["_source_ids"] is None for u in users):
-        all_source_ids = None
+    # --- Single unified fetch covering all due presets ---
+    all_source_ids_sets = [set(p["source_ids"]) for p in presets_due if p["source_ids"]]
+    if len(all_source_ids_sets) < len(presets_due):
+        unified_source_ids = None  # at least one preset wants all sources
     else:
-        all_source_ids = list({sid for u in users for sid in u["_source_ids"]})
+        unified_source_ids = list(set().union(*all_source_ids_sets))
 
-    # Use the oldest date_from so the fetch covers every user's lookback window.
-    min_date_from = min(u["_date_from"] for u in users)
+    min_date_from = min(
+        (date.today() - timedelta(days=p["digest_frequency_days"])).isoformat()
+        for p in presets_due
+    )
 
     if not _fetch_status["running"]:
         logger_sched.info(
             "Digest pre-fetch: %s source(s), from %s",
-            len(all_source_ids) if all_source_ids is not None else "all",
+            len(unified_source_ids) if unified_source_ids is not None else "all",
             min_date_from,
         )
         log_id = db.log_fetch_start(trigger="digest")
@@ -185,7 +191,7 @@ def _scheduled_digest_send():
                 summarize=False,
                 date_from=min_date_from,
                 date_to=date_to,
-                source_ids=all_source_ids,
+                source_ids=unified_source_ids,
             )
             db.log_fetch_finish(log_id, result)
             logger_sched.info("Digest pre-fetch done: %d new article(s)", result["total_new"])
@@ -195,68 +201,28 @@ def _scheduled_digest_send():
     else:
         logger_sched.info("Skipping digest pre-fetch — manual fetch in progress")
 
-    # --- Per-user digest generation and email ---
-    # Skip users who have at least one enabled preset — the preset path handles them.
-    active_preset_user_ids = {
-        p["user_id"] for p in db.get_digest_presets_for_users([u["id"] for u in users])
-        if p["digest_enabled"]
-    }
-
-    for user in users:
-        if user["id"] in active_preset_user_ids:
-            logger_sched.info(
-                "Skipping legacy digest for %s — active preset(s) will handle sending",
-                user["email"],
-            )
-            continue
-
-        date_from = user["_date_from"]
-        source_ids = user["_source_ids"]
-
+    # --- Send one email per due preset ---
+    for preset in presets_due:
+        preset_date_from = (date.today() - timedelta(days=preset["digest_frequency_days"])).isoformat()
+        source_ids = preset["source_ids"] or None
         try:
-            articles = db.get_articles(date_from=date_from, date_to=date_to, source_ids=source_ids)
+            articles = db.get_articles(date_from=preset_date_from, date_to=date_to, source_ids=source_ids)
             article_ids = [a["id"] for a in articles]
             if not article_ids:
-                logger_sched.info("No articles for %s in %s–%s, skipping email", user["email"], date_from, date_to)
-                db.update_user_digest_last_sent(user["id"])
+                logger_sched.info("No articles for preset %d (%s), skipping", preset["id"], preset["user_email"])
+                db.update_preset_last_sent(preset["id"])
                 continue
-
-            logger_sched.info("Generating AI digest for %s (%d articles)", user["email"], len(article_ids))
-            md = generate_batch_digest(article_ids, user_id=user["id"])
-
-            ok = _send_email(md, to_email=user["email"], date_label=f"{date_from} to {date_to}")
+            logger_sched.info(
+                "Generating preset digest '%s' for %s (%d articles)",
+                preset["name"], preset["user_email"], len(article_ids),
+            )
+            md = generate_batch_digest(article_ids, user_id=preset["user_id"])
+            ok = _send_email(md, to_email=preset["user_email"], date_label=f"{preset_date_from} to {date_to}")
             if ok:
-                db.update_user_digest_last_sent(user["id"])
-                logger_sched.info("Digest sent to %s", user["email"])
-
+                db.update_preset_last_sent(preset["id"])
+                logger_sched.info("Preset digest '%s' sent to %s", preset["name"], preset["user_email"])
         except Exception as exc:
-            logger_sched.error("Digest failed for %s: %s", user["email"], exc)
-
-    # --- Preset-based digest sending ---
-    presets_due = db.get_presets_due_for_email()
-    if presets_due:
-        logger_sched.info("Preset digest check: %d preset(s) due for email", len(presets_due))
-        for preset in presets_due:
-            preset_date_from = (date.today() - timedelta(days=preset["digest_frequency_days"])).isoformat()
-            source_ids = preset["source_ids"] or None
-            try:
-                articles = db.get_articles(date_from=preset_date_from, date_to=date_to, source_ids=source_ids)
-                article_ids = [a["id"] for a in articles]
-                if not article_ids:
-                    logger_sched.info("No articles for preset %d (%s), skipping", preset["id"], preset["user_email"])
-                    db.update_preset_last_sent(preset["id"])
-                    continue
-                logger_sched.info(
-                    "Generating preset digest '%s' for %s (%d articles)",
-                    preset["name"], preset["user_email"], len(article_ids),
-                )
-                md = generate_batch_digest(article_ids, user_id=preset["user_id"])
-                ok = _send_email(md, to_email=preset["user_email"], date_label=f"{preset_date_from} to {date_to}")
-                if ok:
-                    db.update_preset_last_sent(preset["id"])
-                    logger_sched.info("Preset digest '%s' sent to %s", preset["name"], preset["user_email"])
-            except Exception as exc:
-                logger_sched.error("Preset digest %d failed for %s: %s", preset["id"], preset["user_email"], exc)
+            logger_sched.error("Preset digest %d failed for %s: %s", preset["id"], preset["user_email"], exc)
 
 logger_sched = logging.getLogger("scheduler")
 _scheduler = BackgroundScheduler(daemon=True)
