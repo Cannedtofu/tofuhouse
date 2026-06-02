@@ -174,9 +174,17 @@
             <span class="text-muted small">正在生成中文摘要…</span>
           </div>
           <div id="summary-content-area" style="display:none">
-            <div class="fw-semibold mb-2"
-                 style="font-size:1rem; border-left:4px solid #0d6efd; padding-left:.6rem;">
-              中文摘要
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <div class="fw-semibold"
+                   style="font-size:1rem; border-left:4px solid #0d6efd; padding-left:.6rem;">
+                中文摘要
+              </div>
+              {% if is_admin %}
+              <button class="btn btn-link btn-sm p-0 text-danger ms-auto"
+                      style="font-size:.8rem" onclick="deleteSummary()" title="删除摘要以重新生成">
+                ✕ 删除摘要
+              </button>
+              {% endif %}
             </div>
             <div id="summary-content"
                  style="font-size:.93rem; line-height:1.7; background:#f8f9fa;
@@ -491,6 +499,17 @@ function generateSummary() {
       setSummarySpinning(false);
       alert('请求失败，请重试。');
     });
+}
+
+function deleteSummary() {
+  if (!_currentJobId) return;
+  fetch(`/transcript/${_currentJobId}/delete_summary`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert('删除失败：' + data.error); return; }
+      setSummarySpinning(false);
+    })
+    .catch(() => alert('请求失败，请重试。'));
 }
 
 // ── Translation ───────────────────────────────────────────────────────────────

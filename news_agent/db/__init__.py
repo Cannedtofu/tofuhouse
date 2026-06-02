@@ -76,6 +76,7 @@ from db.transcripts import (
     get_transcript_job,
     set_transcript_metadata,
     delete_transcript_job,
+    clear_transcript_summary,
 )
 
 __all__ = [
@@ -104,5 +105,5 @@ __all__ = [
     # transcripts
     "create_transcript_job", "get_done_transcript_job", "list_transcript_jobs",
     "update_transcript_job", "get_transcript_job", "set_transcript_metadata",
-    "delete_transcript_job",
+    "delete_transcript_job", "clear_transcript_summary",
 ]

@@ -69,6 +69,16 @@ def update_transcript_job(
         )
 
 
+def clear_transcript_summary(job_id: str) -> None:
+    """Set summary to NULL so it can be regenerated."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE transcript_jobs SET summary=NULL, updated_at=? WHERE job_id=?",
+            (now, job_id),
+        )
+
+
 def get_transcript_job(job_id: str) -> Optional[sqlite3.Row]:
     """Return the transcript job row for the given job_id, or None."""
     with get_conn() as conn:

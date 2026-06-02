@@ -1276,6 +1276,17 @@ def transcript_delete(job_id: str):
     return jsonify({"ok": True})
 
 
+@app.route("/transcript/<job_id>/delete_summary", methods=["POST"])
+@login_required
+def transcript_delete_summary(job_id: str):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "Not authorised."}), 403
+    if not db.get_transcript_job(job_id):
+        return jsonify({"error": "Job not found."}), 404
+    db.clear_transcript_summary(job_id)
+    return jsonify({"ok": True})
+
+
 def _safe_filename(title: str | None, fallback: str) -> str:
     """Sanitize a video title for use as a filename (cross-platform safe)."""
     import re
