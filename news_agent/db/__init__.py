@@ -61,6 +61,7 @@ from db.digests import (
     get_token_usage_summary,
     get_token_usage_by_user_week,
     get_digest_presets,
+    get_digest_presets_for_users,
     get_digest_preset,
     create_digest_preset,
     update_digest_preset,
@@ -99,7 +100,7 @@ __all__ = [
     # digests
     "get_all_digests_with_meta", "get_digest_cache", "save_digest_cache",
     "log_token_usage", "get_token_usage_summary", "get_token_usage_by_user_week",
-    "get_digest_presets", "get_digest_preset", "create_digest_preset",
+    "get_digest_presets", "get_digest_presets_for_users", "get_digest_preset", "create_digest_preset",
     "update_digest_preset", "delete_digest_preset",
     "get_presets_due_for_email", "update_preset_last_sent",
     # transcripts

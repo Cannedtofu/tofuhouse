@@ -188,7 +188,7 @@
             </div>
             <div id="summary-content"
                  style="font-size:.93rem; line-height:1.7; background:#f8f9fa;
-                        border-radius:6px; padding:1rem; white-space:pre-wrap; word-break:break-word;">
+                        border-radius:6px; padding:1rem; word-break:break-word;">
             </div>
           </div>
         </div>
@@ -570,7 +570,7 @@ function showSummaryContent(text) {
   document.getElementById('summary-generate-area').style.display  = 'none';
   document.getElementById('summary-spinner-area').style.display   = 'none';
   document.getElementById('summary-content-area').style.display   = 'block';
-  document.getElementById('summary-content').textContent = text;
+  document.getElementById('summary-content').innerHTML = marked.parse(text || '', { breaks: true });
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────

@@ -196,7 +196,20 @@ def _scheduled_digest_send():
         logger_sched.info("Skipping digest pre-fetch — manual fetch in progress")
 
     # --- Per-user digest generation and email ---
+    # Skip users who have at least one enabled preset — the preset path handles them.
+    active_preset_user_ids = {
+        p["user_id"] for p in db.get_digest_presets_for_users([u["id"] for u in users])
+        if p["digest_enabled"]
+    }
+
     for user in users:
+        if user["id"] in active_preset_user_ids:
+            logger_sched.info(
+                "Skipping legacy digest for %s — active preset(s) will handle sending",
+                user["email"],
+            )
+            continue
+
         date_from = user["_date_from"]
         source_ids = user["_source_ids"]
 

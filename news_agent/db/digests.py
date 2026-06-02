@@ -132,6 +132,19 @@ def _row_to_preset(r) -> dict:
     }
 
 
+def get_digest_presets_for_users(user_ids: list[int]) -> list[dict]:
+    """Return all presets belonging to any of the given user IDs (batch lookup)."""
+    if not user_ids:
+        return []
+    placeholders = ",".join("?" * len(user_ids))
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT user_id, {_PRESET_COLS} FROM digest_presets WHERE user_id IN ({placeholders})",
+            user_ids,
+        ).fetchall()
+    return [{"user_id": r["user_id"], **_row_to_preset(r)} for r in rows]
+
+
 def get_digest_presets(user_id: int) -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(
