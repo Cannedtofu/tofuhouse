@@ -44,11 +44,11 @@ from config import (
 logger = logging.getLogger(__name__)
 
 # Chunk sizes for summarization, calibrated to qwen-plus's 131k-token context window.
-# English: ~4 chars/token → 24k chars ≈ 6k tokens input, well within context and fast (~60s).
-#   80k chars was technically valid but caused ~5-minute waits per chunk (20k tokens is slow).
-# Chinese: ~1-1.5 chars/token → 20k chars ≈ 13-20k tokens, fast and within budget.
-_MAX_CHARS_EN = 24_000
-_MAX_CHARS_ZH = 20_000
+# English: ~4 chars/token → 80k chars ≈ 20k tokens, plenty of headroom.
+# Chinese: ~1-1.5 chars/token → 40k chars ≈ 27-40k tokens, still safe with output budget.
+# Chunks are split evenly (N = ceil(total / max_chars)) so no lopsided remainder occurs.
+_MAX_CHARS_EN = 80_000
+_MAX_CHARS_ZH = 40_000
 _CHUNK_OVERLAP = 800   # raw chars from tail of previous chunk fed into next chunk for continuity
 
 
@@ -609,25 +609,42 @@ def _qwen_chat(prompt: str, max_tokens: int | None = None, model: str | None = N
 
 
 def _split_into_chunks(text: str, max_chars: int) -> list[str]:
-    """Split text into chunks ≤ max_chars, breaking at sentence/paragraph boundaries."""
+    """Split text into N evenly-sized chunks where N = ceil(len(text) / max_chars).
+
+    Computing N upfront and distributing evenly avoids the lopsided-remainder
+    problem of the naive fill-to-max approach (e.g. 81k chars with an 80k limit
+    would produce 80k + 1k; this instead yields 2 × 40.9k).
+
+    Each chunk targets len(remaining) / slots_left chars and breaks at the
+    nearest sentence or paragraph boundary within a ±25% window of that target.
+    """
+    import math
     if len(text) <= max_chars:
         return [text]
+
+    n = math.ceil(len(text) / max_chars)
     chunks = []
     remaining = text
-    while remaining:
-        if len(remaining) <= max_chars:
-            chunks.append(remaining)
-            break
+
+    for i in range(n - 1):
+        slots_left = n - i
+        target = len(remaining) // slots_left          # recomputed each iteration
+        lo = max(target // 2, 1)
+        hi = min(target + target // 4, len(remaining) - 1)
+
         cut = -1
         for sep in ("\n\n", "\n", ". ", "! ", "? "):
-            pos = remaining.rfind(sep, max_chars // 2, max_chars)
+            pos = remaining.rfind(sep, lo, hi)
             if pos != -1:
                 cut = pos + len(sep)
                 break
         if cut < 0:
-            cut = max_chars
+            cut = target                               # hard cut if no boundary found
+
         chunks.append(remaining[:cut])
         remaining = remaining[cut:]
+
+    chunks.append(remaining)
     return chunks
 
 
