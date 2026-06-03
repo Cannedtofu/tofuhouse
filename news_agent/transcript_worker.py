@@ -43,11 +43,12 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
-# Chunk sizes are calibrated to qwen-plus's 131k-token context window.
-# English: ~4 chars/token → 80k chars ≈ 20k tokens, plenty of headroom.
-# Chinese: ~1-1.5 chars/token → 40k chars ≈ 27-40k tokens, still safe with output budget.
-_MAX_CHARS_EN = 80_000
-_MAX_CHARS_ZH = 40_000
+# Chunk sizes for summarization, calibrated to qwen-plus's 131k-token context window.
+# English: ~4 chars/token → 24k chars ≈ 6k tokens input, well within context and fast (~60s).
+#   80k chars was technically valid but caused ~5-minute waits per chunk (20k tokens is slow).
+# Chinese: ~1-1.5 chars/token → 20k chars ≈ 13-20k tokens, fast and within budget.
+_MAX_CHARS_EN = 24_000
+_MAX_CHARS_ZH = 20_000
 _CHUNK_OVERLAP = 800   # raw chars from tail of previous chunk fed into next chunk for continuity
 
 
@@ -631,23 +632,19 @@ def _split_into_chunks(text: str, max_chars: int) -> list[str]:
 
 
 def _translate_chunk(text: str, prev_translated_tail: str = "") -> str:
-    """Translate one chunk via qwen-mt-lite with optional preceding-context for continuity."""
+    """Translate one chunk via qwen-mt-lite.
+
+    qwen-mt-lite only accepts 'user' and 'assistant' roles — 'system' is not supported
+    and causes a 400 error. With translation_options active the model translates the
+    user message literally, so instructions or context must not be injected there either.
+    The prev_translated_tail arg is kept for API compatibility but is intentionally unused.
+    """
     from openai import OpenAI
     client = OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL)
-    system = (
-        "You are a professional translator. Translate the user's text into Simplified Chinese. "
-        "Output only the translated text. Preserve speaker labels like [Speaker A] unchanged."
-    )
-    if prev_translated_tail:
-        system += (
-            "\n\nFor continuity, the immediately preceding passage was already translated as:\n"
-            + prev_translated_tail
-        )
     resp = client.chat.completions.create(
         model=QWEN_TRANSLATION_MODEL,
         messages=[
-            {"role": "system", "content": system},
-            {"role": "user",   "content": text},
+            {"role": "user", "content": text},
         ],
         max_tokens=4096,
         extra_body={"translation_options": {"source_lang": "auto", "target_lang": "Chinese"}},
