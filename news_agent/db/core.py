@@ -128,6 +128,16 @@ def init_db():
                 data_json  TEXT NOT NULL,
                 fetched_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS gpu_price_history (
+                gpu_type    TEXT NOT NULL,
+                timestamp   TEXT NOT NULL,
+                index_value REAL NOT NULL,
+                fetched_at  TEXT NOT NULL,
+                PRIMARY KEY (gpu_type, timestamp)
+            );
+            CREATE INDEX IF NOT EXISTS idx_gpu_price_history_gpu
+                ON gpu_price_history(gpu_type, timestamp);
         """)
         # Migrations for older databases
         try:
@@ -243,3 +253,21 @@ def init_db():
                 ALTER TABLE sources_new RENAME TO sources;
                 PRAGMA foreign_keys=ON;
             """)
+        # One-time migration: copy blob data from gpu_price_cache → gpu_price_history
+        # Safe to run repeatedly — INSERT OR IGNORE skips already-migrated rows.
+        try:
+            import json as _json
+            _cache_rows = conn.execute(
+                "SELECT gpu_type, data_json, fetched_at FROM gpu_price_cache"
+            ).fetchall()
+            for _row in _cache_rows:
+                _points = _json.loads(_row["data_json"])
+                for _pt in _points:
+                    conn.execute(
+                        """INSERT OR IGNORE INTO gpu_price_history
+                               (gpu_type, timestamp, index_value, fetched_at)
+                           VALUES (?, ?, ?, ?)""",
+                        (_row["gpu_type"], _pt["timestamp"], _pt["index_value"], _row["fetched_at"]),
+                    )
+        except Exception:
+            pass  # gpu_price_cache may be empty or not yet exist — safe to skip
