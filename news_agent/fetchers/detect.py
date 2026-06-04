@@ -34,6 +34,7 @@ _FEED_PATHS = ["/feed", "/rss", "/feed.xml", "/rss.xml", "/atom.xml", "/feeds/po
 _X_PATTERN           = re.compile(r"https?://(www\.)?(x|twitter)\.com/", re.I)
 _YOUTUBE_PATTERN     = re.compile(r"https?://(?:www\.)?youtube\.com/", re.I)
 _XIAOYUZHOU_PATTERN  = re.compile(r"https?://(?:www\.)?xiaoyuzhoufm\.com/podcast/", re.I)
+_BILIBILI_SPACE_RE   = re.compile(r"https?://space\.bilibili\.com/\d+", re.I)
 
 
 def _is_valid_feed(url: str) -> bool:
@@ -108,7 +109,20 @@ def detect_source(raw_url: str) -> dict:
     if not url.startswith("http"):
         url = "https://" + url
 
-    # 0. Xiaoyuzhou podcast page
+    # 0. Bilibili user space
+    if _BILIBILI_SPACE_RE.match(url):
+        from fetchers.bilibili import extract_uid
+        uid = extract_uid(url)
+        canonical = f"https://space.bilibili.com/{uid}" if uid else url
+        return {
+            "type":    "bilibili",
+            "url":     canonical,
+            "display": f"Bilibili 用户空间 UID {uid}" if uid else "Bilibili 用户空间",
+            "ok":      bool(uid),
+            "error":   None if uid else "无法从链接中识别 UID",
+        }
+
+    # 0a. Xiaoyuzhou podcast page
     if _XIAOYUZHOU_PATTERN.match(url):
         return {
             "type":    "xiaoyuzhou",

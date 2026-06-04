@@ -1136,6 +1136,7 @@ def transcript_process():
     from transcript_worker import (
         extract_video_id, is_youtube_url,
         extract_xiaoyuzhou_episode_id, is_xiaoyuzhou_url,
+        extract_bilibili_video_id, is_bilibili_url,
         process_transcript_job,
     )
 
@@ -1150,10 +1151,12 @@ def transcript_process():
 
     if is_youtube_url(url):
         video_id = extract_video_id(url)
+    elif is_bilibili_url(url):
+        video_id = extract_bilibili_video_id(url)
     elif is_xiaoyuzhou_url(url):
         video_id = extract_xiaoyuzhou_episode_id(url)
     else:
-        return jsonify({"error": "请输入 YouTube 视频或小宇宙播客单集链接。"}), 400
+        return jsonify({"error": "请输入 YouTube 视频、Bilibili 视频或小宇宙播客单集链接。"}), 400
 
     # Return cached result if a completed job already exists for this video+mode
     cached = db.get_done_transcript_job(video_id, mode)

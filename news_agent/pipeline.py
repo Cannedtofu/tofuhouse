@@ -63,7 +63,7 @@ def run_fetch_and_summarize(
         try:
             all_stored = db.get_articles(source_ids=[source_id])
 
-            if source_type in ("nitter", "youtube", "xiaoyuzhou"):
+            if source_type in ("nitter", "youtube", "xiaoyuzhou", "bilibili"):
                 # Short by nature — never Playwright-enrich. Treat all stored
                 # URLs as known so already-seen entries are always skipped.
                 existing_urls = {row["url"] for row in all_stored}
@@ -100,6 +100,10 @@ def run_fetch_and_summarize(
             elif source_type == "xiaoyuzhou":
                 from fetchers.xiaoyuzhou import fetch_xiaoyuzhou
                 articles = fetch_xiaoyuzhou(source_url, known_urls=existing_urls, date_from=date_from)
+
+            elif source_type == "bilibili":
+                from fetchers.bilibili import fetch_bilibili
+                articles = fetch_bilibili(source_url, known_urls=existing_urls, date_from=date_from)
 
             else:
                 result["error"] = f"Unknown source type '{source_type}'"

@@ -76,6 +76,7 @@ def is_youtube_url(url: str) -> bool:
 
 
 _XIAOYUZHOU_EPISODE_RE = re.compile(r"xiaoyuzhoufm\.com/episode/([a-f0-9]+)", re.I)
+_BILIBILI_VIDEO_RE     = re.compile(r"bilibili\.com/video/(BV[a-zA-Z0-9]+)", re.I)
 
 
 def extract_xiaoyuzhou_episode_id(url: str) -> str | None:
@@ -85,6 +86,16 @@ def extract_xiaoyuzhou_episode_id(url: str) -> str | None:
 
 def is_xiaoyuzhou_url(url: str) -> bool:
     return extract_xiaoyuzhou_episode_id(url) is not None
+
+
+def extract_bilibili_video_id(url: str) -> str | None:
+    """Return the BV ID from a bilibili.com/video/BVxxx URL."""
+    m = _BILIBILI_VIDEO_RE.search(url)
+    return m.group(1) if m else None
+
+
+def is_bilibili_url(url: str) -> bool:
+    return extract_bilibili_video_id(url) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -111,11 +122,12 @@ def _parse_vtt(content: str) -> str:
     return " ".join(texts)
 
 
-def _fetch_transcript_fast(video_id: str) -> str | None:
+def _fetch_transcript_fast(video_id_or_url: str) -> str | None:
     """
     Probe available subtitles via yt-dlp extract_info, pick the best VTT URL,
     download it through yt-dlp's own networking (proxy-aware), then parse.
     Returns plain text or None to trigger audio fallback.
+    Accepts either a YouTube video ID or a full URL (Bilibili, etc.).
     """
     import yt_dlp
 
@@ -133,7 +145,11 @@ def _fetch_transcript_fast(video_id: str) -> str | None:
     else:
         logger.warning("yt-dlp subtitle: no proxy configured — may be blocked on cloud IPs")
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
+    url = (
+        video_id_or_url
+        if video_id_or_url.startswith("http")
+        else f"https://www.youtube.com/watch?v={video_id_or_url}"
+    )
 
     # Step 1: probe what subtitle tracks actually exist
     try:
@@ -204,10 +220,18 @@ def _fetch_transcript_fast(video_id: str) -> str | None:
 # Audio download — yt-dlp
 # ---------------------------------------------------------------------------
 
-def _download_audio(video_id: str, tmp_dir: str) -> str:
+def _download_audio(video_id_or_url: str, tmp_dir: str) -> str:
+    """Download audio for a YouTube video ID or a full URL (Bilibili, etc.)."""
     import yt_dlp
 
-    output_template = os.path.join(tmp_dir, f"{video_id}.%(ext)s")
+    if video_id_or_url.startswith("http"):
+        dl_url  = video_id_or_url
+        file_id = re.sub(r"[^a-zA-Z0-9_-]", "_", video_id_or_url.split("/")[-1])[:40]
+    else:
+        dl_url  = f"https://www.youtube.com/watch?v={video_id_or_url}"
+        file_id = video_id_or_url
+
+    output_template = os.path.join(tmp_dir, f"{file_id}.%(ext)s")
     ydl_opts = {
         # Prefer native m4a (no ffmpeg needed); fall back to any audio stream.
         "format": "bestaudio[ext=m4a]/bestaudio/best",
@@ -230,10 +254,10 @@ def _download_audio(video_id: str, tmp_dir: str) -> str:
         logger.warning("yt-dlp: no proxy configured — may be blocked on cloud IPs")
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+        ydl.download([dl_url])
 
     for fname in os.listdir(tmp_dir):
-        if fname.startswith(video_id):
+        if fname.startswith(file_id):
             return os.path.join(tmp_dir, fname)
 
     raise FileNotFoundError(f"yt-dlp produced no output file in {tmp_dir}")
@@ -445,9 +469,15 @@ def _fetch_xiaoyuzhou_metadata(episode_id: str) -> dict:
 # Video metadata
 # ---------------------------------------------------------------------------
 
-def _fetch_video_metadata(video_id: str) -> tuple[str | None, str | None]:
-    """Return (title, uploader) for a YouTube video. Non-fatal — returns (None, None) on failure."""
+def _fetch_video_metadata(video_id_or_url: str) -> tuple[str | None, str | None]:
+    """Return (title, uploader) for a YouTube or Bilibili video. Non-fatal."""
     import yt_dlp
+
+    url = (
+        video_id_or_url
+        if video_id_or_url.startswith("http")
+        else f"https://www.youtube.com/watch?v={video_id_or_url}"
+    )
 
     opts = {
         "quiet": True,
@@ -461,14 +491,12 @@ def _fetch_video_metadata(video_id: str) -> tuple[str | None, str | None]:
 
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(
-                f"https://www.youtube.com/watch?v={video_id}", download=False
-            )
+            info   = ydl.extract_info(url, download=False)
             title  = info.get("title")
             author = info.get("uploader") or info.get("channel")
             return title, author
     except Exception as exc:
-        logger.warning("Could not fetch metadata for %s: %s", video_id, exc)
+        logger.warning("Could not fetch metadata for %s: %s", video_id_or_url, exc)
         return None, None
 
 
@@ -874,7 +902,23 @@ def process_transcript_job(job_id: str, video_url: str, video_id: str,
         db.update_transcript_job(job_id, status="processing")
         logger.info("Transcript job %s started for %s (mode=%s)", job_id, video_id, mode)
 
-        if is_xiaoyuzhou_url(video_url):
+        if is_bilibili_url(video_url):
+            # --- Bilibili video — same yt-dlp path as YouTube, using full URL ---
+            title, author = _fetch_video_metadata(video_url)
+            if title or author:
+                db.set_transcript_metadata(job_id, video_title=title, video_author=author)
+
+            if mode == "diarization":
+                _run_audio_transcript(job_id, video_url, diarize=True)
+            else:
+                transcript = _fetch_transcript_fast(video_url)
+                if transcript is not None:
+                    db.update_transcript_job(job_id, status="done", transcript=transcript)
+                    logger.info("Bilibili job %s completed via captions (%d chars)", job_id, len(transcript))
+                else:
+                    db.update_transcript_job(job_id, status="awaiting_approval")
+
+        elif is_xiaoyuzhou_url(video_url):
             # --- Xiaoyuzhou episode ---
             meta = _fetch_xiaoyuzhou_metadata(video_id)
             title  = meta.get("title")
@@ -933,14 +977,19 @@ def continue_audio_transcript(job_id: str, video_id: str) -> None:
         job = db.get_transcript_job(job_id)
         audio_path = (job or {}).get("audio_path") or ""
 
-        if audio_path.startswith("http"):
+        if audio_path.startswith("http") and "xyzcdn.net" in audio_path:
             # Xiaoyuzhou — direct public audio URL stored in audio_path
             logger.info("Xiaoyuzhou audio transcription started for job %s", job_id)
             _run_url_audio_transcript(job_id, audio_path, diarize=False)
         else:
-            # YouTube — download audio via yt-dlp
-            logger.info("Audio fallback started for job %s, video %s", job_id, video_id)
-            _run_audio_transcript(job_id, video_id, diarize=False)
+            # YouTube / Bilibili — download via yt-dlp
+            # Use full video_url from DB so Bilibili gets the correct URL format
+            dl_target = (job or {}).get("video_url") or video_id
+            if is_bilibili_url(dl_target):
+                logger.info("Bilibili audio fallback started for job %s", job_id)
+            else:
+                logger.info("Audio fallback started for job %s, video %s", job_id, video_id)
+            _run_audio_transcript(job_id, dl_target, diarize=False)
     except Exception as exc:
         logger.exception("Audio fallback job %s failed: %s", job_id, exc)
         db.update_transcript_job(job_id, status="error", error_message=str(exc))
