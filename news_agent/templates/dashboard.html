@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block title %}数据 Dashboard — 新闻助手{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h4 class="mb-0 fw-bold">📊 数据 Dashboard</h4>
+</div>
+
+<!-- GPU Price Chart Section -->
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center justify-content-between py-2">
+    <div>
+      <span class="fw-semibold">GPU 算力价格指数</span>
+      <a href="https://dashboard.ornnai.com" target="_blank" rel="noopener"
+         class="ms-2 small text-muted text-decoration-none">
+        数据来源: Ornn AI ↗
+      </a>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span id="gpu-last-updated" class="small text-muted"></span>
+      <button id="gpu-refresh-btn" class="btn btn-sm btn-outline-secondary" onclick="refreshGpuPrices()">
+        <span id="gpu-refresh-spinner" class="spinner-border spinner-border-sm d-none me-1"></span>
+        刷新
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <!-- GPU toggle buttons -->
+    <div id="gpu-toggles" class="d-flex flex-wrap gap-2 mb-3" style="display:none!important"></div>
+
+    <!-- Timeframe selector -->
+    <div class="btn-group btn-group-sm mb-3" role="group" id="timeframe-group">
+      <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('1W')">1周</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('1M')">1个月</button>
+      <button type="button" class="btn btn-outline-secondary active" onclick="setTimeframe('3M')">3个月</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('ALL')">全部</button>
+    </div>
+
+    <!-- Loading / empty states -->
+    <div id="gpu-loading" class="text-center text-muted py-5">
+      <div class="spinner-border text-secondary mb-2" role="status"></div>
+      <div class="small">正在加载数据…</div>
+    </div>
+    <div id="gpu-empty" class="text-center text-muted py-5 d-none">
+      <div class="mb-2">暂无数据</div>
+      <button class="btn btn-sm btn-primary" onclick="refreshGpuPrices()">立即获取</button>
+    </div>
+    <div id="gpu-fetching-notice" class="alert alert-info py-2 small d-none">
+      正在从 Ornn AI 获取最新数据，请稍候…
+    </div>
+
+    <!-- Chart -->
+    <div id="gpu-chart-wrap" class="d-none" style="position:relative; height:380px">
+      <canvas id="gpuChart"></canvas>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+const GPU_COLORS = {
+  "H100 SXM":  { border: "#0d6efd", bg: "rgba(13,110,253,0.08)" },
+  "H200":      { border: "#20c997", bg: "rgba(32,201,151,0.08)" },
+  "B200":      { border: "#fd7e14", bg: "rgba(253,126,20,0.08)"  },
+  "A100 SXM4": { border: "#6f42c1", bg: "rgba(111,66,193,0.08)" },
+  "RTX 5090":  { border: "#dc3545", bg: "rgba(220,53,69,0.08)"  },
+};
+
+const TIMEFRAMES = {
+  "1W":  7,
+  "1M":  30,
+  "3M":  90,
+  "ALL": null,
+};
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let gpuChart = null;
+let allData   = [];          // [{gpu_type, data: [{timestamp, index_value}]}]
+let visibleGpus = new Set(); // which GPUs are toggled on
+let currentTimeframe = "3M";
+let pollTimer = null;
+
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+document.addEventListener("DOMContentLoaded", loadGpuPrices);
+
+async function loadGpuPrices() {
+  showLoading(true);
+  try {
+    const resp = await fetch("/dashboard/api/gpu-prices");
+    const json = await resp.json();
+
+    if (json.fetching && json.data.length === 0) {
+      // First-time fetch kicked off server-side — poll until ready
+      showFetchingNotice(true);
+      showLoading(false);
+      schedulePoll();
+      return;
+    }
+
+    if (json.data.length === 0) {
+      showEmpty(true);
+      showLoading(false);
+      return;
+    }
+
+    renderChart(json.data, json.last_updated);
+
+    if (json.fetching) {
+      showFetchingNotice(true);
+      schedulePoll();
+    }
+  } catch (e) {
+    console.error("GPU price load error:", e);
+    showLoading(false);
+    showEmpty(true);
+  }
+}
+
+function schedulePoll() {
+  if (pollTimer) return;
+  pollTimer = setInterval(async () => {
+    const resp = await fetch("/dashboard/api/gpu-prices");
+    const json = await resp.json();
+    if (json.data.length > 0) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      showFetchingNotice(false);
+      renderChart(json.data, json.last_updated);
+    }
+  }, 3000);
+}
+
+// ---------------------------------------------------------------------------
+// Chart rendering
+// ---------------------------------------------------------------------------
+function renderChart(data, lastUpdated) {
+  allData = data;
+
+  // Build toggle buttons once
+  buildToggles(data);
+
+  // Update last-updated label
+  if (lastUpdated) {
+    const dt = new Date(lastUpdated);
+    document.getElementById("gpu-last-updated").textContent =
+      "更新于 " + dt.toLocaleString("zh-CN", {timeZone: "Asia/Singapore",
+        month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"});
+  }
+
+  showLoading(false);
+  showEmpty(false);
+  showFetchingNotice(false);
+  document.getElementById("gpu-chart-wrap").classList.remove("d-none");
+
+  drawChart();
+}
+
+function buildToggles(data) {
+  const wrap = document.getElementById("gpu-toggles");
+  // Only build once
+  if (wrap.children.length > 0) return;
+  wrap.style.removeProperty("display");
+  data.forEach(({ gpu_type }) => {
+    visibleGpus.add(gpu_type);
+    const c = GPU_COLORS[gpu_type] || { border: "#6c757d", bg: "rgba(108,117,125,0.08)" };
+    const btn = document.createElement("button");
+    btn.className = "btn btn-sm gpu-toggle active";
+    btn.dataset.gpu = gpu_type;
+    btn.textContent = gpu_type;
+    btn.style.cssText = `border-color:${c.border};color:${c.border};background:${c.bg}`;
+    btn.addEventListener("click", () => toggleGpu(gpu_type, btn, c));
+    wrap.appendChild(btn);
+  });
+}
+
+function toggleGpu(gpu_type, btn, c) {
+  if (visibleGpus.has(gpu_type)) {
+    visibleGpus.delete(gpu_type);
+    btn.classList.remove("active");
+    btn.style.cssText = "border-color:#ced4da;color:#6c757d;background:transparent";
+  } else {
+    visibleGpus.add(gpu_type);
+    btn.classList.add("active");
+    btn.style.cssText = `border-color:${c.border};color:${c.border};background:${c.bg}`;
+  }
+  drawChart();
+}
+
+function setTimeframe(tf) {
+  currentTimeframe = tf;
+  document.querySelectorAll("#timeframe-group .btn").forEach(b => {
+    b.classList.toggle("active", b.textContent.trim() === { "1W":"1周","1M":"1个月","3M":"3个月","ALL":"全部" }[tf]);
+  });
+  drawChart();
+}
+
+function drawChart() {
+  const cutoff = TIMEFRAMES[currentTimeframe]
+    ? new Date(Date.now() - TIMEFRAMES[currentTimeframe] * 86400000)
+    : null;
+
+  const datasets = allData
+    .filter(({ gpu_type }) => visibleGpus.has(gpu_type))
+    .map(({ gpu_type, data }) => {
+      const c = GPU_COLORS[gpu_type] || { border: "#6c757d", bg: "rgba(108,117,125,0.08)" };
+      const points = data
+        .filter(d => !cutoff || new Date(d.timestamp) >= cutoff)
+        .map(d => ({ x: d.timestamp, y: d.index_value }));
+      return {
+        label: gpu_type,
+        data: points,
+        borderColor: c.border,
+        backgroundColor: c.bg,
+        borderWidth: 2,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+        tension: 0.3,
+        fill: false,
+      };
+    });
+
+  if (gpuChart) {
+    gpuChart.data.datasets = datasets;
+    gpuChart.update();
+    return;
+  }
+
+  const ctx = document.getElementById("gpuChart").getContext("2d");
+  gpuChart = new Chart(ctx, {
+    type: "line",
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { position: "top", labels: { boxWidth: 12, font: { size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "day", tooltipFormat: "yyyy-MM-dd", displayFormats: { day: "MM/dd" } },
+          grid: { color: "rgba(0,0,0,0.04)" },
+          ticks: { maxTicksLimit: 10, font: { size: 11 } },
+        },
+        y: {
+          title: { display: true, text: "价格指数", font: { size: 11 } },
+          grid: { color: "rgba(0,0,0,0.04)" },
+          ticks: { font: { size: 11 } },
+        },
+      },
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Refresh
+// ---------------------------------------------------------------------------
+async function refreshGpuPrices() {
+  const btn = document.getElementById("gpu-refresh-btn");
+  const spinner = document.getElementById("gpu-refresh-spinner");
+  btn.disabled = true;
+  spinner.classList.remove("d-none");
+  try {
+    await fetch("/dashboard/gpu-prices/refresh", { method: "POST" });
+    showFetchingNotice(true);
+    schedulePoll();
+  } finally {
+    btn.disabled = false;
+    spinner.classList.add("d-none");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// UI helpers
+// ---------------------------------------------------------------------------
+function showLoading(v)         { toggle("gpu-loading", v); }
+function showEmpty(v)           { toggle("gpu-empty", v); }
+function showFetchingNotice(v)  { toggle("gpu-fetching-notice", v); }
+function toggle(id, show) {
+  document.getElementById(id).classList.toggle("d-none", !show);
+}
+</script>
+{% endblock %}

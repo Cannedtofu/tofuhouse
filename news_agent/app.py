@@ -225,6 +225,33 @@ def _scheduled_digest_send():
             logger_sched.error("Preset digest %d failed for %s: %s", preset["id"], preset["user_email"], exc)
 
 logger_sched = logging.getLogger("scheduler")
+logger_dashboard = logging.getLogger("dashboard")
+
+_gpu_fetch_lock = threading.Lock()
+_gpu_fetch_running = False
+
+
+def _run_gpu_price_fetch():
+    """Fetch GPU price index data from api.ornnai.com and cache in DB."""
+    global _gpu_fetch_running
+    if not _gpu_fetch_lock.acquire(blocking=False):
+        logger_dashboard.info("GPU price fetch already running — skipped")
+        return
+    _gpu_fetch_running = True
+    try:
+        from fetchers.gpu_prices import fetch_all_gpu_prices
+        logger_dashboard.info("GPU price fetch starting…")
+        results = fetch_all_gpu_prices()
+        for gpu_type, data in results.items():
+            db.upsert_gpu_price_data(gpu_type, data)
+        logger_dashboard.info("GPU price fetch done: %d GPU type(s) updated", len(results))
+    except Exception as exc:
+        logger_dashboard.error("GPU price fetch error: %s", exc)
+    finally:
+        _gpu_fetch_running = False
+        _gpu_fetch_lock.release()
+
+
 _scheduler = BackgroundScheduler(daemon=True)
 
 # Anchor Nitter fetches to 11pm SGT (15:00 UTC). If NITTER_FETCH_PERIOD_HOURS
@@ -243,7 +270,11 @@ else:
 _scheduler.add_job(_scheduled_nitter_fetch, "cron", hour=_nitter_cron_hours, minute=0, id="nitter_periodic")
 # Fixed SGT times (server runs UTC+8): 03:00, 09:00, 15:00, 21:00 — no drift on restart
 _scheduler.add_job(_scheduled_digest_send, "cron", hour="3,9,15,21", minute=0, id="digest_send")
-
+# GPU prices: daily at 09:00 SGT (01:00 UTC)
+_scheduler.add_job(
+    lambda: _run_gpu_price_fetch(),
+    "cron", hour=1, minute=0, id="gpu_price_daily",
+)
 
 _scheduler.start()
 
@@ -1433,6 +1464,48 @@ def transcript_download_pdf(job_id: str):
         mimetype="application/pdf",
         headers={"Content-Disposition": f'attachment; filename*=UTF-8\'\'{_url_quote(filename)}'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Dashboard — GPU prices (and future datasets)
+# ---------------------------------------------------------------------------
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    return render_template("dashboard.html")
+
+
+@app.route("/dashboard/api/gpu-prices")
+@login_required
+def dashboard_gpu_prices_api():
+    """Return cached GPU price data as JSON.
+
+    If the cache is empty (first visit), triggers a synchronous fetch so the
+    page has data immediately. Subsequent loads hit the DB cache only.
+    """
+    cached = db.get_all_gpu_price_data()
+    if not cached:
+        # First-time: fetch synchronously (fast — 5 HTTP calls, ~2s total)
+        threading.Thread(target=_run_gpu_price_fetch, daemon=True).start()
+        return jsonify({"data": [], "fetching": True, "last_updated": None})
+
+    last_updated = db.get_gpu_price_last_updated()
+    return jsonify({
+        "data": cached,
+        "fetching": _gpu_fetch_running,
+        "last_updated": last_updated,
+    })
+
+
+@app.route("/dashboard/gpu-prices/refresh", methods=["POST"])
+@login_required
+def dashboard_gpu_prices_refresh():
+    """Trigger a background GPU price refresh."""
+    if _gpu_fetch_running:
+        return jsonify({"ok": False, "message": "已在刷新中"})
+    threading.Thread(target=_run_gpu_price_fetch, daemon=True).start()
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

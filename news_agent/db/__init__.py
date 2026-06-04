@@ -79,6 +79,12 @@ from db.transcripts import (
     delete_transcript_job,
     clear_transcript_summary,
 )
+from db.gpu_prices import (
+    upsert_gpu_price_data,
+    get_gpu_price_data,
+    get_all_gpu_price_data,
+    get_gpu_price_last_updated,
+)
 
 __all__ = [
     # core
@@ -107,4 +113,7 @@ __all__ = [
     "create_transcript_job", "get_done_transcript_job", "list_transcript_jobs",
     "update_transcript_job", "get_transcript_job", "set_transcript_metadata",
     "delete_transcript_job", "clear_transcript_summary",
+    # gpu prices
+    "upsert_gpu_price_data", "get_gpu_price_data",
+    "get_all_gpu_price_data", "get_gpu_price_last_updated",
 ]

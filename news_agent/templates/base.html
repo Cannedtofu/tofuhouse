@@ -39,6 +39,7 @@
           <a class="nav-link {% if request.path == '/digests' %}active{% endif %}" href="/digests">简报</a>
           <a class="nav-link {% if request.path == '/sources' %}active{% endif %}" href="/sources">来源</a>
           <a class="nav-link {% if request.path == '/transcript' %}active{% endif %}" href="/transcript">转录</a>
+          <a class="nav-link {% if request.path.startswith('/dashboard') %}active{% endif %}" href="/dashboard">数据</a>
           <a class="nav-link {% if request.path == '/logs' %}active{% endif %}" href="/logs">日志</a>
           {% if is_admin %}
           <a class="nav-link {% if request.path == '/settings' %}active{% endif %}" href="/settings">设置</a>

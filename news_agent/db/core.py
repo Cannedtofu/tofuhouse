@@ -122,6 +122,12 @@ def init_db():
                 created_at      TEXT    NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_digest_presets_user ON digest_presets(user_id);
+
+            CREATE TABLE IF NOT EXISTS gpu_price_cache (
+                gpu_type   TEXT PRIMARY KEY,
+                data_json  TEXT NOT NULL,
+                fetched_at TEXT NOT NULL
+            );
         """)
         # Migrations for older databases
         try:
