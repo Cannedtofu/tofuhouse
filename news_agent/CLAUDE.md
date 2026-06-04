@@ -338,6 +338,10 @@ See `DEPLOY.md` for full deployment reference.
 
 ---
 
+## Git
+
+- Always push immediately after committing.
+
 ## Conventions
 
 - DB access always through `db/` layer — no raw SQL in routes or pipeline code
