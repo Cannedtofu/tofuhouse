@@ -75,6 +75,18 @@ def is_youtube_url(url: str) -> bool:
     return extract_video_id(url) is not None
 
 
+_XIAOYUZHOU_EPISODE_RE = re.compile(r"xiaoyuzhoufm\.com/episode/([a-f0-9]+)", re.I)
+
+
+def extract_xiaoyuzhou_episode_id(url: str) -> str | None:
+    m = _XIAOYUZHOU_EPISODE_RE.search(url)
+    return m.group(1) if m else None
+
+
+def is_xiaoyuzhou_url(url: str) -> bool:
+    return extract_xiaoyuzhou_episode_id(url) is not None
+
+
 # ---------------------------------------------------------------------------
 # Fast path — yt-dlp subtitle download (caption file only, no audio)
 # ---------------------------------------------------------------------------
@@ -339,6 +351,94 @@ def _transcribe_audio_file(audio_path: str, diarize: bool = False) -> str:
 
     finally:
         audio_registry.unregister(token)
+
+
+def _transcribe_url_direct(audio_url: str, diarize: bool = False) -> str:
+    """Transcribe audio from a public URL directly via DashScope.
+
+    Unlike _transcribe_audio_file, no local download or temp serving is needed —
+    DashScope pulls the audio directly from the supplied URL. Used for Xiaoyuzhou
+    episodes where the audio is already at a public xyzcdn.net URL.
+    """
+    import json
+    import urllib.request
+
+    import dashscope
+    from dashscope.audio.asr import Transcription
+
+    dashscope.api_key = QWEN_API_KEY
+    logger.info("Transcribing direct URL with paraformer-v2 (diarize=%s): %s", diarize, audio_url[:80])
+
+    call_kwargs: dict = {
+        "model": ASR_MODEL,
+        "file_urls": [audio_url],
+        "language_hints": ["zh", "en"],
+    }
+    if diarize:
+        call_kwargs["diarization_enabled"] = True
+
+    task_resp = Transcription.async_call(**call_kwargs)
+    if task_resp.status_code != 200:
+        raise RuntimeError(
+            f"Transcription submit error {task_resp.status_code}: {task_resp.message}"
+        )
+
+    resp = Transcription.wait(task_resp)
+    if resp.status_code != 200:
+        raise RuntimeError(f"Transcription error {resp.status_code}: {resp.message}")
+
+    results = (resp.output or {}).get("results") or []
+    if not results:
+        raise RuntimeError("Transcription returned no results")
+
+    result = results[0]
+    if result.get("subtask_status") != "SUCCEEDED":
+        raise RuntimeError(
+            f"Transcription subtask FAILED: {result.get('message') or result.get('subtask_status')}"
+        )
+
+    trans_url = result.get("transcription_url")
+    if not trans_url:
+        raise RuntimeError("No transcription_url in result")
+
+    with urllib.request.urlopen(trans_url) as f:
+        trans_data = json.loads(f.read().decode("utf-8"))
+
+    transcripts = trans_data.get("transcripts") or []
+    if not transcripts:
+        return trans_data.get("text", "")
+
+    channel   = transcripts[0]
+    sentences = channel.get("sentences") or []
+    if not sentences:
+        return channel.get("text", "")
+
+    if diarize:
+        return _format_diarized_sentences(sentences)
+    return " ".join(s.get("text", "") for s in sentences)
+
+
+def _run_url_audio_transcript(job_id: str, audio_url: str, diarize: bool = False) -> None:
+    """Transcribe a Xiaoyuzhou episode from its direct public audio URL."""
+    logger.info("Transcribing Xiaoyuzhou audio for job %s (diarize=%s)", job_id, diarize)
+    transcript = _transcribe_url_direct(audio_url, diarize=diarize)
+    db.update_transcript_job(job_id, status="done", transcript=transcript)
+    logger.info("Xiaoyuzhou transcript job %s done (%d chars)", job_id, len(transcript))
+
+
+# ---------------------------------------------------------------------------
+# Xiaoyuzhou metadata
+# ---------------------------------------------------------------------------
+
+def _fetch_xiaoyuzhou_metadata(episode_id: str) -> dict:
+    """Fetch title, author and audio URL for a Xiaoyuzhou episode. Non-fatal."""
+    try:
+        from fetchers.xiaoyuzhou import get_episode_metadata
+        meta = get_episode_metadata(episode_id)
+        return meta or {}
+    except Exception as exc:
+        logger.warning("Could not fetch Xiaoyuzhou metadata for %s: %s", episode_id, exc)
+        return {}
 
 
 # ---------------------------------------------------------------------------
@@ -763,32 +863,58 @@ def process_transcript_job(job_id: str, video_url: str, video_id: str,
                             mode: str = "no_diarization") -> None:
     """
     First stage.
-    - diarization:    always start audio download immediately (user chose this mode knowingly)
-    - no_diarization: try captions first; if none, pause at awaiting_approval
+    YouTube:
+      - diarization:    always download audio immediately
+      - no_diarization: try captions first; if none, pause at awaiting_approval
+    Xiaoyuzhou:
+      - diarization:    transcribe direct audio URL immediately
+      - no_diarization: pause at awaiting_approval (audio_path stores the URL)
     """
     try:
         db.update_transcript_job(job_id, status="processing")
         logger.info("Transcript job %s started for %s (mode=%s)", job_id, video_id, mode)
 
-        title, author = _fetch_video_metadata(video_id)
-        if title or author:
-            db.set_transcript_metadata(job_id, video_title=title, video_author=author)
-            logger.info("Metadata for %s: title=%r author=%r", video_id, title, author)
+        if is_xiaoyuzhou_url(video_url):
+            # --- Xiaoyuzhou episode ---
+            meta = _fetch_xiaoyuzhou_metadata(video_id)
+            title  = meta.get("title")
+            author = meta.get("author")
+            if title or author:
+                db.set_transcript_metadata(job_id, video_title=title, video_author=author)
+                logger.info("Xiaoyuzhou metadata for %s: title=%r author=%r", video_id, title, author)
 
-        if mode == "diarization":
-            _run_audio_transcript(job_id, video_id, diarize=True)
-        else:
-            transcript = _fetch_transcript_fast(video_id)
-            if transcript is not None:
-                db.update_transcript_job(job_id, status="done", transcript=transcript)
-                logger.info(
-                    "Transcript job %s completed via captions (%d chars)", job_id, len(transcript)
-                )
+            audio_url = meta.get("audio_url")
+            if not audio_url:
+                raise RuntimeError("Could not find audio URL for this Xiaoyuzhou episode")
+
+            if mode == "diarization":
+                _run_url_audio_transcript(job_id, audio_url, diarize=True)
             else:
-                logger.info(
-                    "No captions for %s — awaiting user approval for audio fallback", video_id
-                )
-                db.update_transcript_job(job_id, status="awaiting_approval")
+                # Store audio URL in audio_path so continue_audio_transcript can find it
+                db.update_transcript_job(job_id, status="awaiting_approval", audio_path=audio_url)
+                logger.info("Xiaoyuzhou job %s: awaiting user approval for audio transcription", job_id)
+
+        else:
+            # --- YouTube video ---
+            title, author = _fetch_video_metadata(video_id)
+            if title or author:
+                db.set_transcript_metadata(job_id, video_title=title, video_author=author)
+                logger.info("Metadata for %s: title=%r author=%r", video_id, title, author)
+
+            if mode == "diarization":
+                _run_audio_transcript(job_id, video_id, diarize=True)
+            else:
+                transcript = _fetch_transcript_fast(video_id)
+                if transcript is not None:
+                    db.update_transcript_job(job_id, status="done", transcript=transcript)
+                    logger.info(
+                        "Transcript job %s completed via captions (%d chars)", job_id, len(transcript)
+                    )
+                else:
+                    logger.info(
+                        "No captions for %s — awaiting user approval for audio fallback", video_id
+                    )
+                    db.update_transcript_job(job_id, status="awaiting_approval")
 
     except Exception as exc:
         logger.exception("Transcript job %s failed: %s", job_id, exc)
@@ -798,12 +924,23 @@ def process_transcript_job(job_id: str, video_url: str, video_id: str,
 def continue_audio_transcript(job_id: str, video_id: str) -> None:
     """
     Second stage for no_diarization mode — called after user approves audio fallback.
-    Uses paraformer-v2 without diarization.
+
+    Xiaoyuzhou: audio_path contains the direct xyzcdn.net URL → use _run_url_audio_transcript.
+    YouTube:    audio_path is a local file path (or None) → use _run_audio_transcript.
     """
     try:
         db.update_transcript_job(job_id, status="processing")
-        logger.info("Audio fallback started for job %s, video %s", job_id, video_id)
-        _run_audio_transcript(job_id, video_id, diarize=False)
+        job = db.get_transcript_job(job_id)
+        audio_path = (job or {}).get("audio_path") or ""
+
+        if audio_path.startswith("http"):
+            # Xiaoyuzhou — direct public audio URL stored in audio_path
+            logger.info("Xiaoyuzhou audio transcription started for job %s", job_id)
+            _run_url_audio_transcript(job_id, audio_path, diarize=False)
+        else:
+            # YouTube — download audio via yt-dlp
+            logger.info("Audio fallback started for job %s, video %s", job_id, video_id)
+            _run_audio_transcript(job_id, video_id, diarize=False)
     except Exception as exc:
         logger.exception("Audio fallback job %s failed: %s", job_id, exc)
         db.update_transcript_job(job_id, status="error", error_message=str(exc))

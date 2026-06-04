@@ -31,8 +31,9 @@ _HEADERS = {
 _TIMEOUT = 10
 _FEED_PATHS = ["/feed", "/rss", "/feed.xml", "/rss.xml", "/atom.xml", "/feeds/posts/default"]
 
-_X_PATTERN = re.compile(r"https?://(www\.)?(x|twitter)\.com/", re.I)
-_YOUTUBE_PATTERN = re.compile(r"https?://(?:www\.)?youtube\.com/", re.I)
+_X_PATTERN           = re.compile(r"https?://(www\.)?(x|twitter)\.com/", re.I)
+_YOUTUBE_PATTERN     = re.compile(r"https?://(?:www\.)?youtube\.com/", re.I)
+_XIAOYUZHOU_PATTERN  = re.compile(r"https?://(?:www\.)?xiaoyuzhoufm\.com/podcast/", re.I)
 
 
 def _is_valid_feed(url: str) -> bool:
@@ -107,7 +108,17 @@ def detect_source(raw_url: str) -> dict:
     if not url.startswith("http"):
         url = "https://" + url
 
-    # 0. YouTube channel URL → youtube type
+    # 0. Xiaoyuzhou podcast page
+    if _XIAOYUZHOU_PATTERN.match(url):
+        return {
+            "type":    "xiaoyuzhou",
+            "url":     url,
+            "display": f"小宇宙播客: {url}",
+            "ok":      True,
+            "error":   None,
+        }
+
+    # 1. YouTube channel URL → youtube type
     if _YOUTUBE_PATTERN.match(url):
         feed_url = _youtube_feed_url(url)
         if feed_url and _is_valid_feed(feed_url):

@@ -22,13 +22,13 @@
 
     <!-- URL input card -->
     <div class="card p-4 mb-3">
-      <h5 class="mb-3">YouTube 视频转录</h5>
+      <h5 class="mb-3">音频转录</h5>
       <p class="text-muted small mb-3">
-        粘贴 YouTube 视频链接，选择转录模式。AI 摘要可在转录完成后按需生成。
+        支持 YouTube 视频 及 小宇宙播客单集链接。AI 摘要可在转录完成后按需生成。
       </p>
       <div class="mb-3">
         <input type="url" id="yt-url-input" class="form-control"
-               placeholder="https://www.youtube.com/watch?v=..."
+               placeholder="YouTube 链接 或 小宇宙单集链接 (xiaoyuzhoufm.com/episode/…)"
                autocomplete="off">
         <div id="url-error" class="text-danger small mt-1" style="display:none"></div>
       </div>
@@ -47,8 +47,8 @@
         </button>
       </div>
       <p class="text-muted small mt-2 mb-0">
-        <strong>不区分发言人</strong>：优先使用字幕，无字幕时询问是否下载音频。<br>
-        <strong>区分发言人</strong>：始终下载音频，使用 ASR + 说话人分离（需 API 费用）。
+        <strong>不区分发言人</strong>：YouTube 优先使用字幕；小宇宙及无字幕 YouTube 需确认后转录音频。<br>
+        <strong>区分发言人</strong>：始终使用 ASR + 说话人分离（需 API 费用）。
       </p>
     </div>
 

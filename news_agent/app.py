@@ -1133,7 +1133,11 @@ def transcript_jobs_list():
 @app.route("/transcript/process", methods=["POST"])
 @login_required
 def transcript_process():
-    from transcript_worker import extract_video_id, is_youtube_url, process_transcript_job
+    from transcript_worker import (
+        extract_video_id, is_youtube_url,
+        extract_xiaoyuzhou_episode_id, is_xiaoyuzhou_url,
+        process_transcript_job,
+    )
 
     data   = request.get_json(silent=True) or {}
     url    = (data.get("url")  or "").strip()
@@ -1143,10 +1147,13 @@ def transcript_process():
         return jsonify({"error": "Invalid mode."}), 400
     if not url:
         return jsonify({"error": "URL is required."}), 400
-    if not is_youtube_url(url):
-        return jsonify({"error": "Not a recognized YouTube video URL."}), 400
 
-    video_id = extract_video_id(url)
+    if is_youtube_url(url):
+        video_id = extract_video_id(url)
+    elif is_xiaoyuzhou_url(url):
+        video_id = extract_xiaoyuzhou_episode_id(url)
+    else:
+        return jsonify({"error": "请输入 YouTube 视频或小宇宙播客单集链接。"}), 400
 
     # Return cached result if a completed job already exists for this video+mode
     cached = db.get_done_transcript_job(video_id, mode)

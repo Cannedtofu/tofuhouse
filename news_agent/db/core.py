@@ -232,17 +232,17 @@ def init_db():
             conn.execute("ALTER TABLE digest_presets ADD COLUMN digest_last_sent TEXT")
         except Exception:
             pass
-        # Widen sources.type CHECK to include 'youtube'
+        # Widen sources.type CHECK to include 'youtube' and 'xiaoyuzhou'
         _src_check = conn.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='sources'"
         ).fetchone()
-        if _src_check and "'youtube'" not in _src_check[0]:
+        if _src_check and "'xiaoyuzhou'" not in _src_check[0]:
             conn.executescript("""
                 PRAGMA foreign_keys=OFF;
                 CREATE TABLE sources_new (
                     id           INTEGER PRIMARY KEY AUTOINCREMENT,
                     name         TEXT    NOT NULL,
-                    type         TEXT    NOT NULL CHECK(type IN ('rss','nitter','web','youtube')),
+                    type         TEXT    NOT NULL CHECK(type IN ('rss','nitter','web','youtube','xiaoyuzhou')),
                     url          TEXT    NOT NULL UNIQUE,
                     url_filter   TEXT,
                     last_fetched TEXT
