@@ -52,49 +52,51 @@
       {% endif %}
     </div>
   {% if is_admin %}
-  <!-- Admin: all-user digest settings -->
+  <!-- Admin: all-user digest settings (per preset) -->
   <div class="card p-4 mt-4">
     <h5 class="mb-3">管理员：用户简报设置</h5>
     <table class="table table-sm align-middle mb-0">
       <thead class="table-light">
         <tr>
           <th>邮箱</th>
-          <th>上次活跃</th>
+          <th>简报</th>
           <th>接收简报</th>
           <th>频率</th>
           <th>上次发送</th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
-        {% for u in all_users %}
+        {% for row in admin_digest_rows %}
         <tr>
-          <td class="small">{{ u.email }}</td>
-          <td class="small text-muted">{{ u.last_seen[:10] if u.last_seen else '—' }}</td>
+          <td class="small">{{ row.email }}</td>
+          <td class="small text-muted">{{ row.preset_name }}</td>
+          {% if row.preset_id %}
           <td>
-            <form method="post" action="/admin/users/{{ u.id }}/digest">
-              <input type="hidden" name="digest_frequency_days" value="{{ u.digest_frequency_days }}">
+            <form method="post" action="/admin/presets/{{ row.preset_id }}/digest">
+              <input type="hidden" name="digest_frequency_days" value="{{ row.digest_frequency_days }}">
               <div class="form-check form-switch mb-0">
                 <input type="checkbox" name="digest_enabled" class="form-check-input"
-                       value="1" {% if u.digest_enabled %}checked{% endif %}
+                       value="1" {% if row.digest_enabled %}checked{% endif %}
                        onchange="this.form.submit()">
               </div>
             </form>
           </td>
           <td>
-            <form method="post" action="/admin/users/{{ u.id }}/digest">
-              {% if u.digest_enabled %}<input type="hidden" name="digest_enabled" value="1">{% endif %}
+            <form method="post" action="/admin/presets/{{ row.preset_id }}/digest">
+              {% if row.digest_enabled %}<input type="hidden" name="digest_enabled" value="1">{% endif %}
               <select name="digest_frequency_days" class="form-select form-select-sm w-auto"
                       onchange="this.form.submit()">
-                <option value="1"  {% if u.digest_frequency_days == 1  %}selected{% endif %}>每天</option>
-                <option value="3"  {% if u.digest_frequency_days == 3  %}selected{% endif %}>每 3 天</option>
-                <option value="7"  {% if u.digest_frequency_days == 7  %}selected{% endif %}>每周</option>
-                <option value="14" {% if u.digest_frequency_days == 14 %}selected{% endif %}>每 2 周</option>
+                <option value="1"  {% if row.digest_frequency_days == 1  %}selected{% endif %}>每天</option>
+                <option value="3"  {% if row.digest_frequency_days == 3  %}selected{% endif %}>每 3 天</option>
+                <option value="7"  {% if row.digest_frequency_days == 7  %}selected{% endif %}>每周</option>
+                <option value="14" {% if row.digest_frequency_days == 14 %}selected{% endif %}>每 2 周</option>
               </select>
             </form>
           </td>
-          <td class="small text-muted">{{ u.digest_last_sent or '—' }}</td>
-          <td></td>
+          <td class="small text-muted">{{ row.digest_last_sent[:10] if row.digest_last_sent else '—' }}</td>
+          {% else %}
+          <td colspan="3" class="small text-muted">无配置（用户尚未访问订阅设置）</td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>

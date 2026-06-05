@@ -197,6 +197,24 @@ def update_digest_preset(
         )
 
 
+def update_preset_email_settings(preset_id: int, enabled: bool, frequency_days: int):
+    """Update only the email schedule fields on a preset (admin use, no user_id guard)."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE digest_presets SET digest_enabled = ?, digest_frequency_days = ? WHERE id = ?",
+            (1 if enabled else 0, frequency_days, preset_id),
+        )
+
+
+def update_preset_source_ids(preset_id: int, source_ids: list[int]):
+    """Replace the source list on a preset without touching other fields."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE digest_presets SET source_ids_json = ? WHERE id = ?",
+            (json.dumps(source_ids), preset_id),
+        )
+
+
 def delete_digest_preset(preset_id: int, user_id: int):
     with get_conn() as conn:
         conn.execute(

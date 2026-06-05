@@ -443,14 +443,44 @@ def sources():
                            followed_source_ids=followed_ids)
 
 
+def _sync_follow_change_to_presets(user_id: int, source_id: int, action: str):
+    """Propagate a single follow/unfollow to all of the user's digest presets."""
+    for p in db.get_digest_presets(user_id):
+        ids = set(p["source_ids"])
+        if action == "unfollow":
+            ids.discard(source_id)
+        else:
+            ids.add(source_id)
+        db.update_digest_preset(
+            p["id"], user_id, p["name"], sorted(ids),
+            digest_enabled=int(p["digest_enabled"]),
+            digest_frequency_days=p["digest_frequency_days"],
+        )
+
+
+def _sync_follows_to_all_presets(user_id: int, source_ids: list):
+    """Replace source_ids on all of the user's presets with the given list."""
+    for p in db.get_digest_presets(user_id):
+        db.update_preset_source_ids(p["id"], source_ids)
+
+
+def _sync_presets_to_follows(user_id: int):
+    """Set the user's follow list to the union of all their preset source_ids."""
+    presets = db.get_digest_presets(user_id)
+    union_ids = sorted({sid for p in presets for sid in p["source_ids"]})
+    db.set_user_follows(user_id, union_ids)
+
+
 @app.route("/sources/<int:source_id>/follow", methods=["POST"])
 @login_required
 def toggle_follow(source_id: int):
     action = request.form.get("action", "follow")
+    uid = g.current_user["id"]
     if action == "unfollow":
-        db.unfollow_source(g.current_user["id"], source_id)
+        db.unfollow_source(uid, source_id)
     else:
-        db.follow_source(g.current_user["id"], source_id)
+        db.follow_source(uid, source_id)
+    _sync_follow_change_to_presets(uid, source_id, action)
     return redirect(url_for("sources"))
 
 
@@ -903,9 +933,11 @@ def digest_presets_create():
     source_ids = [int(x) for x in data.get("source_ids", [])]
     if not name:
         return jsonify({"error": "Name required"}), 400
-    preset = db.create_digest_preset(g.current_user["id"], name, source_ids)
+    uid = g.current_user["id"]
+    preset = db.create_digest_preset(uid, name, source_ids)
     if preset is None:
         return jsonify({"error": "最多只能创建 2 个简报配置"}), 400
+    _sync_presets_to_follows(uid)
     return jsonify(preset), 201
 
 
@@ -919,8 +951,10 @@ def digest_presets_update(preset_id: int):
         return jsonify({"error": "Name required"}), 400
     digest_enabled = int(bool(data.get("digest_enabled", False)))
     digest_frequency_days = int(data.get("digest_frequency_days", 7))
-    db.update_digest_preset(preset_id, g.current_user["id"], name, source_ids,
+    uid = g.current_user["id"]
+    db.update_digest_preset(preset_id, uid, name, source_ids,
                             digest_enabled=digest_enabled, digest_frequency_days=digest_frequency_days)
+    _sync_presets_to_follows(uid)
     return jsonify({"ok": True})
 
 
@@ -1043,9 +1077,36 @@ def settings():
     weekly_tokens = db.get_token_usage_by_user_week() if is_admin else []
     # For the follow-list editor: sources annotated per user
     user_follows = {}
+    # For the preset digest editor: flat list of {email, preset_id, preset_name, ...}
+    admin_digest_rows = []
     if is_admin:
         for u in all_users:
             user_follows[u["id"]] = db.get_all_sources_with_follow_status(u["id"])
+        all_preset_list = db.get_digest_presets_for_users([u["id"] for u in all_users])
+        presets_by_user = {}
+        for p in all_preset_list:
+            presets_by_user.setdefault(p["user_id"], []).append(p)
+        for u in all_users:
+            user_presets = presets_by_user.get(u["id"], [])
+            if not user_presets:
+                admin_digest_rows.append({
+                    "email": u["email"],
+                    "preset_id": None,
+                    "preset_name": "—",
+                    "digest_enabled": False,
+                    "digest_frequency_days": 7,
+                    "digest_last_sent": None,
+                })
+            else:
+                for p in user_presets:
+                    admin_digest_rows.append({
+                        "email": u["email"],
+                        "preset_id": p["id"],
+                        "preset_name": p["name"],
+                        "digest_enabled": p["digest_enabled"],
+                        "digest_frequency_days": p["digest_frequency_days"],
+                        "digest_last_sent": p.get("digest_last_sent"),
+                    })
     return render_template(
         "settings.html",
         user=g.current_user,
@@ -1056,6 +1117,7 @@ def settings():
         all_users=all_users,
         weekly_tokens=weekly_tokens,
         user_follows=user_follows,
+        admin_digest_rows=admin_digest_rows,
     )
 
 
@@ -1066,12 +1128,13 @@ def admin_update_user_follows(user_id: int):
         return jsonify({"error": "forbidden"}), 403
     checked_ids = [int(v) for v in request.form.getlist("source_ids")]
     db.set_user_follows(user_id, checked_ids)
+    _sync_follows_to_all_presets(user_id, checked_ids)
     return redirect(url_for("settings") + f"#follows-{user_id}")
 
 
-@app.route("/admin/users/<int:user_id>/digest", methods=["POST"])
+@app.route("/admin/presets/<int:preset_id>/digest", methods=["POST"])
 @login_required
-def admin_update_user_digest(user_id: int):
+def admin_update_preset_digest(preset_id: int):
     if g.current_user["email"] != ADMIN_EMAIL:
         return jsonify({"error": "forbidden"}), 403
     enabled = request.form.get("digest_enabled") == "1"
@@ -1081,7 +1144,7 @@ def admin_update_user_digest(user_id: int):
         freq = 7
     if freq not in (1, 3, 7, 14):
         freq = 7
-    db.update_user_digest_settings(user_id, enabled, freq)
+    db.update_preset_email_settings(preset_id, enabled, freq)
     return redirect(url_for("settings"))
 
 
