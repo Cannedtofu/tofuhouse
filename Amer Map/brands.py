@@ -6,7 +6,7 @@ BRANDS = [
         "base_url": "https://arcteryx.locally.com/stores/conversion_data",
         "company_id": "31",
         "dealers_company_id": "31",
-        "referer": "https://arcteryx.locally.com/conversion?company_id=31&inline=1&lang=en",
+        "referer": "https://arcteryx.locally.com/conversion?company_id=31&inline=1&lang=en&dealers_company_id=31&host_domain=arcteryx.com",
         "requires_session": True,
         "regions": [
             # North America — from Arcteryx map.py (was commented out; now active)

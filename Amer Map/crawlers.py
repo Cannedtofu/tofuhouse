@@ -23,6 +23,8 @@ def _get_session(brand: dict) -> requests.Session:
     if brand.get("requires_session"):
         init_url = brand["referer"]
         session.get(init_url, headers={"User-Agent": COMMON_HEADERS["User-Agent"]})
+        if not session.cookies.get("lg_session_v1"):
+            print(f"  [WARN] lg_session_v1 cookie not found for {brand['name']} — tile requests may return empty results")
     return session
 
 
@@ -127,11 +129,13 @@ def on_crawl(brand: dict) -> List[dict]:
         resp = requests.get(brand["api_url"], headers=headers, params=params, timeout=30)
         resp.raise_for_status()
         data = resp.json()
+        if not isinstance(data, dict):
+            print(f"  [ERROR] On Running API returned unexpected type: {type(data)}")
+            return []
+        dealers = data.get("dealers", [])
     except Exception as e:
         print(f"  [ERROR] On Running fetch failed: {e}")
         return []
-
-    dealers = data.get("dealers", [])
     stores = []
     for d in dealers:
         stores.append({
