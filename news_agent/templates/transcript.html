@@ -296,62 +296,70 @@ function renderSidebar(jobs) {
     return;
   }
 
-  // Group by author, sort videos by title within each group
-  const groups = {};
+  // Split into past-7-days vs history
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+  cutoff.setHours(0, 0, 0, 0);
+
+  const recent = [], history = [];
   for (const j of jobs) {
-    const author = j.video_author || '其他';
-    if (!groups[author]) groups[author] = [];
-    groups[author].push(j);
+    const d = new Date(j.created_at);
+    (d >= cutoff ? recent : history).push(j);
   }
-  for (const g of Object.values(groups)) {
-    g.sort((a, b) => (a.video_title || a.video_id).localeCompare(b.video_title || b.video_id, 'zh'));
+  // Most-recent first within each group
+  recent.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  function renderItem(j) {
+    const title = j.video_title || j.video_id;
+    const deleteBtn = _isAdmin
+      ? `<button class="btn btn-link p-0 text-danger position-absolute"
+                 style="top:.3rem; right:.3rem; font-size:.75rem; line-height:1"
+                 title="删除"
+                 data-job-id="${escHtml(j.job_id)}"
+                 data-title="${escHtml(title)}"
+                 onclick="event.stopPropagation(); confirmDelete(this.dataset.jobId, this.dataset.title)">✕</button>`
+      : '';
+    const statusIcon = j.status === 'done'  ? '<span class="text-success" style="font-size:.72rem">✓</span>'
+                     : j.status === 'error' ? '<span class="text-danger"  style="font-size:.72rem">✗</span>'
+                     :                        '<span class="text-warning" style="font-size:.72rem">…</span>';
+    const modeBadge = `<span class="badge ${j.mode === 'diarization' ? 'bg-primary' : 'bg-secondary'}" style="font-size:.65rem">${j.mode === 'diarization' ? '区分' : '不区分'}</span>`;
+    return `
+      <div class="sidebar-item p-2 rounded mb-1 border position-relative"
+           style="cursor:pointer; font-size:.82rem"
+           onclick="loadJob('${escHtml(j.job_id)}')"
+           title="${escHtml(j.video_url || '')}">
+        <div class="fw-medium" style="word-break:break-word; padding-right:${_isAdmin ? '1.4rem' : '0'}">${escHtml(title)}</div>
+        <div class="d-flex align-items-center mt-1 gap-1">
+          ${modeBadge}
+          <span class="text-muted ms-auto" style="font-size:.7rem; flex-shrink:0">${j.created_at.slice(0,10)}</span>
+          ${statusIcon}
+        </div>
+        ${deleteBtn}
+      </div>`;
   }
 
-  let groupIdx = 0;
-  const html = Object.entries(groups).map(([author, gJobs]) => {
-    const groupId = `grp${groupIdx++}`;
-    const items = gJobs.map(j => {
-      const title = j.video_title || j.video_id;
-      const deleteBtn = _isAdmin
-        ? `<button class="btn btn-link p-0 text-danger position-absolute"
-                   style="top:.3rem; right:.3rem; font-size:.75rem; line-height:1"
-                   title="删除"
-                   data-job-id="${escHtml(j.job_id)}"
-                   data-title="${escHtml(title)}"
-                   onclick="event.stopPropagation(); confirmDelete(this.dataset.jobId, this.dataset.title)">✕</button>`
-        : '';
-      const statusIcon = j.status === 'done'  ? '<span class="text-success" style="font-size:.72rem">✓</span>'
-                       : j.status === 'error' ? '<span class="text-danger"  style="font-size:.72rem">✗</span>'
-                       :                        '<span class="text-warning" style="font-size:.72rem">…</span>';
-      const modeBadge = `<span class="badge ${j.mode === 'diarization' ? 'bg-primary' : 'bg-secondary'}" style="font-size:.65rem">${j.mode === 'diarization' ? '区分' : '不区分'}</span>`;
-      return `
-        <div class="sidebar-item p-2 rounded mb-1 border position-relative"
-             style="cursor:pointer; font-size:.82rem"
-             onclick="loadJob('${escHtml(j.job_id)}')"
-             title="${escHtml(j.video_url || '')}">
-          <div class="fw-medium" style="word-break:break-word; padding-right:${_isAdmin ? '1.4rem' : '0'}">${escHtml(title)}</div>
-          <div class="d-flex align-items-center mt-1 gap-1">
-            ${modeBadge}
-            <span class="text-muted ms-auto" style="font-size:.7rem; flex-shrink:0">${j.created_at.slice(0,10)}</span>
-            ${statusIcon}
-          </div>
-          ${deleteBtn}
-        </div>`;
-    }).join('');
-
+  function renderGroup(groupId, label, groupJobs, expanded) {
+    if (groupJobs.length === 0) return '';
+    const items = groupJobs.map(renderItem).join('');
+    const arrowRotation = expanded ? 'rotate(0deg)' : 'rotate(-90deg)';
+    const display = expanded ? 'block' : 'none';
     return `
       <div class="mb-2">
         <div class="d-flex align-items-center px-2 py-1 rounded mb-1"
              style="cursor:pointer; background:#f0f2f5; font-size:.8rem; font-weight:600; user-select:none"
              onclick="toggleGroup('${groupId}')">
-          <span class="flex-grow-1" style="word-break:break-word">${escHtml(author)}</span>
-          <span id="${groupId}-arrow" style="font-size:.65rem; margin-left:.4rem; flex-shrink:0; transition:transform .15s">▼</span>
+          <span class="flex-grow-1">${escHtml(label)}</span>
+          <span class="text-muted ms-1" style="font-size:.7rem; font-weight:400">${groupJobs.length}</span>
+          <span id="${groupId}-arrow" style="font-size:.65rem; margin-left:.4rem; flex-shrink:0; transition:transform .15s; transform:${arrowRotation}">▼</span>
         </div>
-        <div id="${groupId}-items">${items}</div>
+        <div id="${groupId}-items" style="display:${display}">${items}</div>
       </div>`;
-  }).join('');
+  }
 
-  list.innerHTML = html;
+  list.innerHTML =
+    renderGroup('grp-recent',  '最近 7 天', recent,  true)  +
+    renderGroup('grp-history', '历史记录',  history, false);
 }
 
 function toggleGroup(groupId) {
