@@ -118,17 +118,29 @@ _article_translation_jobs: dict[str, dict] = {}
 # Periodic background scheduler
 # ---------------------------------------------------------------------------
 
-def _scheduled_daily():
-    """
-    Single daily job: full fetch (all sources) then send any due digest emails.
-    Runs once at 05:00 SGT (21:00 UTC, server is UTC+8).
-    """
-    from email_sender import send_digest as _send_email
-    from ai_digest import generate_batch_digest
-
+def _scheduled_daily_fetch():
+    """Full fetch (all sources). Runs at 05:00 SGT (21:00 UTC, server is UTC+8)."""
     if _fetch_status["running"]:
         logger_sched.info("Skipping scheduled daily fetch — manual fetch in progress")
         return
+    _fetch_status["running"] = True
+    logger_sched.info("Scheduled daily fetch starting…")
+    log_id = db.log_fetch_start(trigger="scheduled")
+    try:
+        result = run_fetch_and_summarize()
+        db.log_fetch_finish(log_id, result)
+        logger_sched.info("Scheduled daily fetch done: %d new article(s)", result["total_new"])
+    except Exception as exc:
+        db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
+        logger_sched.error("Scheduled daily fetch error: %s", exc)
+    finally:
+        _fetch_status["running"] = False
+
+
+def _scheduled_digest_send():
+    """Send due digest emails. Runs at 09:00 SGT (01:00 UTC). No pre-fetch — relies on the 5am fetch."""
+    from email_sender import send_digest as _send_email
+    from ai_digest import generate_batch_digest
 
     # Migrate any users who have legacy digest_enabled but no presets yet.
     for user in [dict(u) for u in db.get_users_due_for_digest()]:
@@ -143,21 +155,6 @@ def _scheduled_daily():
             )
             logger_sched.info("Auto-created preset for legacy user %s", user["email"])
 
-    # --- Full fetch (all sources) ---
-    _fetch_status["running"] = True
-    logger_sched.info("Scheduled daily fetch starting…")
-    log_id = db.log_fetch_start(trigger="scheduled")
-    try:
-        result = run_fetch_and_summarize()
-        db.log_fetch_finish(log_id, result)
-        logger_sched.info("Scheduled daily fetch done: %d new article(s)", result["total_new"])
-    except Exception as exc:
-        db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
-        logger_sched.error("Scheduled daily fetch error: %s", exc)
-    finally:
-        _fetch_status["running"] = False
-
-    # --- Send one email per due preset ---
     presets_due = db.get_presets_due_for_email()
     if not presets_due:
         return
@@ -214,8 +211,10 @@ def _run_gpu_price_fetch():
 
 _scheduler = BackgroundScheduler(daemon=True)
 
-# Single daily job: 05:00 SGT = 21:00 UTC (server runs UTC+8)
-_scheduler.add_job(_scheduled_daily, "cron", hour=21, minute=0, id="daily_fetch_digest")
+# 05:00 SGT = 21:00 UTC (server runs UTC+8)
+_scheduler.add_job(_scheduled_daily_fetch, "cron", hour=21, minute=0, id="daily_fetch")
+# 09:00 SGT = 01:00 UTC
+_scheduler.add_job(_scheduled_digest_send, "cron", hour=1, minute=0, id="digest_send")
 # GPU prices: daily at 09:00 SGT (01:00 UTC)
 _scheduler.add_job(
     lambda: _run_gpu_price_fetch(),
@@ -452,7 +451,7 @@ def delete_source(source_id: int):
 
 @app.route("/scheduler/status")
 def scheduler_status():
-    job = _scheduler.get_job("daily_fetch_digest")
+    job = _scheduler.get_job("daily_fetch")
     next_run = None
     if job and job.next_run_time:
         next_run = job.next_run_time.astimezone(_SGT).strftime("%Y-%m-%d %H:%M SGT")
