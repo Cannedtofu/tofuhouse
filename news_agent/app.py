@@ -13,7 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 import db
-from config import ADMIN_EMAIL, EMAIL_WHITELIST, NITTER_FETCH_PERIOD_HOURS, SECRET_KEY
+from config import ADMIN_EMAIL, EMAIL_WHITELIST, SECRET_KEY
 from email_digest import build_email_digest
 from pipeline import run_fetch_and_summarize
 from ai_digest import generate_batch_digest
@@ -118,34 +118,17 @@ _article_translation_jobs: dict[str, dict] = {}
 # Periodic background scheduler
 # ---------------------------------------------------------------------------
 
-def _scheduled_nitter_fetch():
-    """Fetch only Nitter sources — runs at fixed clock times anchored to 11pm SGT."""
-    if _fetch_status["running"]:
-        logger_sched.info("Skipping scheduled Nitter fetch — manual fetch in progress")
-        return
-    _fetch_status["running"] = True
-    logger_sched.info("Scheduled Nitter fetch starting…")
-    log_id = db.log_fetch_start(trigger="scheduled")
-    try:
-        result = run_fetch_and_summarize(source_types=["nitter"])
-        db.log_fetch_finish(log_id, result)
-        logger_sched.info("Scheduled Nitter fetch done: %d new article(s)", result["total_new"])
-    except Exception as exc:
-        db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
-        logger_sched.error("Scheduled Nitter fetch error: %s", exc)
-    finally:
-        _fetch_status["running"] = False
-
-
-def _scheduled_digest_send():
+def _scheduled_daily():
     """
-    Send email digests via presets (the sole send path).
-    Users with digest_enabled but no presets get a default preset auto-created.
-    A single unified fetch covers all due presets before sending begins.
-    Runs every 6 hours.
+    Single daily job: full fetch (all sources) then send any due digest emails.
+    Runs once at 05:00 SGT (21:00 UTC, server is UTC+8).
     """
     from email_sender import send_digest as _send_email
     from ai_digest import generate_batch_digest
+
+    if _fetch_status["running"]:
+        logger_sched.info("Skipping scheduled daily fetch — manual fetch in progress")
+        return
 
     # Migrate any users who have legacy digest_enabled but no presets yet.
     for user in [dict(u) for u in db.get_users_due_for_digest()]:
@@ -160,48 +143,25 @@ def _scheduled_digest_send():
             )
             logger_sched.info("Auto-created preset for legacy user %s", user["email"])
 
+    # --- Full fetch (all sources) ---
+    _fetch_status["running"] = True
+    logger_sched.info("Scheduled daily fetch starting…")
+    log_id = db.log_fetch_start(trigger="scheduled")
+    try:
+        result = run_fetch_and_summarize()
+        db.log_fetch_finish(log_id, result)
+        logger_sched.info("Scheduled daily fetch done: %d new article(s)", result["total_new"])
+    except Exception as exc:
+        db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
+        logger_sched.error("Scheduled daily fetch error: %s", exc)
+    finally:
+        _fetch_status["running"] = False
+
+    # --- Send one email per due preset ---
     presets_due = db.get_presets_due_for_email()
     if not presets_due:
         return
-
-    logger_sched.info("Digest send: %d preset(s) due", len(presets_due))
     date_to = date.today().isoformat()
-
-    # --- Single unified fetch covering all due presets ---
-    all_source_ids_sets = [set(p["source_ids"]) for p in presets_due if p["source_ids"]]
-    if len(all_source_ids_sets) < len(presets_due):
-        unified_source_ids = None  # at least one preset wants all sources
-    else:
-        unified_source_ids = list(set().union(*all_source_ids_sets))
-
-    min_date_from = min(
-        (date.today() - timedelta(days=p["digest_frequency_days"])).isoformat()
-        for p in presets_due
-    )
-
-    if not _fetch_status["running"]:
-        logger_sched.info(
-            "Digest pre-fetch: %s source(s), from %s",
-            len(unified_source_ids) if unified_source_ids is not None else "all",
-            min_date_from,
-        )
-        log_id = db.log_fetch_start(trigger="digest")
-        try:
-            result = run_fetch_and_summarize(
-                summarize=False,
-                date_from=min_date_from,
-                date_to=date_to,
-                source_ids=unified_source_ids,
-            )
-            db.log_fetch_finish(log_id, result)
-            logger_sched.info("Digest pre-fetch done: %d new article(s)", result["total_new"])
-        except Exception as exc:
-            db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
-            logger_sched.warning("Digest pre-fetch failed: %s — continuing with existing articles", exc)
-    else:
-        logger_sched.info("Skipping digest pre-fetch — manual fetch in progress")
-
-    # --- Send one email per due preset ---
     for preset in presets_due:
         preset_date_from = (date.today() - timedelta(days=preset["digest_frequency_days"])).isoformat()
         source_ids = preset["source_ids"] or None
@@ -254,22 +214,8 @@ def _run_gpu_price_fetch():
 
 _scheduler = BackgroundScheduler(daemon=True)
 
-# Anchor Nitter fetches to 11pm SGT (15:00 UTC). If NITTER_FETCH_PERIOD_HOURS
-# is less than 24 and divides evenly into 24, add runs at equal intervals from
-# that anchor (e.g. 12h → 15:00 + 03:00 UTC; 8h → 07:00 + 15:00 + 23:00 UTC).
-_NITTER_ANCHOR_UTC = 15  # 11pm SGT = UTC+8
-if 24 % NITTER_FETCH_PERIOD_HOURS == 0:
-    _nitter_cron_hours = ",".join(
-        str((_NITTER_ANCHOR_UTC + i * NITTER_FETCH_PERIOD_HOURS) % 24)
-        for i in range(24 // NITTER_FETCH_PERIOD_HOURS)
-    )
-else:
-    # Non-divisible interval: fall back to single daily run at anchor time
-    _nitter_cron_hours = str(_NITTER_ANCHOR_UTC)
-
-_scheduler.add_job(_scheduled_nitter_fetch, "cron", hour=_nitter_cron_hours, minute=0, id="nitter_periodic")
-# Fixed SGT times (server runs UTC+8): 03:00, 09:00, 15:00, 21:00 — no drift on restart
-_scheduler.add_job(_scheduled_digest_send, "cron", hour="3,9,15,21", minute=0, id="digest_send")
+# Single daily job: 05:00 SGT = 21:00 UTC (server runs UTC+8)
+_scheduler.add_job(_scheduled_daily, "cron", hour=21, minute=0, id="daily_fetch_digest")
 # GPU prices: daily at 09:00 SGT (01:00 UTC)
 _scheduler.add_job(
     lambda: _run_gpu_price_fetch(),
@@ -506,7 +452,7 @@ def delete_source(source_id: int):
 
 @app.route("/scheduler/status")
 def scheduler_status():
-    job = _scheduler.get_job("nitter_periodic")
+    job = _scheduler.get_job("daily_fetch_digest")
     next_run = None
     if job and job.next_run_time:
         next_run = job.next_run_time.astimezone(_SGT).strftime("%Y-%m-%d %H:%M SGT")
