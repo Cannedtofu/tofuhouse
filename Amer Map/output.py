@@ -11,7 +11,7 @@ def _quarter_label(d: date = None) -> str:
     return f"{d.year}-Q{q}"
 
 
-def _output_filename(label: str = None) -> str:
+def _output_filename(label: Optional[str] = None) -> str:
     label = label or _quarter_label()
     return f"store_data_{label}.xlsx"
 
@@ -99,6 +99,7 @@ def write_output(brand_data: Dict[str, List[dict]]) -> str:
     prev_file = _find_previous_file(label)
 
     all_changes = []
+    prev_xl = None
 
     if prev_file:
         print(f"  Change detection: comparing against {prev_file}")
