@@ -1,6 +1,7 @@
+import json
 import requests
 import time
-from typing import List
+from typing import List, Optional
 
 REQUEST_DELAY = 0.1  # seconds between tile requests
 
@@ -25,7 +26,7 @@ def _get_session(brand: dict) -> requests.Session:
     return session
 
 
-def _fetch_locally_tile(session, brand, sw_lat, sw_lng, ne_lat, ne_lng, zoom) -> dict | None:
+def _fetch_locally_tile(session, brand, sw_lat, sw_lng, ne_lat, ne_lng, zoom) -> Optional[dict]:
     headers = {**COMMON_HEADERS, "Referer": brand["referer"]}
     params = {
         "has_data": "true",
@@ -111,3 +112,43 @@ def locally_crawl(brand: dict) -> List[dict]:
                 time.sleep(REQUEST_DELAY)
 
     return all_stores
+
+
+def on_crawl(brand: dict) -> List[dict]:
+    """Fetch all On Running dealers from their global API in a single call."""
+    headers = {
+        **COMMON_HEADERS,
+        "Referer": "https://customer-service.on-running.com/en-us/dealers/",
+        **brand.get("api_headers", {}),
+    }
+    params = brand.get("api_params", {"all": "true"})
+
+    try:
+        resp = requests.get(brand["api_url"], headers=headers, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        print(f"  [ERROR] On Running fetch failed: {e}")
+        return []
+
+    dealers = data.get("dealers", [])
+    stores = []
+    for d in dealers:
+        stores.append({
+            "id": d.get("id"),
+            "name": d.get("name"),
+            "lat": float(d["latitude"]) if d.get("latitude") else None,
+            "lng": float(d["longitude"]) if d.get("longitude") else None,
+            "address": d.get("address"),
+            "city": d.get("city"),
+            "state": d.get("state"),
+            "country": d.get("country"),
+            "phone": d.get("phone"),
+            "email": d.get("email"),
+            "website": d.get("website"),
+            "postal_code": d.get("postal_code"),
+            "dealer_type": d.get("dealer_type"),
+            "has_apparel": d.get("has_apparel"),
+        })
+    print(f"  On Running: fetched {len(stores)} dealers")
+    return stores

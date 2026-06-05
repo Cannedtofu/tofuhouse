@@ -57,8 +57,10 @@ BRANDS = [
         "name": "on_running",
         "sheet_name": "On Running",
         "adapter": "on_running",
-        # Endpoint discovered via browser network inspection on on-running.com/stores
+        # Endpoint discovered via browser automation: form action on /en-us/dealers/ page
         # Response format: {"centerPosition": false, "dealers": [...]}
-        "api_url": "PLACEHOLDER — see Task 4 Step 1",
+        "api_url": "https://customer-service.on-running.com/en-us/dealers/search",
+        "api_params": {"all": "true"},
+        "api_headers": {},
     },
 ]
