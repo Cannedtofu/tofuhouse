@@ -10,6 +10,9 @@ from collections import Counter
 from paddleocr import PaddleOCR
 import json
 from pypinyin import pinyin, Style
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Import configuration
 import config
@@ -40,6 +43,24 @@ class ChageeOCRExtractor:
         if img is None:
             return [], []
 
+        # 1. Try Old Method (OpenCV boxes + Method 1 & 2)
+        extracted_data, ocr_debug_log = self._extract_data_old(img, image_path)
+        
+        # 2. Fallback to New Method (Full-Page OCR) if old method underperformed
+        if len(extracted_data) <= 2:
+            ocr_debug_log.append("  [!] Old method yielded few/no results. Falling back to New Method (Full-Page OCR)...")
+            new_data, new_log = self._extract_data_new(img, image_path)
+            
+            # Use new method if it finds strictly more stores
+            if len(new_data) > len(extracted_data):
+                ocr_debug_log.append("  [!] New method successfully found more stores. Using new method.")
+                return new_data, ocr_debug_log + new_log
+            else:
+                ocr_debug_log.append("  [!] New method did not find more stores. Sticking with old method.")
+
+        return extracted_data, ocr_debug_log
+
+    def _extract_data_old(self, img, image_path):
         h_full, w_full = img.shape[:2]
         # Ignore top static elements (search/map)
         roi_y = int(h_full * config.ROI_TOP_IGNORE_PERCENT)
@@ -140,7 +161,7 @@ class ChageeOCRExtractor:
             ocr_debug_log.append(f"  [Box {i}] Using Method{winning_method}: '{store_name}' | '{order_status}' | {cup_count} cups")
 
             # General Anti-noise
-            if any(k in store_name for k in ['外卖', '到店', '自取', '筛选', '搜索']):
+            if any(k in store_name for k in ['外卖', '到店', '自取', '筛选', '搜索', '在售']):
                 ocr_debug_log.append(f"  [Box {i}] Skipped — noise keyword in name")
                 continue
 
@@ -188,6 +209,126 @@ class ChageeOCRExtractor:
             })
 
         
+        return extracted_data, ocr_debug_log
+
+    def _extract_data_new(self, img, image_path):
+        h_full, w_full = img.shape[:2]
+        roi_y = int(h_full * config.ROI_TOP_IGNORE_PERCENT)
+        roi = img[roi_y:, :]
+        
+        # Method 3: Full Page OCR and Y-Coordinate Clustering
+        res_list = self.ocr.ocr(roi, det=True, cls=True)
+        if not res_list or not res_list[0]:
+            print(f"No OCR results in {os.path.basename(image_path)}")
+            return [], []
+
+        boxes = res_list[0]
+        # Sort boxes by top-left y coordinate
+        boxes.sort(key=lambda x: x[0][0][1])
+
+        extracted_data = []
+        ocr_debug_log = []
+        
+        names = []
+        statuses = []
+        
+        for i, box in enumerate(boxes):
+            coords = box[0]
+            text, score = box[1]
+            y_top = coords[0][1]
+            y_bottom = coords[2][1]
+            
+            # Check if it's a store name
+            clean_name = self.clean_store_name(text)
+            if clean_name.endswith('店') and len(clean_name) >= 4:
+                # Discard noise
+                if not any(k in clean_name for k in ['外卖', '到店', '自取', '筛选', '搜索', '在售']):
+                    names.append({
+                        'text': clean_name,
+                        'y': y_top,
+                        'y_bottom': y_bottom,
+                        'box': coords
+                    })
+                    
+            # Check if it's an order status
+            status_text, count = self.parse_status(text)
+            if count > 0 or any(k in status_text for k in ["前方", "杯", "制作", "下单"]):
+                statuses.append({
+                    'text': status_text,
+                    'count': count,
+                    'y': y_top,
+                    'y_bottom': y_bottom,
+                    'box': coords,
+                    'raw': text
+                })
+
+        # Pair names and statuses
+        used_statuses = set()
+        for name_info in names:
+            name_y = name_info['y_bottom']
+            best_status = None
+            min_dist = float('inf')
+            
+            for j, status_info in enumerate(statuses):
+                if j in used_statuses:
+                    continue
+                
+                status_y = status_info['y']
+                # Status must be below the name, but not too far
+                dist = status_y - name_y
+                if -15 <= dist <= 80: # Threshold for Y distance
+                    if dist < min_dist:
+                        min_dist = dist
+                        best_status = (j, status_info)
+                        
+            if best_status:
+                used_statuses.add(best_status[0])
+                status_info = best_status[1]
+                
+                store_name = name_info['text']
+                order_status = status_info['text']
+                cup_count = status_info['count']
+                
+                ocr_debug_log.append(f"  [Found] '{store_name}' | '{order_status}' | {cup_count} cups (dist: {min_dist:.1f})")
+                
+                # --- High Threshold Verification ---
+                threshold = getattr(config, 'CUP_COUNT_THRESHOLD', 80)
+                if cup_count >= threshold:
+                    print(f"  [?] High value ({cup_count}). Verifying...")
+                    samples = [cup_count]
+                    
+                    # Crop out just the status region from original image (adjusting for ROI)
+                    coords = status_info['box']
+                    x_coords = [int(c[0]) for c in coords]
+                    y_coords = [int(c[1]) for c in coords]
+                    x_min, x_max = max(0, min(x_coords)-5), min(w_full, max(x_coords)+5)
+                    y_min, y_max = max(0, min(y_coords)-5 + roi_y), min(h_full, max(y_coords)+5 + roi_y)
+                    
+                    status_img = img[y_min:y_max, x_min:x_max]
+                    
+                    for scale in [3, 5, 2]:
+                        if status_img.size > 0:
+                            proc_alt = cv2.resize(status_img, (0,0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+                            ocr_alt = self.ocr.ocr(proc_alt, det=False, cls=True)
+                            raw_alt = ocr_alt[0][0][0] if ocr_alt and ocr_alt[0] else ""
+                            _, count_alt = self.parse_status(raw_alt)
+                            samples.append(count_alt)
+                    
+                    cup_count = Counter(samples).most_common(1)[0][0]
+                    order_status = f"前方{cup_count}杯制作中" if cup_count > 0 else "现在下单，立即制作"
+                    print(f"  [√] Verified result: {cup_count} (Samples: {samples})")
+
+                extracted_data.append({
+                    "store_name": store_name,
+                    "order_status": order_status,
+                    "cup_count": cup_count,
+                    "debug_sn": "",
+                    "debug_os": ""
+                })
+            else:
+                ocr_debug_log.append(f"  [Skipped] Found name '{name_info['text']}' but no valid status near it.")
+
+        print(f"Detected {len(names)} names and paired {len(extracted_data)} stores in {os.path.basename(image_path)} (New Method)")
         return extracted_data, ocr_debug_log
 
     def is_valid_result(self, name, status):
@@ -269,8 +410,12 @@ class ChageeOCRExtractor:
         boxes = res_list[0]
         boxes.sort(key=lambda x: x[0][0][1]) # Sort by top-left y
         
-        # 1. Look for store name (ends with '店')
+        # 1. Look for store name (ends with '店', must be below y=24 in original box coords)
+        min_y_scaled = 24 * scale
         for box in boxes:
+            y_top = box[0][0][1]
+            if y_top < min_y_scaled:
+                continue
             text = box[1][0]
             if text.endswith('店'):
                 store_name = self.clean_store_name(text)
@@ -546,6 +691,42 @@ def main_workflow():
     if not applet_window:
         print("Applet window not found.")
         return
+
+    applet_window.SetActive()
+    time.sleep(1)
+
+    if getattr(config, 'TURN_OFF_BLUR', False):
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        blur_check_img_path = os.path.join(project_dir, "temp_blur_check.png")
+        applet_window.CaptureToImage(blur_check_img_path)
+        
+        try:
+            with open(blur_check_img_path, 'rb') as f:
+                img_array = np.frombuffer(f.read(), np.uint8)
+            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        except Exception as e:
+            logger.error(f"Error reading blur check image: {e}")
+            img = None
+
+        if img is not None:
+            # Region (x1=20, y1=600) to (x2=60, y2=650)
+            region = img[600:650, 20:60]
+            if region.size > 0:
+                avg_bgr = np.mean(region, axis=(0, 1))
+                if np.all(avg_bgr < 100):
+                    logger.info(f"Blur check status: Blur detected (avg BGR: {avg_bgr}). Turning off blur (clearing pop-up)...")
+                    rect = applet_window.BoundingRectangle
+                    blur_coord = getattr(config, 'BLUR_CLOSE_COORD', (204, 619))
+                    blur_x = rect.left + blur_coord[0]
+                    blur_y = rect.top + blur_coord[1]
+                    auto.Click(blur_x, blur_y)
+                    time.sleep(2)
+                else:
+                    logger.info(f"Blur check status: No blur detected (avg BGR: {avg_bgr}). Skipping blur turn-off.")
+            else:
+                logger.warning("Blur check status: Could not extract region for blur check.")
+        else:
+            logger.warning("Blur check status: Failed to capture image for blur check.")
 
     extractor = ChageeOCRExtractor()
     all_results = []

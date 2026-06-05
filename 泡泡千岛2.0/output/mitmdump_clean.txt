@@ -1,0 +1,270 @@
+[23:10:07.336] Loading script proxy/addon_db.py
+[23:10:07.341] DataInterceptor (Buffered) watching pattern 'api.qiandao.com/treasure/spus/feed'
+[23:10:07.341] Loading script proxy/dump_json.py
+[23:10:07.347] HTTP(S) proxy listening at *:8080.
+[23:10:07.430][192.168.31.74:60964] client connect
+[23:10:07.431][192.168.31.74:60965] client connect
+[23:10:07.440][192.168.31.74:60965] server connect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+[23:10:07.441][192.168.31.74:60964] server connect store-api.mumu.163.com:443 (198.18.0.39:443)
+[23:10:07.621][192.168.31.74:49614] client connect
+[23:10:07.622][192.168.31.74:49630] client connect
+[23:10:07.624][192.168.31.74:49615] client connect
+[23:10:07.624][192.168.31.74:60054] client connect
+[23:10:07.626][192.168.31.74:60057] client connect
+[23:10:07.627][192.168.31.74:60058] client connect
+[23:10:07.628][192.168.31.74:60059] client connect
+[23:10:07.633][192.168.31.74:49614] server connect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+[23:10:07.633][192.168.31.74:49630] server connect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+[23:10:07.635][192.168.31.74:49615] server connect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+[23:10:07.635][192.168.31.74:60054] server connect store-api.mumu.163.com:443 (198.18.0.39:443)
+[23:10:07.638][192.168.31.74:60057] server connect cdn.yyb.qq.com:443 (198.18.0.51:443)
+[23:10:07.640][192.168.31.74:60058] server connect cdn.yyb.gtimg.com:443 (198.18.0.9:443)
+[23:10:07.641][192.168.31.74:60059] server connect yybfrontend.cdn-go.cn:443 (198.18.0.52:443)
+[23:10:07.662][192.168.31.74:49628] client connect
+[23:10:07.687][192.168.31.74:49628] server connect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+[23:10:07.705][192.168.31.74:60054] client disconnect
+192.168.31.74:60059: GET https://yybfrontend.cdn-go.cn/yyb-common-offline/latest¡­ HTTP/2.0
+         << HTTP/2.0 304 Not Modified 0b
+[23:10:07.713][192.168.31.74:60054] server disconnect store-api.mumu.163.com:443 (198.18.0.39:443)
+192.168.31.74:60965: GET https://api.mumu.nie.netease.com/api/toolbox/item/confi¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 128b
+192.168.31.74:60964: GET https://store-api.mumu.163.com/api/tool/config HTTP/2.0
+         << HTTP/2.0 200 OK 126b
+[23:10:07.717][192.168.31.74:49615] client disconnect
+[23:10:07.717][192.168.31.74:49614] client disconnect
+192.168.31.74:49630: POST https://api.mumu.nie.netease.com/api/v1/configure/deskt¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 103b
+[23:10:07.723][192.168.31.74:49615] server disconnect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+[23:10:07.724][192.168.31.74:49614] server disconnect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+192.168.31.74:49630: GET https://api.mumu.nie.netease.com/api/toolbox/item/confi¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 1.4k
+192.168.31.74:49630: GET https://api.mumu.nie.netease.com/api/toolbox/item/confi¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 564b
+192.168.31.74:60964: GET https://store-api.mumu.163.com/api/account/reserve_down¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 110b
+192.168.31.74:60057: GET https://cdn.yyb.qq.com/components/sw-page/latest/vendor¡­ HTTP/2.0
+         << HTTP/2.0 304 Not Modified 0b
+192.168.31.74:60057: GET https://cdn.yyb.qq.com/components/sw-page/latest/index.¡­ HTTP/2.0
+         << HTTP/2.0 304 Not Modified 0b
+192.168.31.74:60057: GET https://cdn.yyb.qq.com/components/sw-page/latest/polyfi¡­ HTTP/2.0
+         << HTTP/2.0 304 Not Modified 0b
+[23:10:07.743][192.168.31.74:60062] client connect
+[23:10:07.747][192.168.31.74:60062] server connect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+[23:10:07.748][192.168.31.74:49629] client connect
+[23:10:07.750][192.168.31.74:49628] client disconnect
+[23:10:07.752][192.168.31.74:49628] server disconnect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+[23:10:07.753][192.168.31.74:49629] server connect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+192.168.31.74:49630: GET https://api.mumu.nie.netease.com/api/campaign/launcher/¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 72b
+[23:10:07.759][192.168.31.74:60063] client connect
+[23:10:07.761][192.168.31.74:60063] server connect store-api.mumu.163.com:443 (198.18.0.39:443)
+192.168.31.74:49630: GET https://api.mumu.nie.netease.com/api/toolbox/item/confi¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 1.4k
+[23:10:07.808][192.168.31.74:49629] client disconnect
+[23:10:07.810][192.168.31.74:60063] client disconnect
+[23:10:07.811][192.168.31.74:49629] server disconnect api.mumu.nie.netease.com:443 (198.18.0.28:443)
+[23:10:07.811][192.168.31.74:60063] server disconnect store-api.mumu.163.com:443 (198.18.0.39:443)
+192.168.31.74:60058: GET https://cdn.yyb.gtimg.com/yyb-monitor-web-sdk/latest/yy¡­ HTTP/2.0
+         << HTTP/2.0 304 Not Modified 0b
+192.168.31.74:49630: POST https://api.mumu.nie.netease.com/api/v1/configure/deskt¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 103b
+[23:10:07.827][192.168.31.74:60959] client connect
+[23:10:07.828][192.168.31.74:60960] client connect
+[23:10:07.828][192.168.31.74:60959] client disconnect
+[23:10:07.829][192.168.31.74:60961] client connect
+[23:10:07.830][192.168.31.74:60960] client disconnect
+[23:10:07.831][192.168.31.74:60962] client connect
+[23:10:07.833][192.168.31.74:60961] server connect cdn.yyb.qq.com:443 (198.18.0.51:443)
+[23:10:07.836][192.168.31.74:60963] client connect
+[23:10:07.837][192.168.31.74:60962] server connect cdn.yyb.gtimg.com:443 (198.18.0.9:443)
+[23:10:07.845][192.168.31.74:56983] client connect
+[23:10:07.846][192.168.31.74:60963] server connect yybfrontend.cdn-go.cn:443 (198.18.0.52:443)
+[23:10:07.851][192.168.31.74:56983] server connect store-api.mumu.163.com:443 (198.18.0.39:443)
+192.168.31.74:49630: GET https://api.mumu.nie.netease.com/api/toolbox/item/confi¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 564b
+192.168.31.74:60964: POST https://store-api.mumu.163.com/api/desktop/ad_apps?arch¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 3.2k
+[23:10:07.897][192.168.31.74:56988] client connect
+[23:10:07.900][192.168.31.74:56989] client connect
+192.168.31.74:60062: POST https://api.mumu.nie.netease.com/api/v2/campaign_label?¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 1.0k
+[23:10:07.904][192.168.31.74:56988] server connect m.yyb.qq.com:443 (198.18.0.53:443)
+[23:10:07.906][192.168.31.74:56989] server connect __sw.qq.com:443 (198.18.0.54:443)
+192.168.31.74:56983: GET https://store-api.mumu.163.com/api/desktop/search_bar_a¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 655b
+[23:10:07.943][192.168.31.74:56995] client connect
+[23:10:07.947][192.168.31.74:56995] server connect aegis.qq.com:443 (198.18.0.55:443)
+[23:10:07.951][192.168.31.74:56989] Server TLS handshake failed. connection closed
+[23:10:07.952][192.168.31.74:56989] Unable to establish TLS connection with server (connection closed). Trying to establish TLS with client anyway. If you plan to redirect requests away from this server, consider setting `connection_strategy` to `lazy` to suppress early connections.
+[23:10:07.956][192.168.31.74:56989] server disconnect __sw.qq.com:443 (198.18.0.54:443)
+192.168.31.74:56988: OPTIONS https://m.yyb.qq.com/perf/api/getSwPrecacheConfigs HTTP/2.0
+         << HTTP/2.0 204 No Content 0b
+192.168.31.74:56989: GET https://__sw.qq.com/favicon.ico HTTP/2.0
+ << connection closed
+[23:10:07.975][192.168.31.74:57003] client connect
+[23:10:07.978][192.168.31.74:57003] server connect mumu-apk.fp.ps.netease.com:443 (198.18.0.36:443)
+[23:10:07.984][192.168.31.74:57007] client connect
+[23:10:07.987][192.168.31.74:57007] server connect hubble.mumu.163.com:443 (198.18.0.48:443)
+192.168.31.74:56988: POST https://m.yyb.qq.com/perf/api/getSwPrecacheConfigs HTTP/2.0
+         << HTTP/2.0 200 OK 99b
+[23:10:07.992][192.168.31.74:57010] client connect
+[23:10:07.996][192.168.31.74:57011] client connect
+[23:10:07.997][192.168.31.74:57012] client connect
+[23:10:08.003][192.168.31.74:57010] server connect h.trace.qq.com:443 (198.18.0.56:443)
+[23:10:08.004][192.168.31.74:57011] server connect h.trace.qq.com:443 (198.18.0.56:443)
+[23:10:08.004][192.168.31.74:57012] server connect aegis.qq.com:443 (198.18.0.55:443)
+192.168.31.74:57003: GET https://mumu-apk.fp.ps.netease.com/file/69f2fe4eac84013¡­
+                  << 200 OK 98.3k
+[23:10:08.037][192.168.31.74:57026] client connect
+[23:10:08.041][192.168.31.74:57026] server connect mumu-apk.fp.ps.netease.com:80 (198.18.0.36:80)
+192.168.31.74:57007: POST https://hubble.mumu.163.com/track/m/receiver
+                  << 200  12b
+[23:10:08.052][192.168.31.74:57010] Client TLS handshake failed. The client disconnected during the handshake. If this happens consistently for h.trace.qq.com, this may indicate that the client does not trust the proxy's certificate.
+[23:10:08.057][192.168.31.74:57010] client disconnect
+[23:10:08.058][192.168.31.74:57010] server disconnect h.trace.qq.com:443 (198.18.0.56:443)
+192.168.31.74:57026: GET http://mumu-apk.fp.ps.netease.com/file/67f4f25268fa9ba4¡­
+                  << 200 OK 84.3k
+192.168.31.74:57011: OPTIONS https://h.trace.qq.com/kv HTTP/2.0
+         << HTTP/2.0 200 OK 2b
+192.168.31.74:57011: OPTIONS https://h.trace.qq.com/kv HTTP/2.0
+         << HTTP/2.0 200 OK 2b
+192.168.31.74:56995: GET https://aegis.qq.com/collect/whitelist?id=vSofPiubNqcwz¡­
+                  << 403 Forbidden 74b
+192.168.31.74:60062: GET https://api.mumu.nie.netease.com/api/toolbox/item/confi¡­ HTTP/2.0
+         << HTTP/2.0 200 OK 315b
+192.168.31.74:57011: POST https://h.trace.qq.com/kv HTTP/2.0
+         << HTTP/2.0 200 OK 2b
+192.168.31.74:57011: POST https://h.trace.qq.com/kv HTTP/2.0
+         << HTTP/2.0 200 OK 2b
+192.168.31.74:57012: GET https://aegis.qq.com/collect/pv?id=vSofPiubNqcwzyTrrZ&u¡­
+                  << 403 Forbidden 13b
+192.168.31.74:57011: POST https://h.trace.qq.com/kv HTTP/2.0
+         << HTTP/2.0 200 OK 2b
+[23:10:09.003][192.168.31.74:57072] client connect
+[23:10:09.008][192.168.31.74:57072] server connect h.trace.qq.com:443 (198.18.0.56:443)
+192.168.31.74:57072: POST https://h.trace.qq.com/kv
+                  << 200 OK 2b
+[23:10:09.072][192.168.31.74:57072] client disconnect
+[23:10:09.072][192.168.31.74:57072] server disconnect h.trace.qq.com:443 (198.18.0.56:443)
+192.168.31.74:57007: POST https://hubble.mumu.163.com/track/m/receiver
+                  << 200  12b
+[23:10:12.375][192.168.31.74:62803] client connect
+[23:10:12.378][192.168.31.74:62803] server connect yybcms.gtimg.com:443 (198.18.0.149:443)
+192.168.31.74:62803: GET https://yybcms.gtimg.com/android_cms/gzskin/4db3f5c29ce¡­
+                  << 200 OK 1.3k
+192.168.31.74:62803: GET https://yybcms.gtimg.com/android_cms/gzskin/a6a1ec14b77¡­
+                  << 200 OK 996b
+[23:10:15.450][192.168.31.74:56704] client connect
+[23:10:15.453][192.168.31.74:56704] server connect fcount-api.webapp.163.com:443 (198.18.0.27:443)
+192.168.31.74:56704: POST https://fcount-api.webapp.163.com/sdk/project_config
+                  << 200 OK 419b
+[23:10:15.513][192.168.31.74:56707] client connect
+[23:10:15.517][192.168.31.74:56707] server connect sigma-fcount-webtech.proxima.nie.netease.com:443 (198.18.0.100:443)
+192.168.31.74:56707: POST https://sigma-fcount-webtech.proxima.nie.netease.com/
+                  << 200 OK 2b
+192.168.31.74:57007: POST https://hubble.mumu.163.com/track/m/receiver
+                  << 200  12b
+[23:10:16.378][192.168.31.74:59729] client connect
+[23:10:16.378][192.168.31.74:59730] client connect
+[23:10:16.383][192.168.31.74:59730] server connect www.baidu.com:443 (198.18.0.104:443)
+[23:10:16.383][192.168.31.74:59729] server connect www.baidu.com:80 (198.18.0.104:80)
+192.168.31.74:59729: GET http://www.baidu.com/
+                  << 200 OK 1.1k
+192.168.31.74:59730: GET https://www.baidu.com/
+                  << 200 OK 1.1k
+[23:10:17.110][192.168.31.74:60123] client connect
+[23:10:17.113][192.168.31.74:60123] server connect tangram.e.qq.com:443 (198.18.0.107:443)
+192.168.31.74:60123: POST https://tangram.e.qq.com/updateSetting
+                  << 200 OK 8.3k
+[23:10:17.275][192.168.31.74:60129] client connect
+[23:10:17.279][192.168.31.74:60129] server connect i.gtimg.cn:80 (198.18.0.108:80)
+192.168.31.74:60129: GET http://i.gtimg.cn/ams-web/page-performance/page-perform¡­
+                  << 200 OK 3.4k
+[23:10:17.560][192.168.31.74:60157] client connect
+[23:10:17.564][192.168.31.74:60157] server connect sdkreport.e.qq.com:443 (198.18.0.109:443)
+192.168.31.74:60157: POST https://sdkreport.e.qq.com/link_event
+                  << 200 OK 5b
+[23:10:17.717][192.168.31.74:60157] client disconnect
+[23:10:17.718][192.168.31.74:60157] server disconnect sdkreport.e.qq.com:443 (198.18.0.109:443)
+[23:10:19.103][192.168.31.74:58869] client connect
+[23:10:19.106][192.168.31.74:58870] client connect
+[23:10:19.107][192.168.31.74:58871] client connect
+[23:10:19.109][192.168.31.74:58872] client connect
+[23:10:19.111][192.168.31.74:58869] server connect xs.gdt.qq.com:443 (198.18.0.112:443)
+[23:10:19.113][192.168.31.74:58870] server connect xs.gdt.qq.com:443 (198.18.0.112:443)
+[23:10:19.114][192.168.31.74:58871] server connect xs.gdt.qq.com:443 (198.18.0.112:443)
+[23:10:19.116][192.168.31.74:58872] server connect xs.gdt.qq.com:443 (198.18.0.112:443)
+192.168.31.74:58870: POST https://xs.gdt.qq.com/style_factory/module_list
+                  << 200 OK 314b
+192.168.31.74:58869: POST https://xs.gdt.qq.com/style_factory/lib_list
+                  << 200 OK 58b
+192.168.31.74:58872: POST https://xs.gdt.qq.com/style_factory/template_list
+                  << 200 OK 3.5k
+192.168.31.74:58871: POST https://xs.gdt.qq.com/style_factory/lib_list
+                  << 200 OK 58b
+[23:10:19.179][192.168.31.74:60123] client disconnect
+[23:10:19.180][192.168.31.74:60123] server disconnect tangram.e.qq.com:443 (198.18.0.107:443)
+[23:10:19.181][192.168.31.74:58883] client connect
+[23:10:19.184][192.168.31.74:58883] server connect sdkreport.e.qq.com:443 (198.18.0.109:443)
+[23:10:19.250][192.168.31.74:58891] client connect
+[23:10:19.252][192.168.31.74:58891] server connect sdkreport.e.qq.com:443 (198.18.0.109:443)
+192.168.31.74:58891: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+[23:10:19.419][192.168.31.74:60129] client disconnect
+[23:10:19.420][192.168.31.74:60129] server disconnect i.gtimg.cn:80 (198.18.0.108:80)
+192.168.31.74:58891: POST https://sdkreport.e.qq.com/link_event
+                  << 200 OK 5b
+[23:10:19.839][192.168.31.74:58891] client disconnect
+[23:10:19.841][192.168.31.74:58891] server disconnect sdkreport.e.qq.com:443 (198.18.0.109:443)
+[23:10:19.844][192.168.31.74:58896] client connect
+[23:10:19.852][192.168.31.74:58896] server connect sdkreport.e.qq.com:443 (198.18.0.109:443)
+192.168.31.74:57007: POST https://hubble.mumu.163.com/track/m/receiver
+                  << 200  12b
+192.168.31.74:58896: POST https://sdkreport.e.qq.com/link_event
+                  << 200 OK 5b
+[23:10:20.031][192.168.31.74:58896] client disconnect
+[23:10:20.031][192.168.31.74:58896] server disconnect sdkreport.e.qq.com:443 (198.18.0.109:443)
+[23:10:20.034][192.168.31.74:58902] client connect
+[23:10:20.036][192.168.31.74:58902] server connect sdkreport.e.qq.com:443 (198.18.0.109:443)
+192.168.31.74:58902: POST https://sdkreport.e.qq.com/link_event
+                  << 200 OK 5b
+[23:10:20.183][192.168.31.74:58902] client disconnect
+[23:10:20.183][192.168.31.74:58902] server disconnect sdkreport.e.qq.com:443 (198.18.0.109:443)
+[23:10:20.186][192.168.31.74:58911] client connect
+[23:10:20.190][192.168.31.74:58911] server connect sdkreport.e.qq.com:443 (198.18.0.109:443)
+192.168.31.74:58911: POST https://sdkreport.e.qq.com/link_event
+                  << 200 OK 5b
+[23:10:20.325][192.168.31.74:58911] client disconnect
+[23:10:20.326][192.168.31.74:58911] server disconnect sdkreport.e.qq.com:443 (198.18.0.109:443)
+192.168.31.74:58883: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+192.168.31.74:58883: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+192.168.31.74:58883: POST https://sdkreport.e.qq.com/monitor_report
+                  << 503 Service Unavailable 100b
+[23:10:20.597][192.168.31.74:58883] client disconnect
+[23:10:20.599][192.168.31.74:58883] server disconnect sdkreport.e.qq.com:443 (198.18.0.109:443)
+[23:10:20.600][192.168.31.74:58916] client connect
+[23:10:20.602][192.168.31.74:58916] server connect sdkreport.e.qq.com:443 (198.18.0.109:443)
+192.168.31.74:58916: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+192.168.31.74:58916: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+192.168.31.74:58916: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+192.168.31.74:58916: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+192.168.31.74:58916: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+192.168.31.74:57007: POST https://hubble.mumu.163.com/track/m/receiver
+                  << 200  12b
+192.168.31.74:58916: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+192.168.31.74:58916: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+192.168.31.74:58916: POST https://sdkreport.e.qq.com/monitor_report
+                  << 200 OK 35b
+[23:10:25.063][192.168.31.74:58258] client connect
+[23:10:25.066][192.168.31.74:58258] server connect shence-api.mumu.163.com:443 (198.18.0.114:443)
+192.168.31.74:58258: POST https://shence-api.mumu.163.com/sa?project=store_prod
+                  << 200 OK 20b

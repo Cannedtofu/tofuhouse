@@ -16,7 +16,6 @@ venv/
 *.jpg
 *.rar
 *.exe
-*.db
 *.tar.gz
 data/
 outputs/

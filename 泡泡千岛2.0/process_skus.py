@@ -56,6 +56,69 @@ def parse_generic_number(text: str, is_float: bool = False):
     
     return float(val) if is_float else int(val)
 
+def extract_nuxt_stats(soup) -> dict:
+    """
+    Parse the __NUXT_DATA__ JSON array embedded by Nuxt 3 SSR.
+
+    The Nuxt 3 SSR payload is a flat array where dicts map field names to
+    array indices. The page structure is:
+      data[N] = {'view': M}  →  data[M] = {'detailInfo': X, 'tradeInfo': Y, ...}
+      data[X] = {'spuId': ..., ...}   (the main item)
+      data[Y] = {'strikePrice': A, 'orderCount': B, 'demandCount': C, 'saleCount': D}
+
+    We follow this chain so we always get stats for the page's primary item,
+    not for related/recommended items elsewhere in the payload.
+    """
+    defaults = {'strikePrice': 0.0, 'orderCount': 0, 'demandCount': 0, 'saleCount': 0, 'minOnlinePrice': 0.0}
+    try:
+        import json
+        tag = soup.find('script', id='__NUXT_DATA__')
+        if not tag:
+            return defaults
+        data = json.loads(tag.string)
+
+        def deref(idx):
+            return data[idx] if isinstance(idx, int) and idx < len(data) else None
+
+        # Step 1: find the page-view entry {'view': M}
+        view_idx = None
+        for item in data:
+            if isinstance(item, dict) and list(item.keys()) == ['view']:
+                view_idx = item['view']
+                break
+        if view_idx is None:
+            return defaults
+
+        # Step 2: follow view → page object → tradeInfo
+        page_obj = deref(view_idx)
+        if not isinstance(page_obj, dict) or 'tradeInfo' not in page_obj:
+            return defaults
+
+        trade_map = deref(page_obj['tradeInfo'])
+        if not isinstance(trade_map, dict):
+            return defaults
+
+        result = {}
+        for key in ('strikePrice', 'orderCount', 'demandCount', 'saleCount'):
+            val = deref(trade_map.get(key))
+            result[key] = val if val is not None else 0
+
+        # Step 3: minOnlinePrice lives in a separate dict (the purchase-button extraData).
+        # There is exactly one dict in the payload with both minOnlinePrice and strikePrice,
+        # so a linear scan is unambiguous.
+        result['minOnlinePrice'] = 0.0
+        for item in data:
+            if isinstance(item, dict) and 'minOnlinePrice' in item and 'strikePrice' in item:
+                val = deref(item['minOnlinePrice'])
+                if val is not None:
+                    result['minOnlinePrice'] = float(val)
+                break
+
+        return result
+    except Exception:
+        return defaults
+
+
 def robust_get(driver, url, wait_time=2, max_retries=3):
     """Wraps selenium get with retries to survive spotty network conditions."""
     for attempt in range(max_retries):
@@ -80,7 +143,10 @@ def main():
 
     try:
         conn = sqlite3.connect(input_file)
-        df_input = pd.read_sql("SELECT * FROM feed_results", conn)
+        df_input = pd.read_sql(
+            "SELECT * FROM feed_results WHERE query_date = (SELECT MAX(query_date) FROM feed_results)",
+            conn
+        )
         conn.close()
     except Exception as e:
         print(f"Error reading from results.db: {e}")
@@ -181,18 +247,13 @@ def main():
             views, wants, owns = parse_want_info(p_text)
             print(f"  → Want info: '{p_text}' (Views: {views}, Wants: {wants}, Owns: {owns})")
 
-            # Find Transaction stats (Paid, Selling, Buying)
-            # Based on the structure of the wrapper/number span used previously on sub-pages
-            # Often these are present in summary form on the SPU page too. 
-            wrapper_div = soup.find('div', {'class': 'wrapper'})
-            sku_price = sku_personpaid = sku_personselling = sku_personbuying = "N/A"
-            if wrapper_div:
-                span_elements = wrapper_div.find_all('span', {'class': 'number'})
-                if len(span_elements) >= 4:
-                    sku_price = span_elements[0].get_text(strip=True)
-                    sku_personpaid = span_elements[1].get_text(strip=True)
-                    sku_personselling = span_elements[2].get_text(strip=True)
-                    sku_personbuying = span_elements[3].get_text(strip=True)
+            # Extract transaction stats from embedded __NUXT_DATA__ JSON
+            nuxt = extract_nuxt_stats(soup)
+            sku_price = nuxt['strikePrice']
+            sku_personpaid = nuxt['orderCount']
+            sku_personselling = nuxt['saleCount']
+            sku_personbuying = nuxt['demandCount']
+            listing_price = nuxt['minOnlinePrice'] or listing_price
 
             # Create a single record for this series
             record = {
@@ -206,10 +267,10 @@ def main():
                 'price_listing': listing_price,
                 'full_url': series_url,
                 'query_date': current_date,
-                'curr_avg_price': parse_generic_number(sku_price, is_float=True),
-                'num_paid': parse_generic_number(sku_personpaid, is_float=False),
-                'num_selling': parse_generic_number(sku_personselling, is_float=False),
-                'num_buying': parse_generic_number(sku_personbuying, is_float=False),
+                'curr_avg_price': float(sku_price),
+                'num_paid': int(sku_personpaid),
+                'num_selling': int(sku_personselling),
+                'num_buying': int(sku_personbuying),
                 'mainTagDisplayName': main_tag_display_name
             }
 
@@ -231,12 +292,12 @@ def main():
                 # Lean Excel processing (Single row per series)
                 lean_rows = [[
                     series_name, "全部", 1, 0,
-                    views, wants, owns, 
-                    parse_generic_number(sku_personpaid, is_float=False),
-                    parse_generic_number(sku_personselling, is_float=False),
-                    parse_generic_number(sku_personbuying, is_float=False),
+                    views, wants, owns,
+                    int(sku_personpaid),
+                    int(sku_personselling),
+                    int(sku_personbuying),
                     listing_price,
-                    parse_generic_number(sku_price, is_float=True),
+                    float(sku_price),
                     current_date, series_url,
                     main_tag_display_name
                 ]]

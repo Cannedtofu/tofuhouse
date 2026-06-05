@@ -241,6 +241,13 @@ def run_scrape_loop(appium: AppiumSession, storage: DataStorage) -> None:
 
         # After scrolling is done and successful, we commit.
         logger.info("  [INFO] MuMu scraping loop finished. Sending COMMIT signal to mitmproxy...")
+        if last_item_count == 0:
+            logger.error(
+                "  [ERROR] Scroll loop completed but 0 items were captured by mitmproxy. "
+                "The API response structure may have changed — check output/mitmdump.log for "
+                "'0 items parsed' warnings to see the actual JSON keys returned."
+            )
+            raise RuntimeError("Mobile scrape captured 0 items. Aborting to avoid overwriting results.db with empty data.")
         try:
             # Send success signal to mitmproxy to flush memory to DB
             import urllib.request
