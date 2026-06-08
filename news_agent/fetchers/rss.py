@@ -212,6 +212,9 @@ def fetch_youtube(feed_url: str, known_urls: set[str] | None = None, date_from: 
         if known_urls and link in known_urls:
             skipped_known += 1
             continue
+        if "/shorts/" in link:
+            logger.debug("  Skipping YouTube Short: %s", link)
+            continue
 
         title = getattr(entry, "title", "") or ""
         # YouTube Atom feeds expose the full video description in <media:description>

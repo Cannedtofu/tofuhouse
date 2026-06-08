@@ -8,7 +8,7 @@ import uuid
 from urllib.parse import quote as _url_quote
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, g, jsonify, redirect, render_template, request, send_file, session, url_for
@@ -31,10 +31,11 @@ _log_formatter = logging.Formatter(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-_file_handler = RotatingFileHandler(
+_file_handler = TimedRotatingFileHandler(
     "logs/app.log",
-    maxBytes=5 * 1024 * 1024,  # 5 MB per file
-    backupCount=5,
+    when="D",
+    interval=3,       # new file every 3 days
+    backupCount=7,    # keep 7 rotated files = 3 weeks
     encoding="utf-8",
 )
 _file_handler.setFormatter(_log_formatter)
@@ -984,20 +985,51 @@ def digests_history():
 # Activity log viewer
 # ---------------------------------------------------------------------------
 
-LOG_FILE = "logs/app.log"
+LOG_DIR = "logs"
+LOG_FILE = os.path.join(LOG_DIR, "app.log")
 LOG_TAIL_LINES = 200
+
+
+def _list_log_files() -> list[str]:
+    """Return all app.log* paths in logs/ sorted oldest-first."""
+    import glob as _glob
+    files = _glob.glob(os.path.join(LOG_DIR, "app.log*"))
+
+    def _sort_key(p):
+        name = os.path.basename(p)
+        # rotated suffix is YYYY-MM-DD; current file sorts last
+        return name[len("app.log."):] if "." in name[len("app.log"):] else "9999-99-99"
+
+    return sorted(files, key=_sort_key)
+
+
+def _read_tail_lines(n: int) -> list[str]:
+    """Last n lines across all log files (oldest file first)."""
+    all_lines: list[str] = []
+    for fpath in _list_log_files():
+        try:
+            with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                all_lines.extend(f.readlines())
+        except FileNotFoundError:
+            pass
+    return all_lines[-n:]
 
 
 @app.route("/logs/download")
 @login_required
 def logs_download():
-    if not os.path.exists(LOG_FILE):
+    filename = request.args.get("file", "app.log")
+    # Prevent path traversal — basename only, must start with "app.log"
+    if os.sep in filename or "/" in filename or not filename.startswith("app.log"):
+        return "Invalid log file.", 400
+    fpath = os.path.join(LOG_DIR, filename)
+    if not os.path.exists(fpath):
         return "Log file not found.", 404
     return send_file(
-        os.path.abspath(LOG_FILE),
+        os.path.abspath(fpath),
         mimetype="text/plain",
         as_attachment=True,
-        download_name="app.log",
+        download_name=filename,
     )
 
 
@@ -1005,7 +1037,6 @@ def logs_download():
 @login_required
 def logs_view():
     fetch_log = [dict(r) for r in db.get_fetch_log(limit=20)]
-    # Parse sources_json for display
     import json as _json
     for entry in fetch_log:
         try:
@@ -1013,16 +1044,11 @@ def logs_view():
         except Exception:
             entry["sources_parsed"] = []
 
-    # Read last N lines of the log file
-    raw_lines: list[str] = []
-    try:
-        with open(LOG_FILE, "r", encoding="utf-8", errors="replace") as f:
-            raw_lines = f.readlines()
-        raw_lines = raw_lines[-LOG_TAIL_LINES:]
-    except FileNotFoundError:
-        pass
+    raw_lines = _read_tail_lines(LOG_TAIL_LINES)
+    # Newest file first for the download selector
+    log_files = [os.path.basename(f) for f in reversed(_list_log_files())]
 
-    return render_template("logs.html", fetch_log=fetch_log, raw_lines=raw_lines)
+    return render_template("logs.html", fetch_log=fetch_log, raw_lines=raw_lines, log_files=log_files)
 
 
 # ---------------------------------------------------------------------------
