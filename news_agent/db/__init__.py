@@ -87,6 +87,13 @@ from db.gpu_prices import (
     get_all_gpu_price_data,
     get_gpu_price_last_updated,
 )
+from db.script_reports import (
+    upsert_script_report,
+    get_all_script_reports,
+    upsert_script_file,
+    get_script_file,
+    get_scripts_with_files,
+)
 
 __all__ = [
     # core
@@ -119,4 +126,7 @@ __all__ = [
     # gpu prices
     "upsert_gpu_price_data", "get_gpu_price_data",
     "get_all_gpu_price_data", "get_gpu_price_last_updated",
+    # script reports
+    "upsert_script_report", "get_all_script_reports",
+    "upsert_script_file", "get_script_file", "get_scripts_with_files",
 ]
