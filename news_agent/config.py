@@ -56,6 +56,7 @@ DEFAULT_SOURCES = [
 
 # --- Flask session ---
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-change-me")
+REPORT_API_KEY = os.getenv("REPORT_API_KEY", "")
 
 # --- Access whitelist (comma-separated emails; empty = open to all) ---
 EMAIL_WHITELIST: list[str] = [
