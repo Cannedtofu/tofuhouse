@@ -1,5 +1,6 @@
 """Flask web UI for the news feed app."""
 
+import io
 import logging
 import os
 import threading
@@ -13,7 +14,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 import db
-from config import ADMIN_EMAIL, EMAIL_WHITELIST, SECRET_KEY
+from config import ADMIN_EMAIL, EMAIL_WHITELIST, REPORT_API_KEY, SECRET_KEY
 from email_digest import build_email_digest
 from pipeline import run_fetch_and_summarize
 from ai_digest import generate_batch_digest
@@ -103,6 +104,14 @@ def login_required(f):
             return redirect(url_for("identify", next=request.path))
         return f(*args, **kwargs)
     return decorated
+
+
+def _api_key_required():
+    """Return a 403 response if the X-API-Key header doesn't match REPORT_API_KEY.
+    Returns None if auth passes."""
+    if not REPORT_API_KEY or request.headers.get("X-API-Key") != REPORT_API_KEY:
+        return jsonify({"error": "forbidden"}), 403
+    return None
 
 # Background fetch lock (prevent concurrent fetches from overlapping)
 _fetch_lock = threading.Lock()
@@ -1524,13 +1533,88 @@ def transcript_download_pdf(job_id: str):
 
 
 # ---------------------------------------------------------------------------
+# External script report API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/report", methods=["POST"])
+def api_report_push():
+    denied = _api_key_required()
+    if denied:
+        return denied
+    data = request.get_json(force=True, silent=True) or {}
+    script_name = (data.get("script") or "").strip()
+    if not script_name:
+        return jsonify({"error": "script name required"}), 400
+    status = data.get("status", "ok")
+    if status not in ("ok", "error"):
+        status = "error"
+    error_message = data.get("error") or None
+    expected_interval_hours = float(data.get("expected_interval_hours", 24))
+    panels = data.get("panels") or []
+    import json as _json
+    data_json = _json.dumps(panels) if panels else None
+    db.upsert_script_report(script_name, status, error_message, data_json, expected_interval_hours)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/report/<script_name>/excel", methods=["POST"])
+def api_report_excel_upload(script_name):
+    denied = _api_key_required()
+    if denied:
+        return denied
+    if "file" not in request.files:
+        return jsonify({"error": "no file field"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "empty filename"}), 400
+    file_data = f.read()
+    db.upsert_script_file(script_name, f.filename, file_data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/report/<script_name>/excel", methods=["GET"])
+@login_required
+def api_report_excel_download(script_name):
+    row = db.get_script_file(script_name)
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    return send_file(
+        io.BytesIO(row["file_data"]),
+        download_name=row["filename"],
+        as_attachment=True,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/dashboard/status")
+@login_required
+def dashboard_status():
+    reports = db.get_all_script_reports()
+    return jsonify([
+        {
+            "script_name":  r["script_name"],
+            "status":       r["status"],
+            "pushed_at":    r["pushed_at"],
+            "is_overdue":   r["is_overdue"],
+        }
+        for r in reports
+    ])
+
+
+# ---------------------------------------------------------------------------
 # Dashboard — GPU prices (and future datasets)
 # ---------------------------------------------------------------------------
 
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    return render_template("dashboard.html")
+    script_panels = db.get_all_script_reports()
+    scripts_with_files = db.get_scripts_with_files()
+    return render_template(
+        "dashboard.html",
+        script_panels=script_panels,
+        scripts_with_files=scripts_with_files,
+    )
 
 
 @app.route("/dashboard/api/gpu-prices")
