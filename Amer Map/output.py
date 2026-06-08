@@ -17,13 +17,18 @@ def _output_filename(label: Optional[str] = None) -> str:
 
 
 def _find_previous_file(current_label: str) -> Optional[str]:
-    """Return path to the most recent store_data_*.xlsx that is not the current one."""
+    """Return path to the most recent store_data_*.xlsx that is not the current one.
+
+    Searches the directory where output.py lives, so this works regardless of
+    the working directory the caller used to invoke main.py.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     pattern = re.compile(r"store_data_(\d{4}-Q\d)\.xlsx")
     candidates = []
-    for fname in os.listdir("."):
+    for fname in os.listdir(script_dir):
         m = pattern.match(fname)
         if m and m.group(1) != current_label:
-            candidates.append((m.group(1), fname))
+            candidates.append((m.group(1), os.path.join(script_dir, fname)))
     if not candidates:
         return None
     candidates.sort(key=lambda x: x[0], reverse=True)

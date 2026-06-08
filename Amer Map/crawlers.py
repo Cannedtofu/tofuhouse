@@ -104,7 +104,7 @@ def locally_crawl(brand: dict) -> List[dict]:
                 tile_data = _fetch_locally_tile(
                     session, brand, lat, lng, ne_lat, ne_lng, region["zoom"]
                 )
-                if tile_data and "markers" in tile_data:
+                if tile_data and any(k.startswith("markers") for k in tile_data):
                     stores = _parse_locally_markers(tile_data)
                     all_stores.extend(stores)
                 done += 1
