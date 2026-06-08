@@ -138,6 +138,24 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_gpu_price_history_gpu
                 ON gpu_price_history(gpu_type, timestamp);
+
+            CREATE TABLE IF NOT EXISTS script_reports (
+                id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+                script_name             TEXT    NOT NULL UNIQUE,
+                status                  TEXT    NOT NULL CHECK(status IN ('ok','error')),
+                error_message           TEXT,
+                data_json               TEXT,
+                pushed_at               TEXT    NOT NULL,
+                expected_interval_hours REAL    NOT NULL DEFAULT 24
+            );
+
+            CREATE TABLE IF NOT EXISTS script_files (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                script_name TEXT    NOT NULL UNIQUE,
+                filename    TEXT    NOT NULL,
+                file_data   BLOB    NOT NULL,
+                uploaded_at TEXT    NOT NULL
+            );
         """)
         # Migrations for older databases
         try:
