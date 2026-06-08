@@ -31,59 +31,54 @@ def _find_previous_file(current_label: str) -> Optional[str]:
 
 
 def _detect_changes(new_df: pd.DataFrame, old_df: pd.DataFrame, brand_name: str) -> List[dict]:
-    """Compare new vs old stores for a brand. Returns list of change records."""
-    new_ids = set(new_df["id"].dropna().astype(str))
-    old_ids = set(old_df["id"].dropna().astype(str))
+    """Compare new vs old stores for a brand.
 
-    new_df = new_df.copy()
-    old_df = old_df.copy()
+    Returns change records that retain ALL original columns from the source row,
+    with metadata columns (brand, change_type, changed_fields, old_name,
+    old_address) prepended.  NEW/CHANGED records use the new-quarter row;
+    CLOSED records use the old-quarter row (last known state).
+    """
+    new_df = new_df.copy().reset_index(drop=True)
+    old_df = old_df.copy().reset_index(drop=True)
     new_df["_id_str"] = new_df["id"].astype(str)
     old_df["_id_str"] = old_df["id"].astype(str)
 
+    new_ids = set(new_df["_id_str"]) - {"nan"}
+    old_ids = set(old_df["_id_str"]) - {"nan"}
+
     changes = []
 
+    # NEW — full row from new_df
     for sid in new_ids - old_ids:
-        row = new_df[new_df["_id_str"] == sid].iloc[0]
-        changes.append({
-            "brand": brand_name,
-            "change_type": "NEW",
-            "id": sid,
-            "name": row.get("name"),
-            "address": row.get("address"),
-            "city": row.get("city"),
-            "country": row.get("country"),
-        })
+        row = new_df[new_df["_id_str"] == sid].iloc[0].drop("_id_str").to_dict()
+        row.update({"brand": brand_name, "change_type": "NEW",
+                    "changed_fields": "", "old_name": "", "old_address": ""})
+        changes.append(row)
 
+    # CLOSED — full row from old_df (last known state)
     for sid in old_ids - new_ids:
-        row = old_df[old_df["_id_str"] == sid].iloc[0]
-        changes.append({
-            "brand": brand_name,
-            "change_type": "CLOSED",
-            "id": sid,
-            "name": row.get("name"),
-            "address": row.get("address"),
-            "city": row.get("city"),
-            "country": row.get("country"),
-        })
+        row = old_df[old_df["_id_str"] == sid].iloc[0].drop("_id_str").to_dict()
+        row.update({"brand": brand_name, "change_type": "CLOSED",
+                    "changed_fields": "", "old_name": "", "old_address": ""})
+        changes.append(row)
 
+    # CHANGED — full row from new_df + old_name/old_address for reference
+    watch = ["name", "address", "country"]
     for sid in new_ids & old_ids:
         new_row = new_df[new_df["_id_str"] == sid].iloc[0]
         old_row = old_df[old_df["_id_str"] == sid].iloc[0]
-        watch = ["name", "address", "country"]
-        diffs = [f for f in watch if str(new_row.get(f, "")) != str(old_row.get(f, ""))]
+        diffs = [f for f in watch if f in new_row.index and f in old_row.index
+                 and str(new_row[f]) != str(old_row[f])]
         if diffs:
-            changes.append({
+            row = new_row.drop("_id_str").to_dict()
+            row.update({
                 "brand": brand_name,
                 "change_type": "CHANGED",
-                "id": sid,
-                "name": new_row.get("name"),
-                "address": new_row.get("address"),
-                "city": new_row.get("city"),
-                "country": new_row.get("country"),
                 "changed_fields": ", ".join(diffs),
-                "old_name": old_row.get("name"),
-                "old_address": old_row.get("address"),
+                "old_name": old_row.get("name", ""),
+                "old_address": old_row.get("address", ""),
             })
+            changes.append(row)
 
     return changes
 
@@ -118,6 +113,9 @@ def write_output(brand_data: Dict[str, List[dict]]) -> str:
 
         if all_changes:
             changes_df = pd.DataFrame(all_changes)
+            meta_cols = ["brand", "change_type", "changed_fields", "old_name", "old_address"]
+            rest_cols = [c for c in changes_df.columns if c not in meta_cols]
+            changes_df = changes_df[meta_cols + rest_cols]
             changes_df.to_excel(writer, sheet_name="Changes", index=False)
             print(f"  Changes sheet written: {len(all_changes)} total changes")
         elif prev_file:
