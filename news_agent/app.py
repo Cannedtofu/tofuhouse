@@ -1110,6 +1110,7 @@ def transcript_page():
             "video_author": r["video_author"],
             "mode":         r["mode"],
             "status":       r["status"],
+            "initiated_by": r["initiated_by"],
             "created_at":   r["created_at"],
         }
         for r in rows
@@ -1132,6 +1133,7 @@ def transcript_jobs_list():
             "video_author": j["video_author"],
             "mode":         j["mode"],
             "status":       j["status"],
+            "initiated_by": j["initiated_by"],
             "created_at":   j["created_at"],
         }
         for j in jobs
@@ -1142,6 +1144,7 @@ def transcript_jobs_list():
 @login_required
 def transcript_process():
     from transcript_worker import (
+        normalize_url,
         extract_video_id, is_youtube_url,
         extract_xiaoyuzhou_episode_id, is_xiaoyuzhou_url,
         extract_bilibili_video_id, is_bilibili_url,
@@ -1149,7 +1152,7 @@ def transcript_process():
     )
 
     data   = request.get_json(silent=True) or {}
-    url    = (data.get("url")  or "").strip()
+    url    = normalize_url((data.get("url") or "").strip())
     mode   = (data.get("mode") or "no_diarization").strip()
 
     if mode not in ("no_diarization", "diarization"):
@@ -1171,7 +1174,10 @@ def transcript_process():
     if cached:
         return jsonify({"job_id": cached["job_id"], "cached": True})
 
-    job_id = db.create_transcript_job(video_url=url, video_id=video_id, mode=mode)
+    job_id = db.create_transcript_job(
+        video_url=url, video_id=video_id, mode=mode,
+        initiated_by=g.current_user["email"],
+    )
 
     thread = threading.Thread(
         target=process_transcript_job,
@@ -1208,6 +1214,7 @@ def transcript_status(job_id: str):
         "video_title":        job["video_title"],
         "video_author":       job["video_author"],
         "video_url":          job["video_url"],
+        "initiated_by":       job["initiated_by"],
         "summary":            job["summary"],
         "transcript":         job["transcript"],
         "transcript_zh":      job["transcript_zh"],

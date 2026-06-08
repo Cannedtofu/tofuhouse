@@ -63,6 +63,9 @@
           <a id="video-url-link" href="#" target="_blank" rel="noopener"
              style="font-size:.8rem; word-break:break-all"></a>
         </div>
+        <div id="video-initiated-by" class="text-muted" style="font-size:.78rem; display:none">
+          发起人：<span id="video-initiated-by-email"></span>
+        </div>
       </div>
 
       <!-- Status indicator -->
@@ -434,7 +437,7 @@ function handleStatusUpdate(data, jobId) {
   const status = data.status;
   updateStatusBadge(status);
   setModeBadge(data.mode);
-  setVideoMeta(data.video_title, data.video_author, data.video_url);
+  setVideoMeta(data.video_title, data.video_author, data.video_url, data.initiated_by);
 
   if (status === 'pending') {
     setStatusText('正在排队…');
@@ -583,22 +586,30 @@ function showSummaryContent(text) {
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
-function setVideoMeta(title, author, url) {
-  const metaEl   = document.getElementById('video-meta');
-  const titleEl  = document.getElementById('video-title');
-  const authorEl = document.getElementById('video-author');
-  const urlRow   = document.getElementById('video-url-row');
-  const urlLink  = document.getElementById('video-url-link');
-  if (title || author || url) {
+function setVideoMeta(title, author, url, initiatedBy) {
+  const metaEl        = document.getElementById('video-meta');
+  const titleEl       = document.getElementById('video-title');
+  const authorEl      = document.getElementById('video-author');
+  const urlRow        = document.getElementById('video-url-row');
+  const urlLink       = document.getElementById('video-url-link');
+  const initiatedRow  = document.getElementById('video-initiated-by');
+  const initiatedEmail = document.getElementById('video-initiated-by-email');
+  if (title || author || url || initiatedBy) {
     titleEl.textContent     = title  || '';
     authorEl.textContent    = author || '';
     authorEl.style.display  = author ? 'block' : 'none';
     if (url) {
-      urlLink.href        = url;
-      urlLink.textContent = url;
+      urlLink.href         = url;
+      urlLink.textContent  = url;
       urlRow.style.display = 'block';
     } else {
       urlRow.style.display = 'none';
+    }
+    if (initiatedBy) {
+      initiatedEmail.textContent   = initiatedBy;
+      initiatedRow.style.display   = 'block';
+    } else {
+      initiatedRow.style.display   = 'none';
     }
     metaEl.style.display = 'block';
   } else {
@@ -717,7 +728,7 @@ function showDonePanel(data, jobId) {
   updateStatusBadge('done');
   setStatusText('转录完成。');
   setModeBadge(data.mode);
-  setVideoMeta(data.video_title, data.video_author, data.video_url);
+  setVideoMeta(data.video_title, data.video_author, data.video_url, data.initiated_by);
   document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
   document.getElementById('download-original-txt').href = `/transcript/download/${jobId}?version=original`;
   document.getElementById('download-original-pdf').href = `/transcript/download/${jobId}/pdf?version=original`;

@@ -8,16 +8,21 @@ from typing import Optional
 from db.core import get_conn
 
 
-def create_transcript_job(video_url: str, video_id: str, mode: str = "no_diarization") -> str:
+def create_transcript_job(
+    video_url: str,
+    video_id: str,
+    mode: str = "no_diarization",
+    initiated_by: Optional[str] = None,
+) -> str:
     """Insert a new transcript job with status 'pending'. Returns the job_id (UUID)."""
     job_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     with get_conn() as conn:
         conn.execute(
             """INSERT INTO transcript_jobs
-               (job_id, video_url, video_id, mode, status, created_at, updated_at)
-               VALUES (?, ?, ?, ?, 'pending', ?, ?)""",
-            (job_id, video_url, video_id, mode, now, now),
+               (job_id, video_url, video_id, mode, status, initiated_by, created_at, updated_at)
+               VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)""",
+            (job_id, video_url, video_id, mode, initiated_by, now, now),
         )
     return job_id
 
@@ -37,7 +42,8 @@ def list_transcript_jobs(limit: int = 60) -> list:
     """Return recent transcript jobs ordered newest-first (for sidebar)."""
     with get_conn() as conn:
         return conn.execute(
-            """SELECT job_id, video_id, video_url, video_title, video_author, mode, status, created_at
+            """SELECT job_id, video_id, video_url, video_title, video_author,
+                      mode, status, initiated_by, created_at
                FROM transcript_jobs
                ORDER BY created_at DESC LIMIT ?""",
             (limit,),

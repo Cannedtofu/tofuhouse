@@ -56,7 +56,32 @@ _CHUNK_OVERLAP = 800   # raw chars from tail of previous chunk fed into next chu
 # URL helpers
 # ---------------------------------------------------------------------------
 
+def normalize_url(url: str) -> str:
+    """Strip whitespace and remove known tracking/sharing parameters that don't affect the video.
+
+    Handles:
+    - ``?si=...``       — YouTube sharing token (youtu.be and regular watch URLs)
+    - ``?feature=...``  — YouTube source tracking
+    - ``&pp=...``       — YouTube homepage placement param
+    The video ID and ``t``/``start`` timestamp params are preserved.
+    """
+    url = url.strip()
+    # Parse out and drop known-irrelevant query params
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    _STRIP_PARAMS = {"si", "feature", "pp", "utm_source", "utm_medium", "utm_campaign"}
+    try:
+        parsed = urlparse(url)
+        qs = parse_qs(parsed.query, keep_blank_values=True)
+        cleaned = {k: v for k, v in qs.items() if k.lower() not in _STRIP_PARAMS}
+        new_query = urlencode(cleaned, doseq=True)
+        url = urlunparse(parsed._replace(query=new_query))
+    except Exception:
+        pass  # if parsing fails, return the stripped original
+    return url
+
+
 def extract_video_id(url: str) -> str | None:
+    url = normalize_url(url)
     patterns = [
         r"(?:youtube\.com/watch\?(?:[^&]*&)*v=)([a-zA-Z0-9_-]{11})",
         r"(?:youtu\.be/)([a-zA-Z0-9_-]{11})",
@@ -130,6 +155,9 @@ def _fetch_transcript_fast(video_id_or_url: str) -> str | None:
     Accepts either a YouTube video ID or a full URL (Bilibili, etc.).
     """
     import yt_dlp
+
+    # Short alias used throughout log messages (avoids NameError — parameter is video_id_or_url)
+    video_id = video_id_or_url
 
     ydl_opts = {
         "quiet": True,
