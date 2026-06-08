@@ -605,7 +605,7 @@ function setVideoMeta(title, author, url, initiatedBy) {
     } else {
       urlRow.style.display = 'none';
     }
-    if (initiatedBy) {
+    if (initiatedBy && _isAdmin) {
       initiatedEmail.textContent   = initiatedBy;
       initiatedRow.style.display   = 'block';
     } else {
