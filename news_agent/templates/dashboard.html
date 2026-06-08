@@ -4,7 +4,61 @@
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3">
   <h4 class="mb-0 fw-bold">📊 数据 Dashboard</h4>
+  <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#customiseModal">
+    ⚙ 自定义
+  </button>
 </div>
+
+<!-- Status strip -->
+{% if script_panels %}
+<div class="d-flex flex-wrap gap-2 mb-2" id="status-strip">
+  {% for s in script_panels %}
+  <a href="#panel-{{ s.script_name | replace(' ', '-') }}"
+     class="badge text-decoration-none
+            {% if s.status == 'error' or s.is_overdue %}bg-danger{% else %}bg-success{% endif %}"
+     style="font-size:.8rem;font-weight:500">
+    {{ s.script_name }}
+    · {{ s.pushed_at[:16] | replace('T',' ') }} UTC
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Collapsible full status table -->
+<div class="card mb-4">
+  <div class="card-header py-2 px-3" style="cursor:pointer"
+       data-bs-toggle="collapse" data-bs-target="#status-table-body">
+    <span class="small fw-semibold">脚本状态详情</span>
+    <span class="text-muted small ms-1">▸</span>
+  </div>
+  <div class="collapse" id="status-table-body">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>脚本</th><th>上次推送</th><th>预期间隔</th><th class="text-center">状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in script_panels %}
+        <tr>
+          <td class="small fw-medium">{{ s.script_name }}</td>
+          <td class="small text-muted">{{ s.pushed_at[:16] | replace('T',' ') }} UTC</td>
+          <td class="small text-muted">{{ s.expected_interval_hours | int }}h</td>
+          <td class="text-center">
+            {% if s.status == 'error' %}
+              <span class="badge bg-danger">error</span>
+            {% elif s.is_overdue %}
+              <span class="badge bg-danger">overdue</span>
+            {% else %}
+              <span class="badge bg-success">ok</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 
 <!-- GPU Price Chart Section -->
 <div class="card mb-4">
@@ -55,6 +109,83 @@
     </div>
   </div>
 </div>
+
+<!-- Customise panels modal -->
+<div class="modal fade" id="customiseModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2 px-3">
+        <h6 class="modal-title mb-0">显示面板</h6>
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body px-3 py-2">
+        {% for s in script_panels %}
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input panel-toggle"
+                 id="toggle-{{ loop.index }}"
+                 data-panel="panel-{{ s.script_name | replace(' ', '-') }}"
+                 checked>
+          <label class="form-check-label small" for="toggle-{{ loop.index }}">
+            {{ s.script_name }}
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="modal-footer py-2 px-3">
+        <button class="btn btn-sm btn-primary" onclick="savePanelPrefs()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Script data panels -->
+{% for s in script_panels %}
+<div class="card mb-4" id="panel-{{ s.script_name | replace(' ', '-') }}"
+     data-script="{{ s.script_name }}">
+  <div class="card-header d-flex align-items-center justify-content-between py-2">
+    <div>
+      <span class="fw-semibold">{{ s.script_name }}</span>
+      <span class="ms-2 small text-muted">{{ s.pushed_at[:16] | replace('T',' ') }} UTC</span>
+      {% if s.status == 'error' or s.is_overdue %}
+        <span class="badge bg-danger ms-1">{{ 'error' if s.status == 'error' else 'overdue' }}</span>
+      {% endif %}
+    </div>
+    {% if s.script_name in scripts_with_files %}
+    <a href="/api/report/{{ s.script_name }}/excel"
+       class="btn btn-sm btn-outline-secondary">⬇ Excel</a>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% if s.panels %}
+      {% for panel in s.panels %}
+        <div class="mb-4">
+          <div class="small fw-semibold text-muted mb-2">{{ panel.title }}</div>
+          {% if panel.type in ('line', 'bar') %}
+            <div style="position:relative;height:320px">
+              <canvas id="chart-{{ s.script_name | replace(' ', '-') }}-{{ loop.index }}"></canvas>
+            </div>
+          {% elif panel.type == 'table' %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                  <tr>{% for h in panel.headers %}<th>{{ h }}</th>{% endfor %}</tr>
+                </thead>
+                <tbody>
+                  {% for row in panel.rows %}
+                  <tr>{% for cell in row %}<td class="small">{{ cell }}</td>{% endfor %}</tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="text-muted small mb-0">暂无数据面板。脚本运行后将自动显示。</p>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
 {% endblock %}
 
 {% block scripts %}
@@ -295,5 +426,164 @@ function showFetchingNotice(v)  { toggle("gpu-fetching-notice", v); }
 function toggle(id, show) {
   document.getElementById(id).classList.toggle("d-none", !show);
 }
+
+// ---------------------------------------------------------------------------
+// Script panels — Chart.js rendering + localStorage panel visibility
+// ---------------------------------------------------------------------------
+
+const SCRIPT_PANELS = {{ script_panels | tojson }};
+
+function mmddToDoy(mmdd) {
+  const monthDays = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const [m, d] = mmdd.split('-').map(Number);
+  let doy = d;
+  for (let i = 1; i < m; i++) doy += monthDays[i];
+  return doy;
+}
+
+const MONTH_STARTS = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const PANEL_COLORS = ['#0d6efd','#fd7e14','#198754','#dc3545','#6f42c1','#20c997'];
+
+function renderScriptCharts() {
+  SCRIPT_PANELS.forEach(script => {
+    (script.panels || []).forEach((panel, idx) => {
+      if (panel.type !== 'line' && panel.type !== 'bar') return;
+      const canvasId = `chart-${script.script_name.replace(/ /g, '-')}-${idx + 1}`;
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+
+      let datasets;
+      if (panel.x_type === 'day_of_year') {
+        datasets = (panel.datasets || []).map((ds, i) => ({
+          label: ds.label,
+          data: ds.data.map(pt => ({ x: mmddToDoy(pt.x), y: pt.y })),
+          borderColor: PANEL_COLORS[i % PANEL_COLORS.length],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 1,
+          pointHoverRadius: 4,
+          tension: 0.2,
+          spanGaps: !!panel.span_gaps,
+        }));
+      } else {
+        datasets = (panel.datasets || []).map((ds, i) => ({
+          label: ds.label,
+          data: ds.data.map(pt => ({ x: pt.x, y: pt.y })),
+          borderColor: PANEL_COLORS[i % PANEL_COLORS.length],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+          tension: 0.3,
+          spanGaps: !!panel.span_gaps,
+        }));
+      }
+
+      const isDoy = panel.x_type === 'day_of_year';
+      new Chart(canvas.getContext('2d'), {
+        type: panel.type === 'bar' ? 'bar' : 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
+            tooltip: {
+              callbacks: {
+                title: items => isDoy
+                  ? (() => {
+                      const doy = items[0].parsed.x;
+                      let m = 0;
+                      while (m < 11 && MONTH_STARTS[m + 1] <= doy) m++;
+                      return MONTH_LABELS[m] + ' day ' + (doy - MONTH_STARTS[m] + 1);
+                    })()
+                  : items[0].label,
+              },
+            },
+          },
+          scales: isDoy ? {
+            x: {
+              type: 'linear',
+              min: 1, max: 365,
+              ticks: {
+                font: { size: 11 },
+                callback: v => {
+                  const i = MONTH_STARTS.indexOf(v);
+                  return i >= 0 ? MONTH_LABELS[i] : '';
+                },
+                maxTicksLimit: 12,
+                autoSkip: false,
+              },
+              grid: { color: 'rgba(0,0,0,0.04)' },
+            },
+            y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+          } : {
+            x: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+            y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+          },
+        },
+      });
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Panel visibility — localStorage
+// ---------------------------------------------------------------------------
+const PREFS_KEY = 'dashboardPanels';
+
+function applyPanelPrefs() {
+  const prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+  document.querySelectorAll('.card[data-script]').forEach(card => {
+    const name = card.dataset.script;
+    if (prefs[name] === false) card.style.display = 'none';
+  });
+  document.querySelectorAll('.panel-toggle').forEach(cb => {
+    const panelId = cb.dataset.panel;
+    const card = document.getElementById(panelId);
+    if (card && prefs[card.dataset.script] === false) cb.checked = false;
+  });
+}
+
+function savePanelPrefs() {
+  const prefs = {};
+  document.querySelectorAll('.panel-toggle').forEach(cb => {
+    const panelId = cb.dataset.panel;
+    const card = document.getElementById(panelId);
+    if (card) {
+      prefs[card.dataset.script] = cb.checked;
+      card.style.display = cb.checked ? '' : 'none';
+    }
+  });
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  bootstrap.Modal.getInstance(document.getElementById('customiseModal'))?.hide();
+}
+
+// ---------------------------------------------------------------------------
+// Status strip auto-refresh (every 60 s)
+// ---------------------------------------------------------------------------
+function refreshStatusStrip() {
+  fetch('/dashboard/status')
+    .then(r => r.json())
+    .then(reports => {
+      reports.forEach(r => {
+        const badge = document.querySelector(
+          `#status-strip a[href="#panel-${r.script_name.replace(/ /g, '-')}"]`
+        );
+        if (!badge) return;
+        const bad = r.status === 'error' || r.is_overdue;
+        badge.className = badge.className.replace(/bg-\w+/, bad ? 'bg-danger' : 'bg-success');
+      });
+    })
+    .catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  applyPanelPrefs();
+  renderScriptCharts();
+  setInterval(refreshStatusStrip, 60000);
+});
 </script>
 {% endblock %}
