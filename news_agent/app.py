@@ -643,6 +643,34 @@ def _inline_md_to_html(text: str) -> str:
     return text
 
 
+def _compress_pdf(pdf_bytes: bytes) -> bytes:
+    """Recompress a Playwright-generated PDF using pikepdf object-stream compression.
+
+    Playwright/Chromium PDFs use basic stream compression. pikepdf rewrites them
+    with cross-reference object streams and better Flate settings, typically
+    reducing file size by 30–50% with no visual quality change.
+    Falls back to the original bytes if pikepdf is unavailable or fails.
+    """
+    try:
+        import io
+        import pikepdf
+        src = io.BytesIO(pdf_bytes)
+        dst = io.BytesIO()
+        with pikepdf.open(src) as pdf:
+            pdf.save(
+                dst,
+                compress_streams=True,
+                object_stream_mode=pikepdf.ObjectStreamMode.generate,
+                recompress_flate=True,
+                deterministic_id=False,
+            )
+        compressed = dst.getvalue()
+        # Safety check: never return something larger than the original
+        return compressed if len(compressed) < len(pdf_bytes) else pdf_bytes
+    except Exception:
+        return pdf_bytes  # graceful fallback — original PDF is still valid
+
+
 def _md_to_html_for_pdf(md: str) -> str:
     """Convert markdown article content to clean HTML for PDF rendering."""
     import re as _re
@@ -775,7 +803,7 @@ def article_download_pdf(article_id: int):
   blockquote.zh {{
     margin: 2pt 0 10pt 0; padding: 6pt 12pt;
     border-left: 3pt solid #2563eb;
-    background: #eff6ff; color: #1e40af;
+    color: #1e40af;
     font-style: normal;
   }}
   blockquote.zh p {{ margin: 0; color: #1e40af; }}
@@ -805,9 +833,11 @@ def article_download_pdf(article_id: int):
         pdf_bytes = page.pdf(
             format="A4",
             margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
-            print_background=True,
+            print_background=False,
         )
         browser.close()
+
+    pdf_bytes = _compress_pdf(pdf_bytes)
 
     safe_title = _safe_filename(title, str(article_id))
     suffix = "bilingual" if version == "translated" else "original"
@@ -1444,7 +1474,7 @@ def transcript_download_pdf(job_id: str):
     padding-left: 8pt; border-left: 3pt solid #444; color: #222;
   }}
   .summary {{
-    background: #f7f7f7; padding: 12pt 14pt; border-radius: 4pt;
+    border-left: 3pt solid #888; padding: 8pt 12pt;
     margin-bottom: 20pt; font-size: 10pt; line-height: 1.9;
   }}
   .transcript {{
@@ -1477,9 +1507,11 @@ def transcript_download_pdf(job_id: str):
         pdf_bytes = page.pdf(
             format="A4",
             margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
-            print_background=True,
+            print_background=False,
         )
         browser.close()
+
+    pdf_bytes = _compress_pdf(pdf_bytes)
 
     base = _safe_filename(job["video_title"], job["video_id"])
     suffix = "zh" if version == "chinese" else "original"
