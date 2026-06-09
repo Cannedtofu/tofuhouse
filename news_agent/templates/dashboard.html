@@ -142,8 +142,11 @@
 {% for s in script_panels %}
 <div class="card mb-4" id="panel-{{ s.script_name | replace(' ', '-') }}"
      data-script="{{ s.script_name }}">
-  <div class="card-header d-flex align-items-center justify-content-between py-2">
+  <div class="card-header d-flex align-items-center justify-content-between py-2"
+       style="cursor:pointer;user-select:none"
+       onclick="toggleFold('{{ s.script_name | replace(' ', '-') }}')">
     <div>
+      <span class="fold-chevron me-1 text-muted" style="font-size:.75rem">▾</span>
       <span class="fw-semibold">{{ s.script_name }}</span>
       <span class="ms-2 small text-muted">{{ s.pushed_at[:16] | replace('T',' ') }} UTC</span>
       {% if s.status == 'error' or s.is_overdue %}
@@ -152,14 +155,16 @@
     </div>
     {% if s.script_name in scripts_with_files %}
     <a href="/api/report/{{ s.script_name }}/excel"
-       class="btn btn-sm btn-outline-secondary">⬇ Excel</a>
+       class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()">⬇ Excel</a>
     {% endif %}
   </div>
-  <div class="card-body">
+  <div class="card-body" id="body-{{ s.script_name | replace(' ', '-') }}">
     {% if s.panels %}
       {% for panel in s.panels %}
         <div class="mb-4">
-          <div class="small fw-semibold text-muted mb-2">{{ panel.title }}</div>
+          <div class="small fw-semibold text-muted mb-2 panel-title"
+               data-key="{{ s.script_name }}-{{ loop.index0 }}"
+               title="双击编辑标题" ondblclick="startEditTitle(event, this)">{{ panel.title }}</div>
           {% if panel.type in ('line', 'bar') %}
             <div style="position:relative;height:320px">
               <canvas id="chart-{{ s.script_name | replace(' ', '-') }}-{{ loop.index }}"></canvas>
@@ -530,6 +535,75 @@ function renderScriptCharts() {
 }
 
 // ---------------------------------------------------------------------------
+// Panel fold — localStorage
+// ---------------------------------------------------------------------------
+const FOLDS_KEY = 'dashboardFolds';
+
+function toggleFold(panelId) {
+  const body    = document.getElementById('body-' + panelId);
+  const card    = document.getElementById('panel-' + panelId);
+  const chevron = card.querySelector('.fold-chevron');
+  if (!body) return;
+  const folding = body.style.display !== 'none';
+  body.style.display = folding ? 'none' : '';
+  chevron.textContent = folding ? '▸' : '▾';
+  const folds = JSON.parse(localStorage.getItem(FOLDS_KEY) || '{}');
+  folds[panelId] = folding;
+  localStorage.setItem(FOLDS_KEY, JSON.stringify(folds));
+}
+
+function initFoldState() {
+  const folds = JSON.parse(localStorage.getItem(FOLDS_KEY) || '{}');
+  Object.entries(folds).forEach(([panelId, folded]) => {
+    if (!folded) return;
+    const body    = document.getElementById('body-' + panelId);
+    const card    = document.getElementById('panel-' + panelId);
+    if (!body || !card) return;
+    body.style.display = 'none';
+    const chevron = card.querySelector('.fold-chevron');
+    if (chevron) chevron.textContent = '▸';
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Editable panel titles — localStorage (admin only, stored client-side)
+// ---------------------------------------------------------------------------
+const TITLES_KEY = 'dashboardTitles';
+
+function applyTitleOverrides() {
+  const titles = JSON.parse(localStorage.getItem(TITLES_KEY) || '{}');
+  document.querySelectorAll('.panel-title').forEach(el => {
+    if (titles[el.dataset.key]) el.textContent = titles[el.dataset.key];
+  });
+}
+
+function startEditTitle(evt, el) {
+  evt.stopPropagation();
+  const original = el.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = original;
+  input.className = 'form-control form-control-sm d-inline-block';
+  input.style.cssText = 'width:auto;min-width:220px;font-size:.8rem';
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+  const save = () => {
+    const val = input.value.trim() || original;
+    el.textContent = val;
+    const titles = JSON.parse(localStorage.getItem(TITLES_KEY) || '{}');
+    titles[el.dataset.key] = val;
+    localStorage.setItem(TITLES_KEY, JSON.stringify(titles));
+  };
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { input.blur(); }
+    if (e.key === 'Escape') { el.textContent = original; }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Panel visibility — localStorage
 // ---------------------------------------------------------------------------
 const PREFS_KEY = 'dashboardPanels';
@@ -581,8 +655,10 @@ function refreshStatusStrip() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  applyPanelPrefs();
-  renderScriptCharts();
+  renderScriptCharts();   // render while all panels visible — must come first
+  applyPanelPrefs();      // hide unchecked panels
+  initFoldState();        // fold collapsed panels
+  applyTitleOverrides();  // apply saved title renames
   setInterval(refreshStatusStrip, 60000);
 });
 </script>
