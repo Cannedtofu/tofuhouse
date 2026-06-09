@@ -293,3 +293,10 @@ def init_db():
                     )
         except Exception:
             pass  # gpu_price_cache may be empty or not yet exist — safe to skip
+        # panel_access — admin-controlled per-panel visibility for non-admin users
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS panel_access (
+                panel_key  TEXT    PRIMARY KEY,
+                public     INTEGER NOT NULL DEFAULT 1
+            )
+        """)

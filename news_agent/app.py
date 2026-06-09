@@ -1632,13 +1632,34 @@ def dashboard_status():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    script_panels = db.get_all_script_reports()
+    is_admin = g.current_user["email"] == ADMIN_EMAIL
+    all_panels = db.get_all_script_reports()
+    panel_access = db.get_panel_access()
+    # Non-admins only see panels where public=True (default when not in table)
+    if is_admin:
+        script_panels = all_panels
+    else:
+        script_panels = [p for p in all_panels if panel_access.get(p["script_name"], True)]
     scripts_with_files = db.get_scripts_with_files()
     return render_template(
         "dashboard.html",
         script_panels=script_panels,
         scripts_with_files=scripts_with_files,
+        is_admin=is_admin,
+        panel_access=panel_access,
     )
+
+
+@app.route("/dashboard/panel-access/<panel_key>", methods=["POST"])
+@login_required
+def dashboard_toggle_panel_access(panel_key):
+    """Admin-only: toggle a panel between public and admin-only."""
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "forbidden"}), 403
+    current = db.get_panel_access()
+    new_public = not current.get(panel_key, True)
+    db.set_panel_access(panel_key, new_public)
+    return jsonify({"panel_key": panel_key, "public": new_public})
 
 
 @app.route("/dashboard/api/gpu-prices")

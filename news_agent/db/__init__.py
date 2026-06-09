@@ -93,6 +93,8 @@ from db.script_reports import (
     upsert_script_file,
     get_script_file,
     get_scripts_with_files,
+    get_panel_access,
+    set_panel_access,
 )
 
 __all__ = [
@@ -129,4 +131,5 @@ __all__ = [
     # script reports
     "upsert_script_report", "get_all_script_reports",
     "upsert_script_file", "get_script_file", "get_scripts_with_files",
+    "get_panel_access", "set_panel_access",
 ]

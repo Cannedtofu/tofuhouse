@@ -89,3 +89,28 @@ def get_scripts_with_files() -> set[str]:
     with get_conn() as conn:
         rows = conn.execute("SELECT script_name FROM script_files").fetchall()
     return {r["script_name"] for r in rows}
+
+
+# ---------------------------------------------------------------------------
+# Panel access control (admin toggles per-panel visibility for non-admins)
+# ---------------------------------------------------------------------------
+
+def get_panel_access() -> dict:
+    """Return {panel_key: public} for all panels with a stored preference.
+
+    Panels not in the table default to public=True (visible to everyone).
+    """
+    with get_conn() as conn:
+        rows = conn.execute("SELECT panel_key, public FROM panel_access").fetchall()
+    return {r["panel_key"]: bool(r["public"]) for r in rows}
+
+
+def set_panel_access(panel_key: str, public: bool) -> None:
+    """Upsert the visibility setting for a panel."""
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO panel_access (panel_key, public)
+               VALUES (?, ?)
+               ON CONFLICT(panel_key) DO UPDATE SET public = excluded.public""",
+            (panel_key, 1 if public else 0),
+        )
