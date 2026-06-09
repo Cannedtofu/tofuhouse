@@ -118,14 +118,18 @@
         <h6 class="modal-title mb-0">显示面板</h6>
         <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body px-3 py-2">
+      <div class="modal-body px-3 py-2" id="drag-list">
+        <p class="text-muted small mb-2" style="font-size:.75rem">拖拽 ⠿ 调整顺序，勾选控制显示</p>
         {% for s in script_panels %}
-        <div class="form-check">
-          <input type="checkbox" class="form-check-input panel-toggle"
+        <div class="drag-item d-flex align-items-center gap-2 py-1 rounded"
+             draggable="true"
+             data-panel="panel-{{ s.script_name | replace(' ', '-') }}">
+          <span class="drag-handle text-muted" style="cursor:grab;font-size:1rem;line-height:1">⠿</span>
+          <input type="checkbox" class="form-check-input panel-toggle flex-shrink-0"
                  id="toggle-{{ loop.index }}"
                  data-panel="panel-{{ s.script_name | replace(' ', '-') }}"
                  checked>
-          <label class="form-check-label small" for="toggle-{{ loop.index }}">
+          <label class="form-check-label small mb-0" for="toggle-{{ loop.index }}">
             {{ s.script_name }}
           </label>
         </div>
@@ -194,6 +198,10 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+  .drag-item.drag-over { border-top: 2px solid #0d6efd; }
+  .drag-handle:active  { cursor: grabbing; }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script>
@@ -604,6 +612,75 @@ function startEditTitle(evt, el) {
 }
 
 // ---------------------------------------------------------------------------
+// Panel order — drag-and-drop in modal, stored in localStorage
+// ---------------------------------------------------------------------------
+const ORDER_KEY = 'dashboardOrder';
+let _dragSrc = null;
+
+function initModalDrag() {
+  const list = document.getElementById('drag-list');
+  if (!list) return;
+
+  list.addEventListener('dragstart', e => {
+    _dragSrc = e.target.closest('.drag-item');
+    if (!_dragSrc) return;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', ''); // required for Firefox
+    _dragSrc.style.opacity = '0.4';
+  });
+
+  list.addEventListener('dragend', () => {
+    if (_dragSrc) _dragSrc.style.opacity = '';
+    list.querySelectorAll('.drag-item').forEach(i => i.classList.remove('drag-over'));
+    _dragSrc = null;
+  });
+
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    const target = e.target.closest('.drag-item');
+    if (!target || target === _dragSrc) return;
+    list.querySelectorAll('.drag-item').forEach(i => i.classList.remove('drag-over'));
+    target.classList.add('drag-over');
+  });
+
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+    const target = e.target.closest('.drag-item');
+    if (!target || !_dragSrc || target === _dragSrc) return;
+    const items = [...list.querySelectorAll('.drag-item')];
+    const srcIdx = items.indexOf(_dragSrc);
+    const tgtIdx = items.indexOf(target);
+    if (srcIdx < tgtIdx) list.insertBefore(_dragSrc, target.nextSibling);
+    else                 list.insertBefore(_dragSrc, target);
+    list.querySelectorAll('.drag-item').forEach(i => i.classList.remove('drag-over'));
+  });
+}
+
+function _applyOrderToDashboard(order) {
+  const first = document.querySelector('.card[data-script]');
+  if (!first) return;
+  const container = first.parentNode;
+  order.forEach(panelId => {
+    const card = document.getElementById(panelId);
+    if (card) container.appendChild(card);
+  });
+}
+
+function applyPanelOrder() {
+  const order = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
+  if (!order.length) return;
+  _applyOrderToDashboard(order);
+  // Sync modal list to match saved order
+  const list = document.getElementById('drag-list');
+  if (list) {
+    order.forEach(panelId => {
+      const item = list.querySelector(`.drag-item[data-panel="${panelId}"]`);
+      if (item) list.appendChild(item);
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Panel visibility — localStorage
 // ---------------------------------------------------------------------------
 const PREFS_KEY = 'dashboardPanels';
@@ -632,6 +709,10 @@ function savePanelPrefs() {
     }
   });
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  // Save and apply drag order from current modal list
+  const order = [...document.querySelectorAll('#drag-list .drag-item')].map(el => el.dataset.panel);
+  localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+  _applyOrderToDashboard(order);
   bootstrap.Modal.getInstance(document.getElementById('customiseModal'))?.hide();
 }
 
@@ -655,10 +736,12 @@ function refreshStatusStrip() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  renderScriptCharts();   // render while all panels visible — must come first
+  applyPanelOrder();      // reorder cards before rendering
+  renderScriptCharts();   // render while all panels visible — must come before hiding
   applyPanelPrefs();      // hide unchecked panels
   initFoldState();        // fold collapsed panels
   applyTitleOverrides();  // apply saved title renames
+  initModalDrag();        // wire drag handles in 自定义 modal
   setInterval(refreshStatusStrip, 60000);
 });
 </script>
