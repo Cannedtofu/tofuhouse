@@ -219,16 +219,14 @@ def _run_gpu_price_fetch():
         _gpu_fetch_lock.release()
 
 
-_scheduler = BackgroundScheduler(daemon=True)
+# Explicit SGT timezone so all cron hours are unambiguous regardless of server clock.
+_scheduler = BackgroundScheduler(daemon=True, timezone="Asia/Singapore")
 
-# 05:00 SGT = 21:00 UTC (server runs UTC+8)
-_scheduler.add_job(_scheduled_daily_fetch, "cron", hour=21, minute=0, id="daily_fetch")
-# 09:00 SGT = 01:00 UTC
-_scheduler.add_job(_scheduled_digest_send, "cron", hour=1, minute=0, id="digest_send")
-# GPU prices: daily at 09:00 SGT (01:00 UTC)
-_scheduler.add_job(
+_scheduler.add_job(_scheduled_daily_fetch, "cron", hour=5,  minute=0, id="daily_fetch")   # 05:00 SGT
+_scheduler.add_job(_scheduled_digest_send, "cron", hour=9,  minute=0, id="digest_send")   # 09:00 SGT
+_scheduler.add_job(                                                                         # 09:00 SGT
     lambda: _run_gpu_price_fetch(),
-    "cron", hour=1, minute=0, id="gpu_price_daily",
+    "cron", hour=9, minute=0, id="gpu_price_daily",
 )
 
 _scheduler.start()
