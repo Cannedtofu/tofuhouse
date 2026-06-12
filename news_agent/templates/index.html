@@ -11,51 +11,97 @@
   <!-- LEFT: article list grouped by source -->
   <div class="col-4 border-end d-flex flex-column" style="height: 100%; overflow: hidden;">
     <div id="article-list" style="overflow-y: auto; flex: 1;">
-      {% if grouped_articles %}
-        {% for group in grouped_articles %}
+      {% set has_articles = non_nitter_groups or nitter_groups %}
+      {% if has_articles %}
+
+        {# --- Non-nitter sources (all collapsed by default) --- #}
+        {% for group in non_nitter_groups %}
           {% set grp_id = "src-grp-" ~ loop.index %}
-          {% set is_nitter = group.type == 'nitter' %}
           <div class="source-group">
             <div class="source-group-header px-3 py-2 d-flex align-items-center gap-2 border-bottom"
-                 data-bs-toggle="collapse"
-                 data-bs-target="#{{ grp_id }}"
-                 aria-expanded="{{ 'false' if is_nitter else 'true' }}"
+                 data-bs-toggle="collapse" data-bs-target="#{{ grp_id }}"
+                 aria-expanded="false"
                  style="cursor:pointer; background:#f1f3f5; user-select:none;">
               <span class="fw-semibold" style="font-size:.82rem">{{ group.name }}</span>
               <span class="badge rounded-pill ms-1
-                {% if group.type == 'nitter' %}bg-info text-dark
-                {% elif group.type == 'rss' %}bg-warning text-dark
+                {% if group.type == 'rss' %}bg-warning text-dark
+                {% elif group.type == 'youtube' %}bg-danger
                 {% else %}bg-success{% endif %}"
                 style="font-size:.65rem">{{ group.type }}</span>
               <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
               <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
             </div>
-            <div id="{{ grp_id }}" class="collapse {{ '' if is_nitter else 'show' }}">
+            <div id="{{ grp_id }}" class="collapse">
               {% for a in group.articles %}
                 <div class="article-list-item px-3 py-2 border-bottom position-relative"
-                     data-id="{{ a.id }}"
-                     onclick="selectArticle({{ a.id }})"
-                     style="cursor:pointer">
+                     data-id="{{ a.id }}" onclick="selectArticle({{ a.id }})" style="cursor:pointer">
                   <div class="fw-medium lh-sm pe-3" style="font-size:.88rem">{{ a.title or a.url }}</div>
                   <div class="text-muted" style="font-size:.75rem">
-                    {% set pub = a.published_at or a.fetched_at %}
-                    {% if pub %}{{ pub[:10] }}{% endif %}
+                    {% set pub = a.published_at or a.fetched_at %}{% if pub %}{{ pub[:10] }}{% endif %}
                   </div>
                   {% if is_admin %}
                   <button class="btn btn-link p-0 text-danger position-absolute top-50 end-0 translate-middle-y me-2"
                           style="font-size:.8rem; opacity:0.35; line-height:1;"
-                          onclick="event.stopPropagation(); deleteArticle({{ a.id }})"
-                          title="删除">✕</button>
+                          onclick="event.stopPropagation(); deleteArticle({{ a.id }})" title="删除">✕</button>
                   {% endif %}
                 </div>
               {% endfor %}
             </div>
           </div>
         {% endfor %}
+
+        {# --- All nitter sources nested under a single "推特" super-group --- #}
+        {% if nitter_groups %}
+          {% set ns = namespace(total=0) %}
+          {% for g in nitter_groups %}{% set ns.total = ns.total + g.articles|length %}{% endfor %}
+          <div class="source-group">
+            <div class="source-group-header px-3 py-2 d-flex align-items-center gap-2 border-bottom"
+                 data-bs-toggle="collapse" data-bs-target="#twitter-super-group"
+                 aria-expanded="false"
+                 style="cursor:pointer; background:#f1f3f5; user-select:none;">
+              <span class="fw-semibold" style="font-size:.82rem">推特</span>
+              <span class="badge bg-info text-dark rounded-pill ms-1" style="font-size:.65rem">nitter</span>
+              <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ ns.total }}</span>
+              <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
+            </div>
+            <div class="collapse" id="twitter-super-group">
+              {% for group in nitter_groups %}
+                {% set grp_id = "src-grp-nitter-" ~ loop.index %}
+                <div class="source-group">
+                  <div class="source-group-header px-3 ps-4 py-2 d-flex align-items-center gap-2 border-bottom"
+                       data-bs-toggle="collapse" data-bs-target="#{{ grp_id }}"
+                       aria-expanded="false"
+                       style="cursor:pointer; background:#f8f9fa; user-select:none;">
+                    <span class="fw-semibold" style="font-size:.82rem">{{ group.name }}</span>
+                    <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
+                    <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
+                  </div>
+                  <div id="{{ grp_id }}" class="collapse">
+                    {% for a in group.articles %}
+                      <div class="article-list-item px-3 ps-4 py-2 border-bottom position-relative"
+                           data-id="{{ a.id }}" onclick="selectArticle({{ a.id }})" style="cursor:pointer">
+                        <div class="fw-medium lh-sm pe-3" style="font-size:.88rem">{{ a.title or a.url }}</div>
+                        <div class="text-muted" style="font-size:.75rem">
+                          {% set pub = a.published_at or a.fetched_at %}{% if pub %}{{ pub[:10] }}{% endif %}
+                        </div>
+                        {% if is_admin %}
+                        <button class="btn btn-link p-0 text-danger position-absolute top-50 end-0 translate-middle-y me-2"
+                                style="font-size:.8rem; opacity:0.35; line-height:1;"
+                                onclick="event.stopPropagation(); deleteArticle({{ a.id }})" title="删除">✕</button>
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
       {% else %}
         <div class="text-center text-muted p-4">
           <p>暂无文章。</p>
-          <p><a href="/sources">添加来源</a>后点击 <strong>立即获取</strong>。</p>
+          <p><a href="/sources">添加来源</a>后点击 <strong>抓取已选信息源</strong>。</p>
         </div>
       {% endif %}
     </div>
@@ -68,15 +114,12 @@
     <div class="px-3 pt-3 pb-2 border-bottom bg-white flex-shrink-0">
       <!-- Row 1: action buttons -->
       <div class="d-flex align-items-center gap-2 mb-2">
-        <span id="scheduler-badge" class="badge bg-success" style="display:none" title="Nitter 来源定时自动抓取">
-          ⏱ 自动获取已开启
-        </span>
-        <button id="digest-btn" type="button" class="btn btn-sm btn-outline-primary" onclick="generateDigest()">
-          <span id="digest-label">✦ AI 简报</span>
-          <span id="digest-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
+        <button id="digest-btn" type="button" class="btn btn-sm btn-outline-secondary" onclick="generateDigest()">
+          <span id="digest-label">✦ 生成一次性AI简报</span>
+          <span id="digest-spinner" class="spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
-        <button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
-          <span id="fetch-label">⬇ 立即获取</span>
+<button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
+          <span id="fetch-label">⬇ 抓取已选信息源</span>
           <span id="fetch-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
         </button>
       </div>
@@ -94,25 +137,33 @@
           <label class="form-label mb-1 small fw-semibold">来源</label>
           {% set active_ids = selected_source_ids if selected_source_ids else followed_source_ids %}
           <div class="dropdown">
-            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
               {% if active_ids %}已选 {{ active_ids|length }} 个{% else %}全部来源{% endif %}
             </button>
-            <ul class="dropdown-menu p-2" style="min-width:200px">
+            <ul class="dropdown-menu p-2" style="min-width:220px; max-height:340px; overflow-y:auto;">
               <li class="d-flex gap-1 mb-1 px-1">
                 <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
                         onclick="setAllSources(true)">全选</button>
                 <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
                         onclick="setAllSources(false)">清空</button>
               </li>
-              <li><hr class="dropdown-divider my-1"></li>
-              {% for s in all_sources %}
-              <li>
-                <label class="dropdown-item d-flex align-items-center gap-2 py-1">
-                  <input type="checkbox" name="source_ids" value="{{ s.id }}"
-                    {% if s.id in active_ids %}checked{% endif %}>
-                  <span>{{ s.name }} <small class="text-muted">({{ s.type }})</small></span>
-                </label>
-              </li>
+              {% set nitter_grp  = all_sources | selectattr('type', 'equalto', 'nitter')  | list %}
+              {% set rss_web_grp = (all_sources | selectattr('type', 'equalto', 'rss') | list) + (all_sources | selectattr('type', 'equalto', 'web') | list) %}
+              {% set youtube_grp = all_sources | selectattr('type', 'equalto', 'youtube') | list %}
+              {% for label, grp in [('推特', nitter_grp), ('RSS / 网站', rss_web_grp), ('YouTube', youtube_grp)] %}
+                {% if grp %}
+                <li><hr class="dropdown-divider my-1"></li>
+                <li><span class="dropdown-header" style="font-size:.72rem">{{ label }}</span></li>
+                {% for s in grp %}
+                <li>
+                  <label class="dropdown-item d-flex align-items-center gap-2 py-1">
+                    <input type="checkbox" name="source_ids" value="{{ s.id }}"
+                      {% if s.id in active_ids %}checked{% endif %}>
+                    <span>{{ s.name }}</span>
+                  </label>
+                </li>
+                {% endfor %}
+                {% endif %}
               {% endfor %}
             </ul>
           </div>
@@ -126,7 +177,7 @@
       <div id="fetch-toast" class="alert mb-0 mt-2" style="display:none"></div>
     </div>
 
-    <!-- AI Digest panel (collapsible, sits between header and detail) -->
+<!-- AI Digest panel (collapsible, sits between header and detail) -->
     <div id="digest-panel" class="border-bottom flex-shrink-0" style="display:none">
       <div class="d-flex justify-content-between align-items-center px-3 py-2 bg-white border-bottom">
         <span class="fw-semibold small">✦ AI Digest</span>
@@ -148,9 +199,27 @@
       <div id="detail-content" style="display:none">
         <div class="d-flex justify-content-between align-items-start mb-1">
           <h5 id="detail-title" class="mb-0 me-3"></h5>
-          <div class="d-flex gap-2 flex-shrink-0">
+          <div class="d-flex gap-2 flex-shrink-0 align-items-center">
             <a id="detail-link" href="#" target="_blank" rel="noopener"
                class="btn btn-sm btn-outline-secondary">打开 ↗</a>
+            <a id="transcript-link" href="#" target="_blank"
+               class="btn btn-sm btn-outline-danger" style="display:none">▶ 转录此视频</a>
+            <!-- Translate button -->
+            <button id="translate-btn" class="btn btn-sm btn-outline-primary" onclick="translateArticle()" style="display:none">
+              <span id="translate-label">中文</span>
+              <span id="translate-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
+            </button>
+            <!-- PDF download split-button -->
+            <div class="btn-group" id="pdf-download-group" style="display:none">
+              <a id="pdf-download-btn" href="#" class="btn btn-sm btn-outline-secondary">⬇ PDF</a>
+              <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">更多</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a id="pdf-original-btn" class="dropdown-item" href="#">⬇ 原文 PDF</a></li>
+                <li><a id="pdf-bilingual-btn" class="dropdown-item" href="#" style="display:none">⬇ 中英双语 PDF</a></li>
+              </ul>
+            </div>
             {% if is_admin %}
             <button id="detail-delete-btn" class="btn btn-sm btn-outline-danger"
                     onclick="deleteArticle(currentId)">删除</button>
@@ -164,20 +233,35 @@
 
   </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
+<style>
+/* Article body — images */
+#detail-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 8px 0;
+  border-radius: 4px;
+}
+/* Article body — Chinese translation blockquotes */
+#detail-body blockquote {
+  border-left: 3px solid #2563eb;
+  margin: 3px 0 14px 0;
+  padding: 6px 14px;
+  background: #eff6ff;
+  color: #1e40af;
+  font-style: normal;
+  border-radius: 0 4px 4px 0;
+}
+#detail-body blockquote p { margin: 0; color: inherit; }
+/* Ensure pre/code doesn't overflow */
+#detail-body pre { overflow-x: auto; background: #f8f9fa; padding: 10px; border-radius: 4px; }
+#detail-body code { font-size: .88em; }
+</style>
 <script>
-// Show scheduler badge if APScheduler is active
-fetch('/scheduler/status').then(r => r.json()).then(data => {
-  if (data.running) {
-    const badge = document.getElementById('scheduler-badge');
-    badge.style.display = 'inline-block';
-    if (data.next_nitter_fetch) {
-      badge.title = 'Nitter 定时自动抓取。下次：' + data.next_nitter_fetch;
-    }
-  }
-}).catch(() => {});
 
 function setAllSources(checked) {
   document.querySelectorAll('input[name="source_ids"]').forEach(cb => cb.checked = checked);
@@ -188,6 +272,15 @@ const byId = {};
 ARTICLES.forEach(a => byId[a.id] = a);
 
 let currentId = null;
+// Per-article translation cache: id → bilingual markdown string
+const _translationCache = {};
+
+function _renderMarkdown(md) {
+  if (typeof marked !== 'undefined') {
+    return marked.parse(md, { breaks: true });
+  }
+  return md.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 function selectArticle(id) {
   currentId = id;
@@ -203,46 +296,184 @@ function selectArticle(id) {
   document.getElementById('detail-title').textContent = a.title || a.url;
   document.getElementById('detail-link').href = a.url;
 
+  const transcriptLink = document.getElementById('transcript-link');
+  if (a.url && a.url.includes('youtube.com/watch')) {
+    transcriptLink.href = '/transcript?url=' + encodeURIComponent(a.url);
+    transcriptLink.style.display = 'inline-block';
+  } else {
+    transcriptLink.style.display = 'none';
+  }
+
   const pub = (a.published_at || a.fetched_at || '').slice(0, 10);
   document.getElementById('detail-meta').textContent =
     [a.source_name, pub].filter(Boolean).join(' · ');
 
-  const raw = a.content || '（暂无内容）';
   const bodyEl = document.getElementById('detail-body');
-  if (typeof marked !== 'undefined') {
-    bodyEl.innerHTML = marked.parse(raw, { breaks: true });
-  } else {
-    bodyEl.textContent = raw;
-  }
   document.getElementById('detail-panel').scrollTop = 0;
+
+  const translateBtn = document.getElementById('translate-btn');
+  const translateLabel = document.getElementById('translate-label');
+  const translateSpinner = document.getElementById('translate-spinner');
+  const pdfGroup = document.getElementById('pdf-download-group');
+  const pdfBtn = document.getElementById('pdf-download-btn');
+  const pdfOriginalBtn = document.getElementById('pdf-original-btn');
+  const pdfBilingualBtn = document.getElementById('pdf-bilingual-btn');
+
+  if (a.content) {
+    // Restore bilingual view from DB-persisted translation (survives page refresh)
+    if (a.translated_content && !_translationCache[id]) {
+      _translationCache[id] = a.translated_content;
+    }
+
+    translateBtn.style.display = 'inline-block';
+    translateSpinner.style.display = 'none';
+    translateBtn.disabled = false;
+    pdfGroup.style.display = 'inline-flex';
+    pdfOriginalBtn.href = `/articles/${id}/download/pdf?version=original`;
+
+    if (_translationCache[id]) {
+      // Already translated — show bilingual as the default view
+      bodyEl.innerHTML = _renderMarkdown(_translationCache[id]);
+      translateLabel.textContent = '原文';
+      translateBtn.dataset.mode = 'bilingual';
+      pdfBtn.href = `/articles/${id}/download/pdf?version=translated`;
+      pdfBilingualBtn.href = `/articles/${id}/download/pdf?version=translated`;
+      pdfBilingualBtn.style.display = 'block';
+    } else {
+      bodyEl.innerHTML = _renderMarkdown(a.content || '（暂无内容）');
+      translateLabel.textContent = '中文';
+      translateBtn.dataset.mode = 'original';
+      pdfBtn.href = `/articles/${id}/download/pdf?version=original`;
+      pdfBilingualBtn.style.display = 'none';
+    }
+  } else {
+    bodyEl.innerHTML = '（暂无内容）';
+    translateBtn.style.display = 'none';
+    pdfGroup.style.display = 'none';
+  }
 }
 
-// ---- AI Digest ----
-function generateDigest() {
-  const ids = ARTICLES.map(a => a.id);
-  if (ids.length === 0) {
-    alert('暂无文章可生成简报，请先应用筛选条件并获取文章。');
+function translateArticle() {
+  if (!currentId) return;
+  const a = byId[currentId];
+  const id = currentId;
+  const bodyEl = document.getElementById('detail-body');
+  const translateBtn = document.getElementById('translate-btn');
+  const translateLabel = document.getElementById('translate-label');
+  const translateSpinner = document.getElementById('translate-spinner');
+  const mode = translateBtn.dataset.mode;
+
+  // Toggle: if already showing bilingual, switch back to original
+  if (mode === 'bilingual') {
+    bodyEl.innerHTML = _renderMarkdown(a.content || '');
+    translateLabel.textContent = '中文';
+    translateBtn.dataset.mode = 'original';
     return;
   }
 
+  // If cached, show immediately
+  if (_translationCache[id]) {
+    bodyEl.innerHTML = _renderMarkdown(_translationCache[id]);
+    translateLabel.textContent = '原文';
+    translateBtn.dataset.mode = 'bilingual';
+    return;
+  }
+
+  // Start translation
+  translateBtn.disabled = true;
+  translateLabel.textContent = '翻译中…';
+  translateSpinner.style.display = 'inline-block';
+  translateBtn.dataset.mode = 'translating';
+
+  fetch(`/articles/${id}/translate`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        _resetTranslateBtn(id);
+        alert('翻译失败：' + data.error);
+        return;
+      }
+      if (data.status === 'done') {
+        // Cached on server already
+        _translationCache[id] = data.content;
+        _showBilingual(id);
+        return;
+      }
+      if (data.job_id) {
+        _pollTranslation(id, data.job_id);
+      }
+    })
+    .catch(() => { _resetTranslateBtn(id); alert('翻译请求失败。'); });
+}
+
+function _pollTranslation(articleId, jobId) {
+  const interval = setInterval(() => {
+    if (currentId !== articleId) { clearInterval(interval); return; }
+    fetch(`/articles/translate/status/${jobId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'done') {
+          clearInterval(interval);
+          _translationCache[articleId] = data.content;
+          if (currentId === articleId) _showBilingual(articleId);
+        } else if (data.status === 'error') {
+          clearInterval(interval);
+          _resetTranslateBtn(articleId);
+          alert('翻译失败：' + (data.error || '未知错误'));
+        }
+        // status === 'running': keep polling
+      })
+      .catch(() => { clearInterval(interval); _resetTranslateBtn(articleId); });
+  }, 2000);
+}
+
+function _showBilingual(id) {
+  if (currentId !== id) return;
+  const bodyEl = document.getElementById('detail-body');
+  const translateBtn = document.getElementById('translate-btn');
+  const translateLabel = document.getElementById('translate-label');
+  const translateSpinner = document.getElementById('translate-spinner');
+  const pdfBilingualBtn = document.getElementById('pdf-bilingual-btn');
+
+  bodyEl.innerHTML = _renderMarkdown(_translationCache[id]);
+  translateLabel.textContent = '原文';
+  translateSpinner.style.display = 'none';
+  translateBtn.disabled = false;
+  translateBtn.dataset.mode = 'bilingual';
+
+  pdfBilingualBtn.href = `/articles/${id}/download/pdf?version=translated`;
+  pdfBilingualBtn.style.display = 'block';
+}
+
+function _resetTranslateBtn(id) {
+  if (currentId !== id) return;
+  const translateBtn = document.getElementById('translate-btn');
+  const translateLabel = document.getElementById('translate-label');
+  const translateSpinner = document.getElementById('translate-spinner');
+  translateBtn.disabled = false;
+  translateLabel.textContent = '中文';
+  translateSpinner.style.display = 'none';
+  translateBtn.dataset.mode = 'original';
+}
+
+// ---- AI Digest ----
+
+
+function _startDigest(label) {
   const btn = document.getElementById('digest-btn');
-  const label = document.getElementById('digest-label');
-  const spinner = document.getElementById('digest-spinner');
-  const panel = document.getElementById('digest-panel');
-  const spinnerPanel = document.getElementById('digest-spinner-panel');
-  const textEl = document.getElementById('digest-text');
-
   btn.disabled = true;
-  label.textContent = '生成中，晚点再回来看看吧…';
-  spinner.style.display = 'inline-block';
-  panel.style.display = 'block';
-  spinnerPanel.style.display = 'block';
-  textEl.textContent = '';
+  document.getElementById('digest-label').textContent = label || '生成中…';
+  document.getElementById('digest-spinner').style.display = 'inline-block';
+  document.getElementById('digest-panel').style.display = 'block';
+  document.getElementById('digest-spinner-panel').style.display = 'block';
+  document.getElementById('digest-text').textContent = '';
+}
 
+function _submitDigest(body) {
   fetch('/digest/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ article_ids: ids })
+    body: JSON.stringify(body)
   })
     .then(r => r.json())
     .then(data => {
@@ -251,6 +482,17 @@ function generateDigest() {
     })
     .catch(() => showDigestError('请求失败。'));
 }
+
+function generateDigest() {
+  const ids = ARTICLES.map(a => a.id);
+  if (ids.length === 0) {
+    alert('暂无文章可生成简报，请先应用筛选条件并获取文章。');
+    return;
+  }
+  _startDigest('✦ 生成中…');
+  _submitDigest({ article_ids: ids });
+}
+
 
 function pollDigestStatus(jobId) {
   const interval = setInterval(() => {
@@ -266,7 +508,6 @@ function pollDigestStatus(jobId) {
           clearInterval(interval);
           showDigestError(data.result || '简报生成失败。');
         }
-        // status === 'running': keep polling
       })
       .catch(() => { clearInterval(interval); showDigestError('轮询失败。'); });
   }, 2000);
@@ -274,7 +515,7 @@ function pollDigestStatus(jobId) {
 
 function resetDigestBtn() {
   document.getElementById('digest-btn').disabled = false;
-  document.getElementById('digest-label').textContent = '✦ AI 简报';
+  document.getElementById('digest-label').textContent = '✦ 生成一次性AI简报';
   document.getElementById('digest-spinner').style.display = 'none';
 }
 
@@ -283,6 +524,7 @@ function showDigestError(msg) {
   document.getElementById('digest-spinner-panel').style.display = 'none';
   document.getElementById('digest-text').textContent = msg;
 }
+
 
 function renderDigest(md) {
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -376,7 +618,7 @@ function pollFetchStatus() {
 
 function resetFetchBtn() {
   document.getElementById('fetch-btn').disabled = false;
-  document.getElementById('fetch-label').textContent = '⬇ 立即获取';
+  document.getElementById('fetch-label').textContent = '⬇ 抓取已选信息源';
   document.getElementById('fetch-spinner').style.display = 'none';
 }
 

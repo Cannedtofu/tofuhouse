@@ -10,9 +10,9 @@ import time
 
 import db
 from config import MIN_CONTENT_WORDS, NITTER_INTER_SOURCE_DELAY
-from fetchers.rss import fetch_nitter_hybrid, fetch_rss
+from fetchers.rss import fetch_nitter_hybrid, fetch_rss, fetch_youtube
 from fetchers.web import fetch_web
-from summarizer import summarize_new_articles
+from article_summarizer import summarize_new_articles
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +63,9 @@ def run_fetch_and_summarize(
         try:
             all_stored = db.get_articles(source_ids=[source_id])
 
-            if source_type == "nitter":
-                # Tweets are always short by nature — never re-fetch them.
-                # Treat every stored tweet URL as known so the fetcher skips them
-                # and pagination doesn't trigger for already-seen tweets.
+            if source_type in ("nitter", "youtube", "xiaoyuzhou", "bilibili"):
+                # Short by nature — never Playwright-enrich. Treat all stored
+                # URLs as known so already-seen entries are always skipped.
                 existing_urls = {row["url"] for row in all_stored}
             else:
                 # For RSS/web: re-fetch articles whose stored content is too thin,
@@ -83,8 +82,11 @@ def run_fetch_and_summarize(
                 if thin_count:
                     logger.info("  %d existing article(s) have thin content — will re-fetch", thin_count)
 
-            if source_type == "rss":
-                articles = fetch_rss(source_url, known_urls=existing_urls, date_from=date_from)
+            if source_type in ("rss", "youtube"):
+                if source_type == "youtube":
+                    articles = fetch_youtube(source_url, known_urls=existing_urls, date_from=date_from)
+                else:
+                    articles = fetch_rss(source_url, known_urls=existing_urls, date_from=date_from)
 
             elif source_type == "nitter":
                 handle = source_url.replace("nitter:", "").lstrip("@")
@@ -94,6 +96,14 @@ def run_fetch_and_summarize(
 
             elif source_type == "web":
                 articles = fetch_web(source_url, known_urls=existing_urls, date_from=date_from, date_to=date_to)
+
+            elif source_type == "xiaoyuzhou":
+                from fetchers.xiaoyuzhou import fetch_xiaoyuzhou
+                articles = fetch_xiaoyuzhou(source_url, known_urls=existing_urls, date_from=date_from)
+
+            elif source_type == "bilibili":
+                from fetchers.bilibili import fetch_bilibili
+                articles = fetch_bilibili(source_url, known_urls=existing_urls, date_from=date_from)
 
             else:
                 result["error"] = f"Unknown source type '{source_type}'"

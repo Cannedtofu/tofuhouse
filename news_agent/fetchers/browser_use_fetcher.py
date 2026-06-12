@@ -197,6 +197,85 @@ def _bs_extract_main_content(html: str) -> str:
     return ""
 
 
+# URL path segments that indicate non-article images (icons, logos, avatars, etc.)
+_NON_CONTENT_URL_PATTERNS = (
+    "/icon", "/logo", "/avatar", "/author", "/profile", "/social",
+    "/badge", "/button", "/banner", "/sprite", "/pixel", "/track",
+    "/share-", "/share_", "-share.", "/widget", "/thumbnail",
+    "gravatar.com", "wp-includes", "/favicon",
+)
+
+
+def _is_content_image(img_tag: Tag, url: str) -> bool:
+    """
+    Return True only when an <img> looks like a real article illustration.
+    Rejects tracking pixels, icons, logos, avatars, and small decorative images.
+    """
+    import re as _re
+
+    # Skip data URIs and relative paths we couldn't resolve
+    if not url or not url.startswith("http"):
+        return False
+
+    # URL-based reject list
+    url_lower = url.lower()
+    if any(pat in url_lower for pat in _NON_CONTENT_URL_PATTERNS):
+        return False
+
+    # Tiny images by explicit width/height attribute (tracking pixels, icons)
+    try:
+        w = int(img_tag.get("width", 0))
+        h = int(img_tag.get("height", 0))
+        if 0 < w <= 32 or 0 < h <= 32:
+            return False
+        # Skip if both dimensions are known and the image is square and tiny
+        if w and h and w == h and w <= 64:
+            return False
+    except (ValueError, TypeError):
+        pass
+
+    # Alt text hints
+    alt = (img_tag.get("alt", "") or "").lower()
+    if any(kw in alt for kw in ("icon", "logo", "avatar", "author photo", "profile")):
+        return False
+
+    return True
+
+
+def _extract_article_zone_images(html: str) -> list[str]:
+    """
+    Return markdown image strings for images found *inside* the article container.
+
+    Finds the same article zone as _bs_extract_main_content (first matching
+    selector with enough text), then collects only images inside that element.
+    Returns [] if no article zone can be identified — caller should skip injection
+    rather than risk pulling in unrelated page images.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    # Remove obvious chrome before selector search
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside", "noscript"]):
+        tag.decompose()
+
+    article_el = None
+    for selector in _CONTENT_SELECTORS:
+        el = soup.select_one(selector)
+        if el and len(el.get_text(strip=True)) >= _MIN_BS_CHARS:
+            article_el = el
+            break
+
+    if article_el is None:
+        return []  # Can't identify article zone; skip injection to avoid false positives
+
+    images: list[str] = []
+    for img in article_el.find_all("img"):
+        url = _get_img_url(img)
+        if _is_content_image(img, url):
+            alt = img.get("alt", "")
+            images.append(f"![{alt}]({url})")
+
+    return images
+
+
 def _extract_with_images(html: str) -> str:
     """
     Extract article text as Markdown with images in their correct positions.
@@ -253,29 +332,19 @@ def _extract_with_images(html: str) -> str:
         if len(bs_text) > len(text_md.strip()):
             text_md = bs_text
 
-    # Collect content images from original HTML (filter out icons/trackers)
-    raw_soup = BeautifulSoup(html, "html.parser")
-    images: list[str] = []
-    for img in raw_soup.find_all("img"):
-        url = _get_img_url(img)
-        if not url:
-            continue
-        # Skip tiny tracking pixels and icons (width/height ≤ 4px when stated)
-        try:
-            w = int(img.get("width", 100))
-            h = int(img.get("height", 100))
-            if w <= 4 or h <= 4:
-                continue
-        except (ValueError, TypeError):
-            pass
-        alt = img.get("alt", "")
-        images.append(f"![{alt}]({url})")
+    # Collect content images scoped to the article zone only.
+    # Using the full page HTML here is the root cause of spurious images: nav icons,
+    # sidebar thumbnails, author avatars, and ad pixels all appear in raw HTML but
+    # have nothing to do with the article.  We restrict to the same article container
+    # that _bs_extract_main_content uses, and only fall back to full-page if we
+    # couldn't find a container (in which case we skip injection entirely).
+    images: list[str] = _extract_article_zone_images(html)
 
     if not images:
-        logger.info("[extract] no images found in page HTML")
+        logger.info("[extract] no article-zone images found — skipping injection")
         return text_md
 
-    logger.info("[extract] injecting %d image(s) into article text", len(images))
+    logger.info("[extract] injecting %d article-zone image(s)", len(images))
 
     # Distribute images evenly between paragraphs
     paragraphs = [p for p in text_md.split("\n\n") if p.strip()]

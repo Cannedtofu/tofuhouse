@@ -4,49 +4,6 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-md-6 col-lg-5">
-    <div class="card p-4">
-      <h5 class="mb-4">邮件简报设置</h5>
-
-      {% if success %}
-      <div class="alert alert-success py-2 small">设置已保存。</div>
-      {% endif %}
-
-      <form method="post">
-        <div class="mb-3">
-          <div class="form-check form-switch">
-            <input type="checkbox" name="digest_enabled" class="form-check-input" id="digestEnabled"
-                   value="1" {% if user['digest_enabled'] %}checked{% endif %}>
-            <label class="form-check-label fw-medium" for="digestEnabled">
-              接收邮件简报
-            </label>
-          </div>
-          <div class="form-text">简报将发送至 <strong>{{ g.current_user.email }}</strong></div>
-        </div>
-
-        <div class="mb-4">
-          <label class="form-label fw-medium">发送频率</label>
-          <select name="digest_frequency_days" class="form-select">
-            <option value="1"  {% if user['digest_frequency_days'] == 1  %}selected{% endif %}>每天</option>
-            <option value="3"  {% if user['digest_frequency_days'] == 3  %}selected{% endif %}>每 3 天</option>
-            <option value="7"  {% if user['digest_frequency_days'] == 7  %}selected{% endif %}>每周</option>
-            <option value="14" {% if user['digest_frequency_days'] == 14 %}selected{% endif %}>每 2 周</option>
-          </select>
-          <div class="form-text">
-            简报将涵盖过去 <span id="freq-label">{{ user['digest_frequency_days'] }}</span> 天的内容，并在每个周期开始时发送。
-          </div>
-        </div>
-
-        {% if user['digest_last_sent'] %}
-        <p class="text-muted small mb-3">上次发送：{{ user['digest_last_sent'] }}</p>
-        {% endif %}
-
-        <button type="submit" class="btn btn-primary">保存</button>
-      </form>
-    </div>
-
-    <p class="text-muted small mt-3 px-1">
-      每 6 小时检查一次简报发送条件，请确保服务器上已正确配置 SMTP 邮件凭据。
-    </p>
 
     <!-- Token usage -->
     <div class="card p-4 mt-4">
@@ -94,14 +51,177 @@
       </table>
       {% endif %}
     </div>
+  {% if is_admin %}
+  <!-- Admin: all-user digest settings (per preset) -->
+  <div class="card p-4 mt-4">
+    <h5 class="mb-3">管理员：用户简报设置</h5>
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>邮箱</th>
+          <th>简报</th>
+          <th>接收简报</th>
+          <th>频率</th>
+          <th>上次发送</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in admin_digest_rows %}
+        <tr>
+          <td class="small">{{ row.email }}</td>
+          <td class="small text-muted">{{ row.preset_name }}</td>
+          {% if row.preset_id %}
+          <td>
+            <form method="post" action="/admin/presets/{{ row.preset_id }}/digest">
+              <input type="hidden" name="digest_frequency_days" value="{{ row.digest_frequency_days }}">
+              <div class="form-check form-switch mb-0">
+                <input type="checkbox" name="digest_enabled" class="form-check-input"
+                       value="1" {% if row.digest_enabled %}checked{% endif %}
+                       onchange="this.form.submit()">
+              </div>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="/admin/presets/{{ row.preset_id }}/digest">
+              {% if row.digest_enabled %}<input type="hidden" name="digest_enabled" value="1">{% endif %}
+              <select name="digest_frequency_days" class="form-select form-select-sm w-auto"
+                      onchange="this.form.submit()">
+                <option value="1"  {% if row.digest_frequency_days == 1  %}selected{% endif %}>每天</option>
+                <option value="3"  {% if row.digest_frequency_days == 3  %}selected{% endif %}>每 3 天</option>
+                <option value="7"  {% if row.digest_frequency_days == 7  %}selected{% endif %}>每周</option>
+                <option value="14" {% if row.digest_frequency_days == 14 %}selected{% endif %}>每 2 周</option>
+              </select>
+            </form>
+          </td>
+          <td class="small text-muted">{{ row.digest_last_sent[:10] if row.digest_last_sent else '—' }}</td>
+          {% else %}
+          <td colspan="3" class="small text-muted">无配置（用户尚未访问订阅设置）</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Admin: user follow lists (collapsed by default) -->
+  <div class="card mt-4">
+    <div class="card-header d-flex align-items-center gap-2 py-3 px-4"
+         style="cursor:pointer" data-bs-toggle="collapse"
+         data-bs-target="#admin-follows-panel" aria-expanded="false"
+         aria-controls="admin-follows-panel">
+      <span class="fw-medium me-auto">管理员：用户订阅来源</span>
+      <span class="text-muted small follows-caret">▸</span>
+    </div>
+    <div class="collapse" id="admin-follows-panel">
+      <div class="card-body px-4 pt-3 pb-2">
+        {% for u in all_users %}
+        <!-- Per-user collapsible row -->
+        <div id="follows-{{ u.id }}" class="mb-1">
+          <div class="d-flex align-items-center py-2 px-1 rounded"
+               style="cursor:pointer; user-select:none"
+               data-bs-toggle="collapse"
+               data-bs-target="#follows-body-{{ u.id }}"
+               aria-expanded="false"
+               aria-controls="follows-body-{{ u.id }}">
+            <span class="small fw-medium me-auto">{{ u.email }}</span>
+            {% set followed_count = user_follows[u.id] | selectattr("followed") | list | length %}
+            <span class="badge bg-secondary me-2" style="font-weight:400">{{ followed_count }} 个来源</span>
+            <span class="text-muted small user-caret-{{ u.id }}">▸</span>
+          </div>
+          <div class="collapse" id="follows-body-{{ u.id }}">
+            <form method="post" action="/admin/users/{{ u.id }}/follows" class="ps-1 pb-2">
+              <div class="row row-cols-2 row-cols-md-3 g-1 mb-2 mt-1">
+                {% for src in user_follows[u.id] %}
+                <div class="col">
+                  <div class="form-check">
+                    <input type="checkbox" name="source_ids" value="{{ src.id }}"
+                           class="form-check-input" id="src-{{ u.id }}-{{ src.id }}"
+                           {% if src.followed %}checked{% endif %}>
+                    <label class="form-check-label small" for="src-{{ u.id }}-{{ src.id }}">
+                      {{ src.name }}
+                      <span class="text-muted">({{ src.type }})</span>
+                    </label>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              <button type="submit" class="btn btn-sm btn-outline-primary">保存</button>
+            </form>
+          </div>
+        </div>
+        {% if not loop.last %}<hr class="my-1">{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin: weekly token usage by user -->
+  <div class="card p-4 mt-4">
+    <h5 class="mb-3">管理员：过去 7 天用量（按用户）</h5>
+    {% if weekly_tokens %}
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr><th>用户</th><th>调用次数</th><th>输入</th><th>输出</th><th>合计</th></tr>
+      </thead>
+      <tbody>
+        {% for r in weekly_tokens %}
+        <tr>
+          <td class="small">{{ r.email }}</td>
+          <td>{{ r.calls }}</td>
+          <td>{{ "{:,}".format(r.total_in) }}</td>
+          <td>{{ "{:,}".format(r.total_out) }}</td>
+          <td class="fw-medium">{{ "{:,}".format(r.total_in + r.total_out) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small mb-0">过去 7 天暂无用量记录。</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.querySelector('select[name="digest_frequency_days"]').addEventListener('change', function() {
-  document.getElementById('freq-label').textContent = this.value;
-});
+
+// Rotate outer caret when the admin follows panel opens/closes
+const followsPanel = document.getElementById('admin-follows-panel');
+if (followsPanel) {
+  followsPanel.addEventListener('show.bs.collapse', () => {
+    document.querySelector('.follows-caret').textContent = '▾';
+  });
+  followsPanel.addEventListener('hide.bs.collapse', () => {
+    document.querySelector('.follows-caret').textContent = '▸';
+  });
+
+  // Rotate per-user carets
+  followsPanel.querySelectorAll('.collapse').forEach(el => {
+    const uid = el.id.replace('follows-body-', '');
+    el.addEventListener('show.bs.collapse', () => {
+      const c = document.querySelector(`.user-caret-${uid}`);
+      if (c) c.textContent = '▾';
+    });
+    el.addEventListener('hide.bs.collapse', () => {
+      const c = document.querySelector(`.user-caret-${uid}`);
+      if (c) c.textContent = '▸';
+    });
+  });
+
+  // After saving a follow list the page redirects to #follows-N —
+  // auto-expand the outer panel and the matching user row.
+  const hash = window.location.hash;
+  const m = hash.match(/^#follows-(\d+)$/);
+  if (m) {
+    bootstrap.Collapse.getOrCreateInstance(followsPanel, { toggle: false }).show();
+    const userBody = document.getElementById(`follows-body-${m[1]}`);
+    if (userBody) {
+      bootstrap.Collapse.getOrCreateInstance(userBody, { toggle: false }).show();
+    }
+  }
+}
 </script>
 {% endblock %}

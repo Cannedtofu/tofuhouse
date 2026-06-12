@@ -15,6 +15,8 @@ NITTER_INSTANCES = (
 QWEN_API_KEY = os.getenv("QWEN_API_KEY", "")
 QWEN_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 QWEN_SUMMARY_MODEL = "qwen-plus"        # fast + cheap, used for article summaries
+QWEN_TRANSLATION_MODEL: str = os.getenv("QWEN_TRANSLATION_MODEL", "qwen-mt-lite")
+ASR_MODEL: str = os.getenv("ASR_MODEL", "fun-asr")
 QWEN_VISION_MODEL = "qwen3-vl-flash"       # vision model, used for browser-use fallback only
 MIN_BROWSER_FALLBACK_CHARS = 300        # Playwright result shorter than this triggers agent fallback
 
@@ -54,6 +56,7 @@ DEFAULT_SOURCES = [
 
 # --- Flask session ---
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-change-me")
+REPORT_API_KEY = os.getenv("REPORT_API_KEY", "")
 
 # --- Access whitelist (comma-separated emails; empty = open to all) ---
 EMAIL_WHITELIST: list[str] = [
@@ -69,6 +72,25 @@ ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "cuiyuan@maisoncapital.com").strip()
 # Only needed when the fast path (youtube-transcript-api) fails, i.e. for videos
 # with no English captions. Set to the path of a manually exported cookies file.
 YOUTUBE_COOKIES_FILE: str = os.getenv("YOUTUBE_COOKIES_FILE", "")
+
+# --- SOCKS5 proxy for YouTube transcript requests only ---
+# Used exclusively by transcript_worker.py to route yt-dlp through Mihomo.
+# Does not affect any other outbound connections in the app.
+# Example: socks5://127.0.0.1:7890
+SOCKS_PROXY: str = os.getenv("SOCKS_PROXY", "")
+
+# --- Audio cache for transcript jobs ---
+# Audio files are moved here after download so they survive transcription failures.
+# Deleted automatically after successful transcription.
+AUDIO_CACHE_DIR: str = os.getenv(
+    "AUDIO_CACHE_DIR",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio_cache"),
+)
+
+# --- Public base URL of this app (used to serve audio to DashScope) ---
+# DashScope's cloud ASR cannot access local file:// paths; audio must be served
+# over HTTP. Set to the server's public URL, e.g. http://47.239.66.248
+APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://47.239.66.248")
 
 # --- Email ---
 SMTP_USER = os.getenv("SMTP_USER", "")

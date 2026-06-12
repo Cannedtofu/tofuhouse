@@ -1,0 +1,807 @@
+{% extends "base.html" %}
+{% block title %}数据 Dashboard — 新闻助手{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h4 class="mb-0 fw-bold">📊 数据 Dashboard</h4>
+  <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#customiseModal">
+    ⚙ 自定义
+  </button>
+</div>
+
+<!-- Status strip -->
+{% if script_panels %}
+<div class="d-flex flex-wrap gap-2 mb-2" id="status-strip">
+  {% for s in script_panels %}
+  <a href="#panel-{{ s.script_name | replace(' ', '-') }}"
+     class="badge text-decoration-none
+            {% if s.status == 'error' or s.is_overdue %}bg-danger{% else %}bg-success{% endif %}"
+     style="font-size:.8rem;font-weight:500">
+    {{ s.script_name }}
+    · {{ s.pushed_at[:16] | replace('T',' ') }} UTC
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Collapsible full status table -->
+<div class="card mb-4">
+  <div class="card-header py-2 px-3" style="cursor:pointer"
+       data-bs-toggle="collapse" data-bs-target="#status-table-body">
+    <span class="small fw-semibold">脚本状态详情</span>
+    <span class="text-muted small ms-1">▸</span>
+  </div>
+  <div class="collapse show" id="status-table-body">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>脚本</th><th>上次推送</th><th>预期间隔</th><th class="text-center">状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in script_panels %}
+        <tr>
+          <td class="small fw-medium">{{ s.script_name }}</td>
+          <td class="small text-muted">{{ s.pushed_at[:16] | replace('T',' ') }} UTC</td>
+          <td class="small text-muted">{{ s.expected_interval_hours | int }}h</td>
+          <td class="text-center">
+            {% if s.status == 'error' %}
+              <span class="badge bg-danger">error</span>
+            {% elif s.is_overdue %}
+              <span class="badge bg-danger">overdue</span>
+            {% else %}
+              <span class="badge bg-success">ok</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- GPU Price Chart Section -->
+{% if is_admin or panel_access.get('gpu-prices', True) %}
+<div class="card mb-4" id="panel-gpu-prices" data-script="gpu-prices">
+  <div class="card-header d-flex align-items-center justify-content-between py-2"
+       style="cursor:pointer;user-select:none"
+       onclick="toggleFold('gpu-prices')">
+    <div>
+      <span class="fold-chevron me-1 text-muted" style="font-size:.75rem">▾</span>
+      <span class="fw-semibold">GPU 算力价格指数</span>
+      <a href="https://dashboard.ornnai.com" target="_blank" rel="noopener"
+         class="ms-2 small text-muted text-decoration-none"
+         onclick="event.stopPropagation()">
+        数据来源: Ornn AI ↗
+      </a>
+    </div>
+    <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation()">
+      <span id="gpu-last-updated" class="small text-muted"></span>
+      {% if is_admin %}
+      <button class="btn btn-sm access-toggle
+                     {{ 'btn-outline-secondary' if panel_access.get('gpu-prices', True) else 'btn-warning' }}"
+              data-panel-key="gpu-prices"
+              title="{{ '公开 — 点击设为仅管理员' if panel_access.get('gpu-prices', True) else '仅管理员 — 点击设为公开' }}"
+              onclick="togglePanelAccess(this)">
+        {{ '🔓' if panel_access.get('gpu-prices', True) else '🔒' }}
+      </button>
+      {% endif %}
+      <button id="gpu-refresh-btn" class="btn btn-sm btn-outline-secondary" onclick="refreshGpuPrices()">
+        <span id="gpu-refresh-spinner" class="spinner-border spinner-border-sm d-none me-1"></span>
+        刷新
+      </button>
+    </div>
+  </div>
+  <div class="card-body" id="body-gpu-prices">
+    <!-- GPU toggle buttons -->
+    <div id="gpu-toggles" class="d-flex flex-wrap gap-2 mb-3" style="display:none!important"></div>
+
+    <!-- Timeframe selector -->
+    <div class="btn-group btn-group-sm mb-3" role="group" id="timeframe-group">
+      <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('1W')">1周</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('1M')">1个月</button>
+      <button type="button" class="btn btn-outline-secondary active" onclick="setTimeframe('3M')">3个月</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('ALL')">全部</button>
+    </div>
+
+    <!-- Loading / empty states -->
+    <div id="gpu-loading" class="text-center text-muted py-5">
+      <div class="spinner-border text-secondary mb-2" role="status"></div>
+      <div class="small">正在加载数据…</div>
+    </div>
+    <div id="gpu-empty" class="text-center text-muted py-5 d-none">
+      <div class="mb-2">暂无数据</div>
+      <button class="btn btn-sm btn-primary" onclick="refreshGpuPrices()">立即获取</button>
+    </div>
+    <div id="gpu-fetching-notice" class="alert alert-info py-2 small d-none">
+      正在从 Ornn AI 获取最新数据，请稍候…
+    </div>
+
+    <!-- Chart -->
+    <div id="gpu-chart-wrap" class="d-none" style="position:relative; height:380px">
+      <canvas id="gpuChart"></canvas>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Customise panels modal -->
+<div class="modal fade" id="customiseModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header py-2 px-3">
+        <h6 class="modal-title mb-0">显示面板</h6>
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body px-3 py-2" id="drag-list">
+        <p class="text-muted small mb-2" style="font-size:.75rem">拖拽 ⠿ 调整顺序，勾选控制显示</p>
+        <div class="drag-item d-flex align-items-center gap-2 py-1 rounded"
+             draggable="true" data-panel="panel-gpu-prices">
+          <span class="drag-handle text-muted" style="cursor:grab;font-size:1rem;line-height:1">⠿</span>
+          <input type="checkbox" class="form-check-input panel-toggle flex-shrink-0"
+                 id="toggle-gpu" data-panel="panel-gpu-prices" checked>
+          <label class="form-check-label small mb-0" for="toggle-gpu">GPU 算力价格指数</label>
+        </div>
+        {% for s in script_panels %}
+        <div class="drag-item d-flex align-items-center gap-2 py-1 rounded"
+             draggable="true"
+             data-panel="panel-{{ s.script_name | replace(' ', '-') }}">
+          <span class="drag-handle text-muted" style="cursor:grab;font-size:1rem;line-height:1">⠿</span>
+          <input type="checkbox" class="form-check-input panel-toggle flex-shrink-0"
+                 id="toggle-{{ loop.index }}"
+                 data-panel="panel-{{ s.script_name | replace(' ', '-') }}"
+                 checked>
+          <label class="form-check-label small mb-0" for="toggle-{{ loop.index }}">
+            {{ s.script_name }}
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="modal-footer py-2 px-3">
+        <button class="btn btn-sm btn-primary" onclick="savePanelPrefs()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Script data panels -->
+{% for s in script_panels %}
+<div class="card mb-4" id="panel-{{ s.script_name | replace(' ', '-') }}"
+     data-script="{{ s.script_name }}">
+  <div class="card-header d-flex align-items-center justify-content-between py-2"
+       style="cursor:pointer;user-select:none"
+       onclick="toggleFold('{{ s.script_name | replace(' ', '-') }}')">
+    <div>
+      <span class="fold-chevron me-1 text-muted" style="font-size:.75rem">▾</span>
+      <span class="fw-semibold">{{ s.script_name }}</span>
+      <span class="ms-2 small text-muted">{{ s.pushed_at[:16] | replace('T',' ') }} UTC</span>
+      {% if s.status == 'error' or s.is_overdue %}
+        <span class="badge bg-danger ms-1">{{ 'error' if s.status == 'error' else 'overdue' }}</span>
+      {% endif %}
+    </div>
+    <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation()">
+      {% if is_admin %}
+      <button class="btn btn-sm access-toggle
+                     {{ 'btn-outline-secondary' if panel_access.get(s.script_name, True) else 'btn-warning' }}"
+              data-panel-key="{{ s.script_name }}"
+              title="{{ '公开 — 点击设为仅管理员' if panel_access.get(s.script_name, True) else '仅管理员 — 点击设为公开' }}"
+              onclick="togglePanelAccess(this)">
+        {{ '🔓' if panel_access.get(s.script_name, True) else '🔒' }}
+      </button>
+      {% endif %}
+      {% if s.script_name in scripts_with_files %}
+      <a href="/api/report/{{ s.script_name }}/excel"
+         class="btn btn-sm btn-outline-secondary">⬇ Excel</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-body" id="body-{{ s.script_name | replace(' ', '-') }}">
+    {% if s.panels %}
+      {% for panel in s.panels %}
+        <div class="mb-4">
+          <div class="small fw-semibold text-muted mb-2 panel-title"
+               data-key="{{ s.script_name }}-{{ loop.index0 }}"
+               title="双击编辑标题" ondblclick="startEditTitle(event, this)">{{ panel.title }}</div>
+          {% if panel.type in ('line', 'bar') %}
+            <div style="position:relative;height:320px">
+              <canvas id="chart-{{ s.script_name | replace(' ', '-') }}-{{ loop.index }}"></canvas>
+            </div>
+          {% elif panel.type == 'table' %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                  <tr>{% for h in panel.headers %}<th>{{ h }}</th>{% endfor %}</tr>
+                </thead>
+                <tbody>
+                  {% for row in panel.rows %}
+                  <tr>{% for cell in row %}<td class="small">{{ cell }}</td>{% endfor %}</tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="text-muted small mb-0">暂无数据面板。脚本运行后将自动显示。</p>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .drag-item.drag-over { border-top: 2px solid #0d6efd; }
+  .drag-handle:active  { cursor: grabbing; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+const GPU_COLORS = {
+  "H100 SXM":  { border: "#0d6efd", bg: "rgba(13,110,253,0.08)" },
+  "H200":      { border: "#20c997", bg: "rgba(32,201,151,0.08)" },
+  "B200":      { border: "#fd7e14", bg: "rgba(253,126,20,0.08)"  },
+  "A100 SXM4": { border: "#6f42c1", bg: "rgba(111,66,193,0.08)" },
+  "RTX 5090":  { border: "#dc3545", bg: "rgba(220,53,69,0.08)"  },
+};
+
+const TIMEFRAMES = {
+  "1W":  7,
+  "1M":  30,
+  "3M":  90,
+  "ALL": null,
+};
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let gpuChart = null;
+let allData   = [];          // [{gpu_type, data: [{timestamp, index_value}]}]
+let visibleGpus = new Set(); // which GPUs are toggled on
+let currentTimeframe = "3M";
+let pollTimer = null;
+
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+document.addEventListener("DOMContentLoaded", loadGpuPrices);
+
+async function loadGpuPrices() {
+  showLoading(true);
+  try {
+    const resp = await fetch("/dashboard/api/gpu-prices");
+    const json = await resp.json();
+
+    if (json.fetching && json.data.length === 0) {
+      // First-time fetch kicked off server-side — poll until ready
+      showFetchingNotice(true);
+      showLoading(false);
+      schedulePoll();
+      return;
+    }
+
+    if (json.data.length === 0) {
+      showEmpty(true);
+      showLoading(false);
+      return;
+    }
+
+    renderChart(json.data, json.last_updated);
+
+    if (json.fetching) {
+      showFetchingNotice(true);
+      schedulePoll();
+    }
+  } catch (e) {
+    console.error("GPU price load error:", e);
+    showLoading(false);
+    showEmpty(true);
+  }
+}
+
+function schedulePoll() {
+  if (pollTimer) return;
+  pollTimer = setInterval(async () => {
+    const resp = await fetch("/dashboard/api/gpu-prices");
+    const json = await resp.json();
+    if (json.data.length > 0) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      showFetchingNotice(false);
+      renderChart(json.data, json.last_updated);
+    }
+  }, 3000);
+}
+
+// ---------------------------------------------------------------------------
+// Chart rendering
+// ---------------------------------------------------------------------------
+function renderChart(data, lastUpdated) {
+  allData = data;
+
+  // Build toggle buttons once
+  buildToggles(data);
+
+  // Update last-updated label
+  if (lastUpdated) {
+    const dt = new Date(lastUpdated);
+    document.getElementById("gpu-last-updated").textContent =
+      "更新于 " + dt.toLocaleString("zh-CN", {timeZone: "Asia/Singapore",
+        month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"});
+  }
+
+  showLoading(false);
+  showEmpty(false);
+  showFetchingNotice(false);
+  document.getElementById("gpu-chart-wrap").classList.remove("d-none");
+
+  drawChart();
+}
+
+function buildToggles(data) {
+  const wrap = document.getElementById("gpu-toggles");
+  // Only build once
+  if (wrap.children.length > 0) return;
+  wrap.style.removeProperty("display");
+  data.forEach(({ gpu_type }) => {
+    visibleGpus.add(gpu_type);
+    const c = GPU_COLORS[gpu_type] || { border: "#6c757d", bg: "rgba(108,117,125,0.08)" };
+    const btn = document.createElement("button");
+    btn.className = "btn btn-sm gpu-toggle active";
+    btn.dataset.gpu = gpu_type;
+    btn.textContent = gpu_type;
+    btn.style.cssText = `border-color:${c.border};color:${c.border};background:${c.bg}`;
+    btn.addEventListener("click", () => toggleGpu(gpu_type, btn, c));
+    wrap.appendChild(btn);
+  });
+}
+
+function toggleGpu(gpu_type, btn, c) {
+  if (visibleGpus.has(gpu_type)) {
+    visibleGpus.delete(gpu_type);
+    btn.classList.remove("active");
+    btn.style.cssText = "border-color:#ced4da;color:#6c757d;background:transparent";
+  } else {
+    visibleGpus.add(gpu_type);
+    btn.classList.add("active");
+    btn.style.cssText = `border-color:${c.border};color:${c.border};background:${c.bg}`;
+  }
+  drawChart();
+}
+
+function setTimeframe(tf) {
+  currentTimeframe = tf;
+  document.querySelectorAll("#timeframe-group .btn").forEach(b => {
+    b.classList.toggle("active", b.textContent.trim() === { "1W":"1周","1M":"1个月","3M":"3个月","ALL":"全部" }[tf]);
+  });
+  drawChart();
+}
+
+function drawChart() {
+  const cutoff = TIMEFRAMES[currentTimeframe]
+    ? new Date(Date.now() - TIMEFRAMES[currentTimeframe] * 86400000)
+    : null;
+
+  const datasets = allData
+    .filter(({ gpu_type }) => visibleGpus.has(gpu_type))
+    .map(({ gpu_type, data }) => {
+      const c = GPU_COLORS[gpu_type] || { border: "#6c757d", bg: "rgba(108,117,125,0.08)" };
+      const points = data
+        .filter(d => !cutoff || new Date(d.timestamp) >= cutoff)
+        .map(d => ({ x: d.timestamp, y: d.index_value }));
+      return {
+        label: gpu_type,
+        data: points,
+        borderColor: c.border,
+        backgroundColor: c.bg,
+        borderWidth: 2,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+        tension: 0.3,
+        fill: false,
+      };
+    });
+
+  if (gpuChart) {
+    gpuChart.data.datasets = datasets;
+    gpuChart.update();
+    return;
+  }
+
+  const ctx = document.getElementById("gpuChart").getContext("2d");
+  gpuChart = new Chart(ctx, {
+    type: "line",
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { position: "top", labels: { boxWidth: 12, font: { size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "day", tooltipFormat: "yyyy-MM-dd", displayFormats: { day: "MM/dd" } },
+          grid: { color: "rgba(0,0,0,0.04)" },
+          ticks: { maxTicksLimit: 10, font: { size: 11 } },
+        },
+        y: {
+          title: { display: true, text: "价格指数", font: { size: 11 } },
+          grid: { color: "rgba(0,0,0,0.04)" },
+          ticks: { font: { size: 11 } },
+        },
+      },
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Refresh
+// ---------------------------------------------------------------------------
+async function refreshGpuPrices() {
+  const btn = document.getElementById("gpu-refresh-btn");
+  const spinner = document.getElementById("gpu-refresh-spinner");
+  btn.disabled = true;
+  spinner.classList.remove("d-none");
+  try {
+    await fetch("/dashboard/gpu-prices/refresh", { method: "POST" });
+    showFetchingNotice(true);
+    schedulePoll();
+  } finally {
+    btn.disabled = false;
+    spinner.classList.add("d-none");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// UI helpers
+// ---------------------------------------------------------------------------
+function showLoading(v)         { toggle("gpu-loading", v); }
+function showEmpty(v)           { toggle("gpu-empty", v); }
+function showFetchingNotice(v)  { toggle("gpu-fetching-notice", v); }
+function toggle(id, show) {
+  document.getElementById(id).classList.toggle("d-none", !show);
+}
+
+// ---------------------------------------------------------------------------
+// Script panels — Chart.js rendering + localStorage panel visibility
+// ---------------------------------------------------------------------------
+
+const SCRIPT_PANELS = {{ script_panels | tojson }};
+
+function mmddToDoy(mmdd) {
+  const monthDays = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const [m, d] = mmdd.split('-').map(Number);
+  let doy = d;
+  for (let i = 1; i < m; i++) doy += monthDays[i];
+  return doy;
+}
+
+const MONTH_STARTS = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const PANEL_COLORS = ['#0d6efd','#fd7e14','#198754','#dc3545','#6f42c1','#20c997'];
+
+function renderScriptCharts() {
+  SCRIPT_PANELS.forEach(script => {
+    (script.panels || []).forEach((panel, idx) => {
+      if (panel.type !== 'line' && panel.type !== 'bar') return;
+      const canvasId = `chart-${script.script_name.replace(/ /g, '-')}-${idx + 1}`;
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+
+      let datasets;
+      if (panel.x_type === 'day_of_year') {
+        datasets = (panel.datasets || []).map((ds, i) => ({
+          label: ds.label,
+          data: ds.data.map(pt => ({ x: mmddToDoy(pt.x), y: pt.y })),
+          borderColor: PANEL_COLORS[i % PANEL_COLORS.length],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 1,
+          pointHoverRadius: 4,
+          tension: 0.2,
+          spanGaps: !!panel.span_gaps,
+        }));
+      } else {
+        datasets = (panel.datasets || []).map((ds, i) => ({
+          label: ds.label,
+          data: ds.data.map(pt => ({ x: pt.x, y: pt.y })),
+          borderColor: PANEL_COLORS[i % PANEL_COLORS.length],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 2,
+          pointHoverRadius: 5,
+          tension: 0.3,
+          spanGaps: !!panel.span_gaps,
+        }));
+      }
+
+      const isDoy = panel.x_type === 'day_of_year';
+      new Chart(canvas.getContext('2d'), {
+        type: panel.type === 'bar' ? 'bar' : 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          // 'x' mode matches all datasets by x-value (day-of-year number), not by array index.
+          // This prevents cross-year mismatches when datasets cover different date ranges.
+          interaction: isDoy
+            ? { mode: 'x', intersect: false }
+            : { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
+            tooltip: {
+              callbacks: {
+                title: items => {
+                  if (!isDoy) return items[0].label;
+                  const doy = items[0].parsed.x;
+                  let m = 0;
+                  while (m < 11 && MONTH_STARTS[m + 1] <= doy) m++;
+                  const day = doy - MONTH_STARTS[m] + 1;
+                  return `${m + 1}月${day}日`;
+                },
+              },
+            },
+          },
+          scales: isDoy ? {
+            x: {
+              type: 'linear',
+              min: 1, max: 365,
+              // Force ticks to land exactly on month-start values so all 12 labels render.
+              afterBuildTicks(axis) {
+                axis.ticks = MONTH_STARTS.map(v => ({ value: v }));
+              },
+              ticks: {
+                font: { size: 11 },
+                callback: v => {
+                  const i = MONTH_STARTS.indexOf(v);
+                  return i >= 0 ? MONTH_LABELS[i] : '';
+                },
+              },
+              grid: { color: 'rgba(0,0,0,0.04)' },
+            },
+            y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+          } : {
+            x: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+            y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+          },
+        },
+      });
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Panel fold — localStorage
+// ---------------------------------------------------------------------------
+const FOLDS_KEY = 'dashboardFolds';
+
+function toggleFold(panelId) {
+  const body    = document.getElementById('body-' + panelId);
+  const card    = document.getElementById('panel-' + panelId);
+  const chevron = card.querySelector('.fold-chevron');
+  if (!body) return;
+  const folding = body.style.display !== 'none';
+  body.style.display = folding ? 'none' : '';
+  chevron.textContent = folding ? '▸' : '▾';
+  const folds = JSON.parse(localStorage.getItem(FOLDS_KEY) || '{}');
+  folds[panelId] = folding;
+  localStorage.setItem(FOLDS_KEY, JSON.stringify(folds));
+}
+
+function initFoldState() {
+  const folds = JSON.parse(localStorage.getItem(FOLDS_KEY) || '{}');
+  Object.entries(folds).forEach(([panelId, folded]) => {
+    if (!folded) return;
+    const body    = document.getElementById('body-' + panelId);
+    const card    = document.getElementById('panel-' + panelId);
+    if (!body || !card) return;
+    body.style.display = 'none';
+    const chevron = card.querySelector('.fold-chevron');
+    if (chevron) chevron.textContent = '▸';
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Editable panel titles — localStorage (admin only, stored client-side)
+// ---------------------------------------------------------------------------
+const TITLES_KEY = 'dashboardTitles';
+
+function applyTitleOverrides() {
+  const titles = JSON.parse(localStorage.getItem(TITLES_KEY) || '{}');
+  document.querySelectorAll('.panel-title').forEach(el => {
+    if (titles[el.dataset.key]) el.textContent = titles[el.dataset.key];
+  });
+}
+
+function startEditTitle(evt, el) {
+  evt.stopPropagation();
+  const original = el.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = original;
+  input.className = 'form-control form-control-sm d-inline-block';
+  input.style.cssText = 'width:auto;min-width:220px;font-size:.8rem';
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+  const save = () => {
+    const val = input.value.trim() || original;
+    el.textContent = val;
+    const titles = JSON.parse(localStorage.getItem(TITLES_KEY) || '{}');
+    titles[el.dataset.key] = val;
+    localStorage.setItem(TITLES_KEY, JSON.stringify(titles));
+  };
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { input.blur(); }
+    if (e.key === 'Escape') { el.textContent = original; }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Panel order — drag-and-drop in modal, stored in localStorage
+// ---------------------------------------------------------------------------
+const ORDER_KEY = 'dashboardOrder';
+let _dragSrc = null;
+
+function initModalDrag() {
+  const list = document.getElementById('drag-list');
+  if (!list) return;
+
+  list.addEventListener('dragstart', e => {
+    _dragSrc = e.target.closest('.drag-item');
+    if (!_dragSrc) return;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', ''); // required for Firefox
+    _dragSrc.style.opacity = '0.4';
+  });
+
+  list.addEventListener('dragend', () => {
+    if (_dragSrc) _dragSrc.style.opacity = '';
+    list.querySelectorAll('.drag-item').forEach(i => i.classList.remove('drag-over'));
+    _dragSrc = null;
+  });
+
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    const target = e.target.closest('.drag-item');
+    if (!target || target === _dragSrc) return;
+    list.querySelectorAll('.drag-item').forEach(i => i.classList.remove('drag-over'));
+    target.classList.add('drag-over');
+  });
+
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+    const target = e.target.closest('.drag-item');
+    if (!target || !_dragSrc || target === _dragSrc) return;
+    const items = [...list.querySelectorAll('.drag-item')];
+    const srcIdx = items.indexOf(_dragSrc);
+    const tgtIdx = items.indexOf(target);
+    if (srcIdx < tgtIdx) list.insertBefore(_dragSrc, target.nextSibling);
+    else                 list.insertBefore(_dragSrc, target);
+    list.querySelectorAll('.drag-item').forEach(i => i.classList.remove('drag-over'));
+  });
+}
+
+function _applyOrderToDashboard(order) {
+  const first = document.querySelector('.card[data-script]');
+  if (!first) return;
+  const container = first.parentNode;
+  order.forEach(panelId => {
+    const card = document.getElementById(panelId);
+    if (card) container.appendChild(card);
+  });
+}
+
+function applyPanelOrder() {
+  const order = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
+  if (!order.length) return;
+  _applyOrderToDashboard(order);
+  // Sync modal list to match saved order
+  const list = document.getElementById('drag-list');
+  if (list) {
+    order.forEach(panelId => {
+      const item = list.querySelector(`.drag-item[data-panel="${panelId}"]`);
+      if (item) list.appendChild(item);
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Panel visibility — localStorage
+// ---------------------------------------------------------------------------
+const PREFS_KEY = 'dashboardPanels';
+
+function applyPanelPrefs() {
+  const prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+  document.querySelectorAll('.card[data-script]').forEach(card => {
+    const name = card.dataset.script;
+    if (prefs[name] === false) card.style.display = 'none';
+  });
+  document.querySelectorAll('.panel-toggle').forEach(cb => {
+    const panelId = cb.dataset.panel;
+    const card = document.getElementById(panelId);
+    if (card && prefs[card.dataset.script] === false) cb.checked = false;
+  });
+}
+
+function savePanelPrefs() {
+  const prefs = {};
+  document.querySelectorAll('.panel-toggle').forEach(cb => {
+    const panelId = cb.dataset.panel;
+    const card = document.getElementById(panelId);
+    if (card) {
+      prefs[card.dataset.script] = cb.checked;
+      card.style.display = cb.checked ? '' : 'none';
+    }
+  });
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  // Save and apply drag order from current modal list
+  const order = [...document.querySelectorAll('#drag-list .drag-item')].map(el => el.dataset.panel);
+  localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+  _applyOrderToDashboard(order);
+  bootstrap.Modal.getInstance(document.getElementById('customiseModal'))?.hide();
+}
+
+// ---------------------------------------------------------------------------
+// Admin — toggle panel visibility for non-admin users
+// ---------------------------------------------------------------------------
+async function togglePanelAccess(btn) {
+  const key = btn.dataset.panelKey;
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`/dashboard/panel-access/${encodeURIComponent(key)}`, { method: 'POST' });
+    if (!resp.ok) throw new Error(resp.status);
+    const { public: isPublic } = await resp.json();
+    btn.textContent  = isPublic ? '🔓' : '🔒';
+    btn.title        = isPublic ? '公开 — 点击设为仅管理员' : '仅管理员 — 点击设为公开';
+    btn.className    = btn.className.replace(/btn-\w+$/, isPublic ? 'btn-outline-secondary' : 'btn-warning');
+  } catch (e) {
+    alert('操作失败: ' + e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Status strip auto-refresh (every 60 s)
+// ---------------------------------------------------------------------------
+function refreshStatusStrip() {
+  fetch('/dashboard/status')
+    .then(r => r.json())
+    .then(reports => {
+      reports.forEach(r => {
+        const badge = document.querySelector(
+          `#status-strip a[href="#panel-${r.script_name.replace(/ /g, '-')}"]`
+        );
+        if (!badge) return;
+        const bad = r.status === 'error' || r.is_overdue;
+        badge.className = badge.className.replace(/bg-\w+/, bad ? 'bg-danger' : 'bg-success');
+      });
+    })
+    .catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  applyPanelOrder();      // reorder cards before rendering
+  renderScriptCharts();   // render while all panels visible — must come before hiding
+  applyPanelPrefs();      // hide unchecked panels
+  initFoldState();        // fold collapsed panels
+  applyTitleOverrides();  // apply saved title renames
+  initModalDrag();        // wire drag handles in 自定义 modal
+  setInterval(refreshStatusStrip, 60000);
+});
+</script>
+{% endblock %}

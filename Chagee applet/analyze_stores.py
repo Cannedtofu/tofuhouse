@@ -2,171 +2,233 @@ import pandas as pd
 import datetime
 import sys
 import os
+import io
+import base64
+
+WEEKDAY_ZH = {0: '周一', 1: '周二', 2: '周三', 3: '周四', 4: '周五', 5: '周六', 6: '周日'}
+
+_TH = ('padding:8px 14px;border:1px solid #d0d0d0;background:#f0f0f0;'
+       'text-align:left;white-space:nowrap;font-weight:bold;')
+_TD = 'padding:7px 14px;border:1px solid #d0d0d0;text-align:left;white-space:nowrap;'
+_TD_BOLD = ('padding:7px 14px;border:1px solid #d0d0d0;text-align:left;'
+            'white-space:nowrap;font-weight:bold;background:#fafafa;')
+_TABLE = 'border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;margin-bottom:4px;'
+
+
+def _html_table(rows, headers, highlight_last=False):
+    html = f'<table style="{_TABLE}"><thead><tr>'
+    html += ''.join(f'<th style="{_TH}">{h}</th>' for h in headers)
+    html += '</tr></thead><tbody>\n'
+    for i, row in enumerate(rows):
+        td = _TD_BOLD if (highlight_last and i == len(rows) - 1) else _TD
+        html += '<tr>' + ''.join(f'<td style="{td}">{row.get(h, "")}</td>' for h in headers) + '</tr>\n'
+    html += '</tbody></table>\n'
+    return html
+
+
+def _wow_city_table(df, target_date, last_week_date):
+    """City-level WoW comparison: today vs 7 days ago, comparable stores only."""
+    df_this = df[df['Date'] == target_date].copy()
+    df_last = df[df['Date'] == last_week_date].copy()
+
+    if df_this.empty:
+        return f'<p style="color:#c00;">警告：未找到 {target_date} 的数据。</p>'
+    if df_last.empty:
+        return f'<p style="color:#c00;">上周 ({last_week_date}) 数据缺失，WoW 对比无法计算。</p>'
+
+    common = set(df_this['Store Name'].unique()) & set(df_last['Store Name'].unique())
+    if not common:
+        return '<p style="color:#c00;">未找到两个日期均存在的门店。</p>'
+
+    this_agg = (df_this[df_this['Store Name'].isin(common)]
+                .groupby(['City', 'Store Name'])['Cup Count'].mean().reset_index())
+    last_agg = (df_last[df_last['Store Name'].isin(common)]
+                .groupby(['City', 'Store Name'])['Cup Count'].mean().reset_index())
+
+    merged = pd.merge(last_agg, this_agg, on=['City', 'Store Name'], suffixes=('_L', '_T'))
+    city = merged.groupby('City').agg(
+        last=('Cup Count_L', 'sum'),
+        this=('Cup Count_T', 'sum'),
+        n=('Store Name', 'count')
+    ).reset_index()
+    city['wow'] = ((city['this'] - city['last']) / city['last'] * 100).round(2)
+
+    rows = []
+    for _, r in city.iterrows():
+        rows.append({
+            '城市': r['City'],
+            '上周杯数': int(r['last']),
+            '本周杯数': int(r['this']),
+            '周同比 %': f"{r['wow']:+.2f}%",
+            '对比门店数': int(r['n'])
+        })
+
+    total_last = int(city['last'].sum())
+    total_this = int(city['this'].sum())
+    total_wow = ((total_this - total_last) / total_last * 100) if total_last else 0
+    rows.append({
+        '城市': '总计',
+        '上周杯数': total_last,
+        '本周杯数': total_this,
+        '周同比 %': f"{total_wow:+.2f}%",
+        '对比门店数': int(city['n'].sum())
+    })
+
+    headers = ['城市', '上周杯数', '本周杯数', '周同比 %', '对比门店数']
+    return _html_table(rows, headers, highlight_last=True)
+
+
+def _same_weekday_trend(df, target_date):
+    """
+    For each historical same-weekday date, compare against today's data.
+    Common stores = intersection of that date and today.
+    Rows are sorted oldest-first; today's row is appended last and highlighted.
+    """
+    weekday = target_date.weekday()
+    all_days = sorted(d for d in df['Date'].dropna().unique() if d.weekday() == weekday)
+    hist_days = [d for d in all_days if d != target_date]
+
+    df_today = df[df['Date'] == target_date]
+    if df_today.empty:
+        return f'<p style="color:#c00;">警告：未找到 {target_date} 的数据。</p>'
+    if not hist_days:
+        return '<p>历史同工作日数据不足，无法计算趋势。</p>'
+
+    today_stores = set(df_today['Store Name'].unique())
+    cups_today_all = int(df_today.groupby(['City', 'Store Name'])['Cup Count'].mean().sum())
+
+    rows = []
+    for hist_dt in hist_days:
+        df_hist = df[df['Date'] == hist_dt]
+        common = today_stores & set(df_hist['Store Name'].unique())
+        if not common:
+            continue
+
+        cups_today = int(df_today[df_today['Store Name'].isin(common)]
+                         .groupby(['City', 'Store Name'])['Cup Count'].mean().sum())
+        cups_hist = int(df_hist[df_hist['Store Name'].isin(common)]
+                        .groupby(['City', 'Store Name'])['Cup Count'].mean().sum())
+        wow = ((cups_today - cups_hist) / cups_hist * 100) if cups_hist else 0
+
+        rows.append({
+            '历史日期': str(hist_dt),
+            '历史杯数': cups_hist,
+            '今日杯数': cups_today,
+            '变化 %': f"{wow:+.2f}%",
+            '对比门店数': len(common),
+        })
+
+    if not rows:
+        return '<p>历史同工作日数据不足，无法计算趋势。</p>'
+
+    rows.append({
+        '历史日期': f'今日合计 ({target_date})',
+        '历史杯数': '—',
+        '今日杯数': cups_today_all,
+        '变化 %': '—',
+        '对比门店数': len(today_stores),
+    })
+
+    headers = ['历史日期', '历史杯数', '今日杯数', '变化 %', '对比门店数']
+    return _html_table(rows, headers, highlight_last=True)
+
 
 def analyze_stores(file_path, input_date_str=None):
-    """
-    分析目标日期与上周同日的杯数趋势。
-    返回报告字符串。
-    """
     if not os.path.exists(file_path):
-        return f"错误：未找到文件 '{file_path}'。"
-
-    # 加载数据集
+        return f'<p>错误：未找到文件 "{file_path}"。</p>'
     try:
         df = pd.read_excel(file_path)
     except Exception as e:
-        return f"读取 Excel 文件时出错：{e}"
+        return f'<p>读取 Excel 文件时出错：{e}</p>'
 
-    # 基础数据清洗
     df['Date'] = pd.to_datetime(df['Date']).dt.date
     df['Cup Count'] = pd.to_numeric(df['Cup Count'], errors='coerce').fillna(0)
 
-    # 确定比较日期
     if input_date_str:
         try:
             target_date = datetime.datetime.strptime(input_date_str, "%Y-%m-%d").date()
         except ValueError:
-            return f"日期格式无效：'{input_date_str}'。请使用 YYYY-MM-DD。"
+            return f'<p>日期格式无效："{input_date_str}"。</p>'
     else:
         target_date = datetime.date.today()
 
     last_week_date = target_date - datetime.timedelta(days=7)
+    weekday_zh = WEEKDAY_ZH[target_date.weekday()]
 
-    header = (
-        f"--- 周同比 (WoW) 分析配置 ---\n"
-        f"本周日期: {target_date}\n"
-        f"上周日期: {last_week_date}\n"
-        f"------------------------------\n"
-    )
+    html = ''
 
-    # 拆分为两个数据集
-    df_this_week = df[df['Date'] == target_date].copy()
-    df_last_week = df[df['Date'] == last_week_date].copy()
+    html += f'<h3 style="margin-bottom:6px;">周同比分析 (WoW)&nbsp;&nbsp;{target_date} vs {last_week_date}</h3>\n'
+    html += _wow_city_table(df, target_date, last_week_date)
 
-    if df_this_week.empty:
-        return header + f"警告：未找到本周 ({target_date}) 的数据。"
-    if df_last_week.empty:
-        return header + "上周数据缺失，分析失败。"
+    html += f'<h3 style="margin-top:24px;margin-bottom:6px;">历史{weekday_zh}同比趋势（同店可比）</h3>\n'
+    html += _same_weekday_trend(df, target_date)
 
-    # 识别同时存在于两份数据中的门店
-    stores_this = set(df_this_week['Store Name'].unique())
-    stores_last = set(df_last_week['Store Name'].unique())
-    common_stores = stores_this.intersection(stores_last)
+    return html
 
-    if not common_stores:
-        return header + "未找到在两个日期中均存在的门店。"
 
-    # 过滤并聚合
-    df_this_week = df_this_week[df_this_week['Store Name'].isin(common_stores)]
-    df_last_week = df_last_week[df_last_week['Store Name'].isin(common_stores)]
+def cups_per_store_chart(file_path):
+    """
+    Returns a base64-encoded PNG of cups-per-store over time.
+    Only includes days where total store count > 799.
+    Days with 0 cups/stores are dropped; remaining points are connected directly.
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
 
-    this_week_agg = df_this_week.groupby(['City', 'Store Name'])['Cup Count'].mean().reset_index()
-    last_week_agg = df_last_week.groupby(['City', 'Store Name'])['Cup Count'].mean().reset_index()
+    if not os.path.exists(file_path):
+        return None
+    try:
+        df = pd.read_excel(file_path)
+    except Exception:
+        return None
 
-    result_store_level = pd.merge(
-        last_week_agg, 
-        this_week_agg, 
-        on=['City', 'Store Name'], 
-        suffixes=('_LastWeek', '_ThisWeek')
-    )
+    df['Date'] = pd.to_datetime(df['Date']).dt.date
+    df['Cup Count'] = pd.to_numeric(df['Cup Count'], errors='coerce').fillna(0)
 
-    if result_store_level.empty:
-        return header + "未找到在两个日期中均存在的门店进行对比。"
+    daily = df.groupby('Date').agg(
+        store_count=('Store Name', 'count'),
+        total_cups=('Cup Count', 'sum')
+    ).reset_index()
 
-    # 城市级别分析
-    result = result_store_level.groupby('City').agg(
-        Cup_Count_LastWeek=('Cup Count_LastWeek', 'sum'),
-        Cup_Count_ThisWeek=('Cup Count_ThisWeek', 'sum'),
-        Store_Count=('Store Name', 'count')
-    )
+    daily = daily[daily['store_count'] > 799].copy()
+    daily = daily[daily['total_cups'] > 0].copy()
+    daily['cups_per_store'] = daily['total_cups'] / daily['store_count']
+    daily = daily.sort_values('Date')
 
-    # 添加“总计”行
-    total_last = result['Cup_Count_LastWeek'].sum()
-    total_this = result['Cup_Count_ThisWeek'].sum()
-    total_stores = result['Store_Count'].sum()
-    total_wow = ((total_this - total_last) / total_last * 100) if total_last != 0 else 0
-    
-    result['WoW % Change'] = (
-        (result['Cup_Count_ThisWeek'] - result['Cup_Count_LastWeek']) / 
-        result['Cup_Count_LastWeek'] * 100
-    ).round(2)
+    if len(daily) < 2:
+        return None
 
-    # 准备最终报告
-    final_report = result.reset_index()
-    
-    # 将杯数转换为整数，避免显示为 .0
-    final_report['Cup_Count_LastWeek'] = final_report['Cup_Count_LastWeek'].astype(int)
-    final_report['Cup_Count_ThisWeek'] = final_report['Cup_Count_ThisWeek'].astype(int)
-    
-    final_report = final_report[[
-        'City', 'Cup_Count_LastWeek', 'Cup_Count_ThisWeek', 'WoW % Change', 'Store_Count'
-    ]]
-    
-    final_report.columns = [
-        '城市', '上周杯数', '本周杯数', '周同比涨跌 %', '对比门店数'
-    ]
+    dates = [datetime.datetime.combine(d, datetime.time()) for d in daily['Date']]
+    values = daily['cups_per_store'].tolist()
 
-    total_row = pd.DataFrame([{
-        '城市': '总计 (TOTAL)',
-        '上周杯数': int(total_last),
-        '本周杯数': int(total_this),
-        '周同比涨跌 %': round(total_wow, 2),
-        '对比门店数': int(total_stores)
-    }])
-    
-    final_report = pd.concat([final_report, total_row], ignore_index=True)
+    plt.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'SimSun', 'Arial Unicode MS']
+    plt.rcParams['axes.unicode_minus'] = False
 
-    report_text = header + "门店对比分析结果 (按城市分):\n" + final_report.to_string(index=False)
+    fig, ax = plt.subplots(figsize=(10, 3.8))
+    ax.plot(dates, values, marker='o', markersize=4, linewidth=1.8,
+            color='#2c7bb6', markerfacecolor='#2c7bb6')
 
-    # === 新增：所有可用日期的整体周同比趋势 ===
-    unique_dates = sorted(df['Date'].dropna().unique())
-    long_term_data = []
+    ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=mdates.MO))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+    fig.autofmt_xdate(rotation=30, ha='right')
 
-    for dt in unique_dates:
-        last_week_dt = dt - datetime.timedelta(days=7)
-        df_curr = df[df['Date'] == dt]
-        df_prev = df[df['Date'] == last_week_dt]
+    ax.set_ylabel('杯数 / 门店', fontsize=11)
+    ax.set_title('每日人均杯数趋势（门店数 > 799）', fontsize=13, pad=10)
+    ax.yaxis.grid(True, linestyle='--', alpha=0.5)
+    ax.set_axisbelow(True)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
-        if df_prev.empty:
-            continue
+    plt.tight_layout()
 
-        stores_curr = set(df_curr['Store Name'].unique())
-        stores_prev = set(df_prev['Store Name'].unique())
-        common = stores_curr.intersection(stores_prev)
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=130, bbox_inches='tight')
+    plt.close(fig)
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode('utf-8')
 
-        if not common:
-            continue
-
-        df_curr_common = df_curr[df_curr['Store Name'].isin(common)]
-        df_prev_common = df_prev[df_prev['Store Name'].isin(common)]
-
-        curr_agg = df_curr_common.groupby(['City', 'Store Name'])['Cup Count'].mean().reset_index()
-        prev_agg = df_prev_common.groupby(['City', 'Store Name'])['Cup Count'].mean().reset_index()
-
-        merged_agg = pd.merge(prev_agg, curr_agg, on=['City', 'Store Name'], suffixes=('_Last', '_Curr'))
-        
-        if merged_agg.empty:
-            continue
-
-        total_stores = merged_agg['Store Name'].count()
-        total_cups_curr = merged_agg['Cup Count_Curr'].sum()
-        total_cups_prev = merged_agg['Cup Count_Last'].sum()
-
-        wow_change = ((total_cups_curr - total_cups_prev) / total_cups_prev * 100) if total_cups_prev != 0 else 0
-
-        long_term_data.append({
-            '日期': dt,
-            '对比门店数': int(total_stores),
-            '对比门店总杯数': int(total_cups_curr),
-            '整体周同比 %': round(wow_change, 2)
-        })
-
-    if long_term_data:
-        long_term_df = pd.DataFrame(long_term_data)
-        report_text += "\n\n--- 历史整体 WoW 趋势表 ---\n"
-        report_text += long_term_df.to_string(index=False)
-
-    return report_text
 
 if __name__ == "__main__":
     FILE_PATH = "multi_city_stores.xlsx"

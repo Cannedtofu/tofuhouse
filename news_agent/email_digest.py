@@ -1,12 +1,18 @@
-"""Build a markdown digest from articles stored in the database."""
+"""Build a plain-text markdown digest for email delivery (CLI path).
 
-from datetime import date, datetime, timedelta, timezone
+Assembles article titles and summaries from the database into formatted
+markdown, which email_sender.py then converts to HTML and sends.
+
+For AI-powered digest generation in the web UI see ai_digest.py.
+"""
+
+from datetime import date
 from typing import Optional
 
 import db
 
 
-def build_digest(
+def build_email_digest(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     source_ids: Optional[list[int]] = None,
@@ -30,7 +36,6 @@ def build_digest(
     if not articles:
         return f"# News Digest — {date_from} to {date_to}\n\nNo articles found for the selected period.\n"
 
-    # Group by source
     grouped: dict[str, list] = {}
     for a in articles:
         source_name = a["source_name"]
@@ -48,6 +53,7 @@ def build_digest(
             pub = a["published_at"] or a["fetched_at"] or ""
             if pub:
                 try:
+                    from datetime import datetime
                     dt = datetime.fromisoformat(pub)
                     pub = dt.strftime("%b %d, %Y")
                 except Exception:

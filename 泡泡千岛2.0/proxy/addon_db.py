@@ -41,7 +41,17 @@ class DataInterceptor:
             if not raw: return
             try:
                 payload = json.loads(raw)
-                items = payload.get("data", {}).get("data", {}).get("list", [])
+                items = payload.get("data", {}).get("list", [])
+                if not items:
+                    # Log the top-level keys and one level deeper so we can identify
+                    # the correct path if the API response structure has changed.
+                    top_keys = list(payload.keys()) if isinstance(payload, dict) else type(payload).__name__
+                    data_val = payload.get("data") if isinstance(payload, dict) else None
+                    data_keys = list(data_val.keys()) if isinstance(data_val, dict) else repr(data_val)[:120]
+                    logger.warning(
+                        "0 items parsed from %s — top-level keys: %s | payload['data'] keys: %s",
+                        flow.request.pretty_url, top_keys, data_keys,
+                    )
                 for item in items:
                     item_id = str(item.get("id"))
                     self._captured_items[item_id] = item
@@ -70,13 +80,12 @@ class DataInterceptor:
         
         current_date = datetime.now().strftime("%Y-%m-%d")
 
-        # Part A: Fresh results.db (Daily Queue)
+        # Part A: results.db (cumulative — upsert on id)
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            cursor.execute('DROP TABLE IF EXISTS feed_results')
             cursor.execute('''
-                CREATE TABLE feed_results (
+                CREATE TABLE IF NOT EXISTS feed_results (
                     id TEXT PRIMARY KEY,
                     name TEXT,
                     mainTagDisplayName TEXT,
@@ -88,12 +97,12 @@ class DataInterceptor:
                 name = item.get("name")
                 main_tag = item.get("mainTagDisplayName", "N/A")
                 cursor.execute('''
-                    INSERT INTO feed_results (id, name, mainTagDisplayName, query_date, raw_json)
+                    INSERT OR REPLACE INTO feed_results (id, name, mainTagDisplayName, query_date, raw_json)
                     VALUES (?, ?, ?, ?, ?)
                 ''', (item_id, name, main_tag, current_date, json.dumps(item, ensure_ascii=False)))
             conn.commit()
             conn.close()
-            logger.info(f"Updated {self.db_path} with FRESH data.")
+            logger.info(f"Updated {self.db_path} with {len(self._captured_items)} items (cumulative).")
         except Exception as e:
             logger.error(f"Failed to update results.db: {e}")
 

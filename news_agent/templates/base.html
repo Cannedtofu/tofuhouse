@@ -34,12 +34,16 @@
       <a class="navbar-brand" href="/">📰 新闻助手</a>
       <div class="navbar-nav ms-auto d-flex align-items-center">
         {% if g.current_user %}
+          <a class="nav-link {% if request.path == '/subscribe' %}active{% endif %}" href="/subscribe">订阅设置</a>
           <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">资讯</a>
           <a class="nav-link {% if request.path == '/digests' %}active{% endif %}" href="/digests">简报</a>
           <a class="nav-link {% if request.path == '/sources' %}active{% endif %}" href="/sources">来源</a>
           <a class="nav-link {% if request.path == '/transcript' %}active{% endif %}" href="/transcript">转录</a>
+          <a class="nav-link {% if request.path.startswith('/dashboard') %}active{% endif %}" href="/dashboard">数据</a>
           <a class="nav-link {% if request.path == '/logs' %}active{% endif %}" href="/logs">日志</a>
+          {% if is_admin %}
           <a class="nav-link {% if request.path == '/settings' %}active{% endif %}" href="/settings">设置</a>
+          {% endif %}
           <span class="navbar-text text-muted small ms-3 me-2">{{ g.current_user.email }}</span>
           <form method="post" action="/logout" class="d-inline mb-0">
             <button type="submit" class="btn btn-sm btn-outline-light">退出</button>

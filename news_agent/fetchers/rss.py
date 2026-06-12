@@ -183,6 +183,60 @@ def fetch_rss(source_url: str, known_urls: set[str] | None = None, date_from: st
     return articles
 
 
+def fetch_youtube(feed_url: str, known_urls: set[str] | None = None, date_from: str | None = None) -> list[dict]:
+    """
+    Fetch a YouTube channel RSS feed. Like fetch_rss but never triggers
+    Playwright enrichment — YouTube watch pages yield no useful text content.
+    The video description comes from the feed's <media:description> element,
+    which YouTube includes in full (not truncated) in its Atom feeds.
+    """
+    cutoff = _parse_cutoff(date_from)
+    logger.info("Fetching YouTube RSS: %s", feed_url)
+    try:
+        feed = feedparser.parse(feed_url)
+    except Exception as exc:
+        logger.error("feedparser error for %s: %s", feed_url, exc)
+        return []
+
+    articles = []
+    skipped_known = 0
+    for entry in feed.entries:
+        if len(articles) >= MAX_ARTICLES_PER_SOURCE:
+            break
+        pub = _parse_published(entry)
+        if _is_too_old(pub, cutoff):
+            continue
+        link = getattr(entry, "link", "") or ""
+        if not link:
+            continue
+        if known_urls and link in known_urls:
+            skipped_known += 1
+            continue
+        if "/shorts/" in link:
+            logger.debug("  Skipping YouTube Short: %s", link)
+            continue
+
+        title = getattr(entry, "title", "") or ""
+        # YouTube Atom feeds expose the full video description in <media:description>
+        # which feedparser maps to entry.summary
+        description = ""
+        if hasattr(entry, "summary") and entry.summary:
+            description = re.sub(r"<[^>]+>", " ", entry.summary).strip()
+
+        articles.append({
+            "title": title,
+            "url": link,
+            "content": description,
+            "published_at": pub,
+            "needs_full_content": False,
+        })
+
+    if skipped_known:
+        logger.info("  Skipped %d already-known YouTube entries", skipped_known)
+    logger.info("  → %d YouTube videos from %s", len(articles), feed_url)
+    return articles
+
+
 def fetch_nitter(handle: str, known_urls: set[str] | None = None, date_from: str | None = None) -> list[dict]:
     """
     Fetch tweets for a Twitter/X handle via Nitter RSS.

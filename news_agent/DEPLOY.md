@@ -7,6 +7,12 @@
 
 ---
 
+
+## one line deploy
+
+.\scripts\deploy_local.ps1 "your message here"
+
+
 ## Standard update
 
 From your local machine, push changes:

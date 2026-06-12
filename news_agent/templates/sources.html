@@ -11,6 +11,15 @@
       <div class="alert alert-danger py-2">{{ error }}</div>
       {% endif %}
 
+      <!-- Supported source types -->
+      <div class="mb-3 p-3 bg-light rounded small text-muted">
+        <div class="fw-medium text-dark mb-2">支持的来源类型</div>
+        <div class="mb-1"><span class="badge bg-primary me-1">RSS</span> RSS / Atom 订阅源，如 Substack、博客、新闻站</div>
+        <div class="mb-1"><span class="badge bg-dark me-1">Nitter</span> X.com 账号（输入 x.com/username 或 @username）</div>
+        <div class="mb-1"><span class="badge bg-secondary me-1">Web</span> 网站文章列表页（AI 提取链接后 Playwright 抓取正文）</div>
+        <div><span class="badge bg-danger me-1">YouTube</span> YouTube 频道（自动获取字幕或语音转录）</div>
+      </div>
+
       <!-- Step 1: URL input + Detect -->
       <div id="step-url">
         <div class="mb-3">
@@ -43,6 +52,7 @@
               <option value="rss">RSS / Atom feed</option>
               <option value="nitter">X.com 账号 (Nitter)</option>
               <option value="web">网站（抓取）</option>
+              <option value="youtube">YouTube 频道</option>
             </select>
           </div>
           <div class="mb-3">
@@ -65,7 +75,7 @@
     <h5 class="mb-3">已配置来源 ({{ sources|length }})</h5>
     {% if sources %}
     <div class="table-responsive">
-      <table class="table table-hover align-middle bg-white rounded shadow-sm">
+      <table class="table table-hover table-sm align-middle bg-white rounded shadow-sm" style="font-size:.875rem">
         <thead class="table-light">
           <tr>
             <th>名称</th>

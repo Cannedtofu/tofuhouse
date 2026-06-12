@@ -1,0 +1,135 @@
+"""
+Database package for news_agent.
+
+Sub-modules by domain:
+  core        — connection management, schema init, migrations
+  sources     — news source CRUD
+  articles    — article CRUD, digest abstracts
+  fetch_log   — fetch run history
+  users       — user accounts, source follows, digest preferences
+  digests     — AI digest cache, token usage
+  transcripts — YouTube transcript jobs
+
+All public functions are re-exported here so existing code using
+`import db; db.some_function()` continues to work unchanged.
+"""
+
+from db.core import get_conn, init_db
+from db.sources import (
+    seed_default_sources,
+    get_all_sources,
+    get_source_by_id,
+    upsert_source,
+    delete_source,
+    update_source_last_fetched,
+)
+from db.articles import (
+    insert_article,
+    get_article_by_id,
+    get_unsummarized_articles,
+    update_summary,
+    get_articles,
+    delete_article,
+    get_digest_abstract,
+    update_digest_abstract,
+    update_article_translation,
+)
+from db.fetch_log import (
+    log_fetch_start,
+    log_fetch_finish,
+    close_open_fetch_logs,
+    get_fetch_log,
+)
+from db.users import (
+    get_or_create_user,
+    get_user_by_id,
+    get_all_users,
+    get_users_due_for_digest,
+    get_followed_source_ids,
+    follow_source,
+    unfollow_source,
+    get_all_sources_with_follow_status,
+    set_user_follows,
+    update_user_digest_settings,
+    update_user_digest_last_sent,
+)
+from db.digests import (
+    get_all_digests_with_meta,
+    get_digest_cache,
+    save_digest_cache,
+    log_token_usage,
+    get_token_usage_summary,
+    get_token_usage_by_user_week,
+    get_digest_presets,
+    get_digest_presets_for_users,
+    get_digest_preset,
+    create_digest_preset,
+    update_digest_preset,
+    update_preset_email_settings,
+    update_preset_source_ids,
+    delete_digest_preset,
+    get_presets_due_for_email,
+    update_preset_last_sent,
+)
+from db.transcripts import (
+    create_transcript_job,
+    get_done_transcript_job,
+    list_transcript_jobs,
+    update_transcript_job,
+    get_transcript_job,
+    set_transcript_metadata,
+    delete_transcript_job,
+    clear_transcript_summary,
+)
+from db.gpu_prices import (
+    upsert_gpu_price_data,
+    get_gpu_price_data,
+    get_all_gpu_price_data,
+    get_gpu_price_last_updated,
+)
+from db.script_reports import (
+    upsert_script_report,
+    get_all_script_reports,
+    upsert_script_file,
+    get_script_file,
+    get_scripts_with_files,
+    get_panel_access,
+    set_panel_access,
+)
+
+__all__ = [
+    # core
+    "get_conn", "init_db",
+    # sources
+    "seed_default_sources", "get_all_sources", "get_source_by_id",
+    "upsert_source", "delete_source", "update_source_last_fetched",
+    # articles
+    "insert_article", "get_article_by_id", "get_unsummarized_articles",
+    "update_summary", "get_articles", "delete_article",
+    "get_digest_abstract", "update_digest_abstract", "update_article_translation",
+    # fetch log
+    "log_fetch_start", "log_fetch_finish", "close_open_fetch_logs", "get_fetch_log",
+    # users
+    "get_or_create_user", "get_user_by_id", "get_all_users", "get_users_due_for_digest",
+    "get_followed_source_ids", "follow_source", "unfollow_source",
+    "get_all_sources_with_follow_status", "set_user_follows",
+    "update_user_digest_settings", "update_user_digest_last_sent",
+    # digests
+    "get_all_digests_with_meta", "get_digest_cache", "save_digest_cache",
+    "log_token_usage", "get_token_usage_summary", "get_token_usage_by_user_week",
+    "get_digest_presets", "get_digest_presets_for_users", "get_digest_preset", "create_digest_preset",
+    "update_digest_preset", "update_preset_email_settings", "update_preset_source_ids",
+    "delete_digest_preset",
+    "get_presets_due_for_email", "update_preset_last_sent",
+    # transcripts
+    "create_transcript_job", "get_done_transcript_job", "list_transcript_jobs",
+    "update_transcript_job", "get_transcript_job", "set_transcript_metadata",
+    "delete_transcript_job", "clear_transcript_summary",
+    # gpu prices
+    "upsert_gpu_price_data", "get_gpu_price_data",
+    "get_all_gpu_price_data", "get_gpu_price_last_updated",
+    # script reports
+    "upsert_script_report", "get_all_script_reports",
+    "upsert_script_file", "get_script_file", "get_scripts_with_files",
+    "get_panel_access", "set_panel_access",
+]

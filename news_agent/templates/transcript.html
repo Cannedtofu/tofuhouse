@@ -2,174 +2,634 @@
 {% block title %}视频转录{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-8">
+<div class="row g-3">
+
+  <!-- ── Left sidebar: fetched video list ── -->
+  <div class="col-md-3">
+    <div class="card h-100" style="min-height:200px">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0 fw-semibold">已转录视频</h6>
+          <button class="btn btn-link btn-sm p-0 text-muted" onclick="refreshSidebar()" title="刷新">↺</button>
+        </div>
+        <div id="sidebar-list" style="overflow-y:auto; max-height:75vh"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main content ── -->
+  <div class="col-md-9">
 
     <!-- URL input card -->
-    <div class="card p-4 mb-4">
-      <h5 class="mb-3">YouTube 视频转录 &amp; 总结</h5>
+    <div class="card p-4 mb-3">
+      <h5 class="mb-3">音频转录</h5>
       <p class="text-muted small mb-3">
-        粘贴 YouTube 视频链接，自动提取字幕（或下载音频转录），并用 AI 生成摘要。
+        支持 YouTube 视频、Bilibili 视频 及 小宇宙播客单集链接。AI 摘要可在转录完成后按需生成。
       </p>
-
-      <div class="d-flex gap-2">
+      <div class="mb-3">
         <input type="url" id="yt-url-input" class="form-control"
-               placeholder="https://www.youtube.com/watch?v=..."
+               placeholder="YouTube / Bilibili 视频链接 或 小宇宙单集链接"
                autocomplete="off">
-        <button type="button" id="submit-btn" class="btn btn-primary flex-shrink-0"
-                onclick="submitUrl()">
-          <span id="submit-label">开始转录</span>
-          <span id="submit-spinner" class="spinner-border spinner-border-sm ms-1"
-                style="display:none"></span>
+        <div id="url-error" class="text-danger small mt-1" style="display:none"></div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="button" id="btn-no-diarize"
+                class="btn btn-outline-primary"
+                onclick="submitUrl('no_diarization')">
+          <span class="btn-label">不区分发言人</span>
+          <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
+        </button>
+        <button type="button" id="btn-diarize"
+                class="btn btn-primary"
+                onclick="submitUrl('diarization')">
+          <span class="btn-label">区分发言人</span>
+          <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
       </div>
-      <div id="url-error" class="text-danger small mt-2" style="display:none"></div>
+      <p class="text-muted small mt-2 mb-0">
+        <strong>不区分发言人</strong>：YouTube 优先使用字幕；小宇宙及无字幕 YouTube 需确认后转录音频。<br>
+        <strong>区分发言人</strong>：始终使用 ASR + 说话人分离（需 API 费用）。
+      </p>
     </div>
 
-    <!-- Status / result card (hidden until a job is submitted) -->
+    <!-- Status / result card -->
     <div id="result-card" class="card p-4" style="display:none">
 
+      <!-- Video metadata header -->
+      <div id="video-meta" class="mb-3" style="display:none">
+        <div id="video-title" class="fw-semibold" style="font-size:1.05rem"></div>
+        <div id="video-author" class="text-muted small"></div>
+        <div id="video-url-row" class="text-muted small" style="display:none">
+          <a id="video-url-link" href="#" target="_blank" rel="noopener"
+             style="font-size:.8rem; word-break:break-all"></a>
+        </div>
+        <div id="video-initiated-by" class="text-muted" style="font-size:.78rem; display:none">
+          发起人：<span id="video-initiated-by-email"></span>
+        </div>
+      </div>
+
       <!-- Status indicator -->
-      <div id="status-indicator" class="d-flex align-items-center gap-2 mb-3">
+      <div id="status-indicator" class="d-flex align-items-center gap-2 mb-3 flex-wrap">
         <span id="status-badge" class="badge bg-secondary">等待中</span>
+        <span id="mode-badge" class="badge bg-light text-dark border" style="display:none"></span>
         <span id="status-text" class="text-muted small">正在排队…</span>
       </div>
 
       <!-- Error display -->
       <div id="error-panel" class="alert alert-danger" style="display:none"></div>
 
-      <!-- Results: summary + transcript + download (shown once done) -->
+      <!-- Audio download approval panel (no_diarization only) -->
+      <div id="approval-panel" class="alert alert-warning" style="display:none">
+        <h6 class="alert-heading mb-2">未找到字幕，需要下载音频转录</h6>
+        <p class="small mb-2">此视频没有可用的字幕文件。若要继续提取转录内容，将执行：</p>
+        <ul class="small mb-3">
+          <li>通过 yt-dlp 下载视频音频（约 64 kbps mp3）</li>
+          <li>调用 paraformer-v2 语音识别 API（按用量计费）</li>
+        </ul>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-warning" onclick="approveAudioDownload()">确认下载并转录</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="cancelApproval()">取消</button>
+        </div>
+      </div>
+
+      <!-- Done panel: transcript + translation + summary -->
       <div id="done-panel" style="display:none">
 
-        <!-- Download button -->
-        <div class="d-flex justify-content-end mb-3">
-          <a id="download-btn" href="#" class="btn btn-sm btn-outline-secondary">
-            ⬇ 下载 .txt
-          </a>
+        <!-- Download buttons -->
+        <div class="d-flex justify-content-end gap-2 mb-3">
+          <div class="btn-group" id="download-original-group">
+            <a id="download-original-txt" href="#"
+               class="btn btn-sm btn-outline-secondary">⬇ 原文 .txt</a>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+              <span class="visually-hidden">更多格式</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a id="download-original-pdf" class="dropdown-item" href="#">⬇ 原文 .pdf</a></li>
+            </ul>
+          </div>
+          <div class="btn-group" id="download-zh-group" style="display:none">
+            <a id="download-zh-txt" href="#"
+               class="btn btn-sm btn-outline-secondary">⬇ 中文 .txt</a>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+              <span class="visually-hidden">更多格式</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a id="download-zh-pdf" class="dropdown-item" href="#">⬇ 中文 .pdf</a></li>
+            </ul>
+          </div>
         </div>
 
-        <!-- Summary section -->
+        <!-- Original transcript -->
         <div class="mb-4">
-          <div class="fw-semibold mb-2" style="font-size:1rem; border-left:4px solid #0d6efd; padding-left:.6rem;">
-            AI 摘要
+          <div class="fw-semibold mb-2"
+               style="font-size:1rem; border-left:4px solid #198754; padding-left:.6rem;">
+            完整转录文本
           </div>
-          <div id="summary-content"
-               style="font-size:.93rem; line-height:1.7; background:#f8f9fa;
-                      border-radius:6px; padding:1rem; white-space:pre-wrap; word-break:break-word;">
+          <div id="transcript-content"
+               style="font-size:.88rem; line-height:1.75; background:#f8f9fa;
+                      border-radius:6px; padding:1rem; max-height:400px;
+                      overflow-y:auto; white-space:pre-wrap; word-break:break-word;">
           </div>
         </div>
 
-        <!-- Full transcript section (collapsible) -->
-        <div>
-          <button class="btn btn-sm btn-outline-secondary mb-2"
-                  type="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#transcript-collapse">
-            完整转录文本 ▾
-          </button>
-          <div class="collapse" id="transcript-collapse">
-            <div id="transcript-content"
+        <!-- Chinese translation section -->
+        <div id="translation-section" class="mb-4">
+          <div id="translation-generate-area">
+            <button class="btn btn-sm btn-outline-secondary" onclick="requestTranslation()">
+              🌐 翻译为中文
+            </button>
+            <span class="text-muted small ms-2">将转录文本翻译为简体中文</span>
+          </div>
+          <div id="translation-spinner-area" style="display:none">
+            <span class="spinner-border spinner-border-sm text-secondary me-2"></span>
+            <span class="text-muted small">正在翻译为中文…</span>
+          </div>
+          <div id="translation-content-area" style="display:none">
+            <div class="fw-semibold mb-2"
+                 style="font-size:1rem; border-left:4px solid #6610f2; padding-left:.6rem;">
+              中文翻译
+            </div>
+            <div id="transcript-zh-content"
                  style="font-size:.88rem; line-height:1.75; background:#f8f9fa;
-                        border-radius:6px; padding:1rem; max-height:500px;
+                        border-radius:6px; padding:1rem; max-height:400px;
                         overflow-y:auto; white-space:pre-wrap; word-break:break-word;">
             </div>
           </div>
         </div>
 
+        <!-- Chinese summary section (user-activated) -->
+        <div id="summary-section">
+          <div id="summary-generate-area">
+            <button class="btn btn-sm btn-outline-primary" onclick="generateSummary()">
+              ✨ 生成中文摘要
+            </button>
+            <span class="text-muted small ms-2" id="summary-hint">
+              直接从原文生成中文摘要（或先翻译再摘要）
+            </span>
+          </div>
+          <!-- JS controls display — no d-flex class -->
+          <div id="summary-spinner-area" style="display:none">
+            <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+            <span class="text-muted small">正在生成中文摘要…</span>
+          </div>
+          <div id="summary-content-area" style="display:none">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <div class="fw-semibold"
+                   style="font-size:1rem; border-left:4px solid #0d6efd; padding-left:.6rem;">
+                中文摘要
+              </div>
+              {% if is_admin %}
+              <button class="btn btn-link btn-sm p-0 text-danger ms-auto"
+                      style="font-size:.8rem" onclick="deleteSummary()" title="删除摘要以重新生成">
+                ✕ 删除摘要
+              </button>
+              {% endif %}
+            </div>
+            <div id="summary-content"
+                 style="font-size:.93rem; line-height:1.7; background:#f8f9fa;
+                        border-radius:6px; padding:1rem; word-break:break-word;">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div><!-- /result-card -->
+
+  </div><!-- /col-md-9 -->
+</div><!-- /row -->
+
+<!-- ── Admin delete confirm modal ── -->
+{% if is_admin %}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h6 class="modal-title text-danger">删除转录记录</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body py-2">
+        <p class="small mb-1">确认删除以下记录？此操作不可撤销。</p>
+        <p id="delete-target-title" class="fw-semibold small mb-0" style="word-break:break-word"></p>
+      </div>
+      <div class="modal-footer border-0 pt-1">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-sm btn-danger" onclick="executeDelete()">确认删除</button>
       </div>
     </div>
-
   </div>
 </div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-let _pollInterval = null;
+let _pollInterval  = null;
 let _currentJobId  = null;
+let _activeBtn     = null;
+let _deleteJobId   = null;
+let _deleteModal   = null;
 
-// Allow Enter key in URL input to submit
+const _isAdmin = {{ 'true' if is_admin else 'false' }};
+
 document.getElementById('yt-url-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); submitUrl(); }
+  if (e.key === 'Enter') { e.preventDefault(); submitUrl('no_diarization'); }
 });
 
-function submitUrl() {
+// ── Submit ──────────────────────────────────────────────────────────────────
+
+function submitUrl(mode) {
   const url = document.getElementById('yt-url-input').value.trim();
   if (!url) { showUrlError('请输入 YouTube 链接。'); return; }
 
   clearUrlError();
-  setSubmitBusy(true);
+  setBtnBusy(mode, true);
   resetResultCard();
 
   fetch('/transcript/process', {
-    method: 'POST',
+    method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body:    JSON.stringify({ url, mode }),
   })
     .then(r => r.json())
     .then(data => {
       if (data.error) {
         showUrlError(data.error);
-        setSubmitBusy(false);
+        setBtnBusy(mode, false);
         return;
       }
       _currentJobId = data.job_id;
-      showResultCard('pending', '正在排队…');
+      showResultCard('pending', '正在排队…', mode);
+      if (data.cached) {
+        setStatusText('已找到缓存结果，正在加载…');
+      }
       startPolling(_currentJobId);
     })
     .catch(() => {
       showUrlError('请求失败，请检查网络连接。');
-      setSubmitBusy(false);
+      setBtnBusy(mode, false);
     });
 }
 
+// ── Sidebar ──────────────────────────────────────────────────────────────────
+
+function loadJob(jobId) {
+  resetResultCard();
+  _currentJobId = jobId;
+  showResultCard('pending', '正在加载…', null);
+  startPolling(jobId);
+}
+
+function refreshSidebar() {
+  fetch('/transcript/jobs')
+    .then(r => r.json())
+    .then(jobs => renderSidebar(jobs))
+    .catch(() => {});
+}
+
+function renderSidebar(jobs) {
+  const list = document.getElementById('sidebar-list');
+  if (!jobs || jobs.length === 0) {
+    list.innerHTML = '<p class="text-muted small mb-0">暂无转录记录。</p>';
+    return;
+  }
+
+  // Split into past-7-days vs history
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+  cutoff.setHours(0, 0, 0, 0);
+
+  const recent = [], history = [];
+  for (const j of jobs) {
+    const d = new Date(j.created_at);
+    (d >= cutoff ? recent : history).push(j);
+  }
+  // Most-recent first within each group
+  recent.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  history.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  function renderItem(j) {
+    const title = j.video_title || j.video_id;
+    const deleteBtn = _isAdmin
+      ? `<button class="btn btn-link p-0 text-danger position-absolute"
+                 style="top:.3rem; right:.3rem; font-size:.75rem; line-height:1"
+                 title="删除"
+                 data-job-id="${escHtml(j.job_id)}"
+                 data-title="${escHtml(title)}"
+                 onclick="event.stopPropagation(); confirmDelete(this.dataset.jobId, this.dataset.title)">✕</button>`
+      : '';
+    const statusIcon = j.status === 'done'  ? '<span class="text-success" style="font-size:.72rem">✓</span>'
+                     : j.status === 'error' ? '<span class="text-danger"  style="font-size:.72rem">✗</span>'
+                     :                        '<span class="text-warning" style="font-size:.72rem">…</span>';
+    const modeBadge = `<span class="badge ${j.mode === 'diarization' ? 'bg-primary' : 'bg-secondary'}" style="font-size:.65rem">${j.mode === 'diarization' ? '区分' : '不区分'}</span>`;
+    return `
+      <div class="sidebar-item p-2 rounded mb-1 border position-relative"
+           style="cursor:pointer; font-size:.82rem"
+           onclick="loadJob('${escHtml(j.job_id)}')"
+           title="${escHtml(j.video_url || '')}">
+        <div class="fw-medium" style="word-break:break-word; padding-right:${_isAdmin ? '1.4rem' : '0'}">${escHtml(title)}</div>
+        <div class="d-flex align-items-center mt-1 gap-1">
+          ${modeBadge}
+          <span class="text-muted ms-auto" style="font-size:.7rem; flex-shrink:0">${j.created_at.slice(0,10)}</span>
+          ${statusIcon}
+        </div>
+        ${deleteBtn}
+      </div>`;
+  }
+
+  function renderGroup(groupId, label, groupJobs, expanded) {
+    if (groupJobs.length === 0) return '';
+    const items = groupJobs.map(renderItem).join('');
+    const arrowRotation = expanded ? 'rotate(0deg)' : 'rotate(-90deg)';
+    const display = expanded ? 'block' : 'none';
+    return `
+      <div class="mb-2">
+        <div class="d-flex align-items-center px-2 py-1 rounded mb-1"
+             style="cursor:pointer; background:#f0f2f5; font-size:.8rem; font-weight:600; user-select:none"
+             onclick="toggleGroup('${groupId}')">
+          <span class="flex-grow-1">${escHtml(label)}</span>
+          <span class="text-muted ms-1" style="font-size:.7rem; font-weight:400">${groupJobs.length}</span>
+          <span id="${groupId}-arrow" style="font-size:.65rem; margin-left:.4rem; flex-shrink:0; transition:transform .15s; transform:${arrowRotation}">▼</span>
+        </div>
+        <div id="${groupId}-items" style="display:${display}">${items}</div>
+      </div>`;
+  }
+
+  list.innerHTML =
+    renderGroup('grp-recent',  '最近 7 天', recent,  true)  +
+    renderGroup('grp-history', '历史记录',  history, false);
+}
+
+function toggleGroup(groupId) {
+  const el    = document.getElementById(`${groupId}-items`);
+  const arrow = document.getElementById(`${groupId}-arrow`);
+  const collapsed = el.style.display === 'none';
+  el.style.display        = collapsed ? 'block' : 'none';
+  arrow.style.transform   = collapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+function confirmDelete(jobId, title) {
+  _deleteJobId = jobId;
+  const modalEl = document.getElementById('deleteModal');
+  if (!modalEl) { alert('删除对话框未找到，请确认当前账号为管理员。'); return; }
+  document.getElementById('delete-target-title').textContent = title;
+  _deleteModal = new bootstrap.Modal(modalEl);
+  _deleteModal.show();
+}
+
+function executeDelete() {
+  if (!_deleteJobId) return;
+  const jobId = _deleteJobId;
+  if (_deleteModal) { _deleteModal.hide(); _deleteModal = null; }
+
+  fetch(`/transcript/${jobId}/delete`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert('删除失败：' + data.error); return; }
+      if (_currentJobId === jobId) {
+        _currentJobId = null;
+        resetResultCard();
+      }
+      refreshSidebar();
+    })
+    .catch(() => alert('请求失败，请重试。'));
+}
+
+// ── Polling ──────────────────────────────────────────────────────────────────
+
+function fetchStatus(jobId) {
+  fetch(`/transcript/status/${jobId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        stopPolling();
+        showErrorPanel(data.error);
+        clearAllBtnBusy();
+        return;
+      }
+      handleStatusUpdate(data, jobId);
+    })
+    .catch(() => {});
+}
+
 function startPolling(jobId) {
-  // Poll every 3 seconds; stops automatically when status is "done" or "error"
-  _pollInterval = setInterval(() => {
-    fetch(`/transcript/status/${jobId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          stopPolling();
-          showErrorPanel(data.error);
-          setSubmitBusy(false);
-          return;
-        }
-
-        const status = data.status;
-        updateStatusBadge(status);
-
-        if (status === 'processing') {
-          setStatusText('正在处理（提取字幕 / 转录音频）…');
-        } else if (status === 'pending') {
-          setStatusText('正在排队…');
-        } else if (status === 'done') {
-          stopPolling();
-          setSubmitBusy(false);
-          showDonePanel(data, jobId);
-        } else if (status === 'error') {
-          stopPolling();
-          setSubmitBusy(false);
-          showErrorPanel(data.error_message || '处理失败，请重试。');
-        }
-      })
-      .catch(() => { /* keep polling on transient network errors */ });
-  }, 3000);
+  stopPolling();
+  fetchStatus(jobId);
+  _pollInterval = setInterval(() => fetchStatus(jobId), 3000);
 }
 
 function stopPolling() {
   if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
 }
 
-// ---- UI helpers ----
+function handleStatusUpdate(data, jobId) {
+  const status = data.status;
+  updateStatusBadge(status);
+  setModeBadge(data.mode);
+  setVideoMeta(data.video_title, data.video_author, data.video_url, data.initiated_by);
 
-function setSubmitBusy(busy) {
-  const btn    = document.getElementById('submit-btn');
-  const label  = document.getElementById('submit-label');
-  const spinner = document.getElementById('submit-spinner');
+  if (status === 'pending') {
+    setStatusText('正在排队…');
+  } else if (status === 'processing') {
+    setStatusText(data.mode === 'diarization'
+      ? '正在下载音频并进行说话人分离转录…'
+      : '正在处理（提取字幕 / 转录音频）…');
+  } else if (status === 'awaiting_approval') {
+    stopPolling();
+    clearAllBtnBusy();
+    setStatusText('未找到字幕，需确认是否下载音频。');
+    document.getElementById('approval-panel').style.display = 'block';
+  } else if (status === 'translating') {
+    setStatusText('正在翻译为中文…');
+    setTranslationState('spinning');
+  } else if (status === 'summarizing') {
+    setStatusText('正在生成中文摘要…');
+    setSummarySpinning(true);
+  } else if (status === 'done') {
+    stopPolling();
+    clearAllBtnBusy();
+    showDonePanel(data, jobId);
+    refreshSidebar();
+  } else if (status === 'error') {
+    stopPolling();
+    clearAllBtnBusy();
+    showErrorPanel(data.error_message || '处理失败，请重试。', data.has_cached_audio, jobId);
+    refreshSidebar();
+  }
+}
+
+// ── Approval ─────────────────────────────────────────────────────────────────
+
+function approveAudioDownload() {
+  document.getElementById('approval-panel').style.display = 'none';
+  updateStatusBadge('processing');
+  setStatusText('正在处理（下载音频并转录）…');
+
+  fetch(`/transcript/${_currentJobId}/approve`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showErrorPanel(data.error); return; }
+      startPolling(_currentJobId);
+    })
+    .catch(() => showErrorPanel('请求失败，请重试。'));
+}
+
+function cancelApproval() {
+  document.getElementById('approval-panel').style.display = 'none';
+  document.getElementById('result-card').style.display    = 'none';
+}
+
+// ── Summary ───────────────────────────────────────────────────────────────────
+
+function generateSummary() {
+  setSummarySpinning(true);
+
+  fetch(`/transcript/${_currentJobId}/summarize`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        setSummarySpinning(false);
+        alert('摘要生成失败：' + data.error);
+        return;
+      }
+      updateStatusBadge('summarizing');
+      startPolling(_currentJobId);
+    })
+    .catch(() => {
+      setSummarySpinning(false);
+      alert('请求失败，请重试。');
+    });
+}
+
+function deleteSummary() {
+  if (!_currentJobId) return;
+  fetch(`/transcript/${_currentJobId}/delete_summary`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert('删除失败：' + data.error); return; }
+      setSummarySpinning(false);
+    })
+    .catch(() => alert('请求失败，请重试。'));
+}
+
+// ── Translation ───────────────────────────────────────────────────────────────
+
+function requestTranslation() {
+  setTranslationState('spinning');
+  fetch(`/transcript/${_currentJobId}/translate`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        setTranslationState('idle');
+        alert('翻译请求失败：' + data.error);
+        return;
+      }
+      updateStatusBadge('translating');
+      startPolling(_currentJobId);
+    })
+    .catch(() => {
+      setTranslationState('idle');
+      alert('请求失败，请重试。');
+    });
+}
+
+function setTranslationState(state, zhText, jobId) {
+  const genArea  = document.getElementById('translation-generate-area');
+  const spinner  = document.getElementById('translation-spinner-area');
+  const content  = document.getElementById('translation-content-area');
+  const zhEl     = document.getElementById('transcript-zh-content');
+  const dlZhGroup = document.getElementById('download-zh-group');
+
+  genArea.style.display = 'none';
+  spinner.style.display = 'none';
+  content.style.display = 'none';
+
+  if (state === 'idle') {
+    genArea.style.display = 'block';
+    if (dlZhGroup) dlZhGroup.style.display = 'none';
+  } else if (state === 'spinning') {
+    spinner.style.display = 'block';
+  } else if (state === 'done') {
+    zhEl.textContent = zhText || '';
+    content.style.display = 'block';
+    if (dlZhGroup && jobId) {
+      document.getElementById('download-zh-txt').href = `/transcript/download/${jobId}?version=chinese`;
+      document.getElementById('download-zh-pdf').href = `/transcript/download/${jobId}/pdf?version=chinese`;
+      dlZhGroup.style.display = 'inline-flex';
+    }
+  }
+}
+
+function setSummarySpinning(spinning) {
+  document.getElementById('summary-generate-area').style.display  = spinning ? 'none'  : 'block';
+  document.getElementById('summary-spinner-area').style.display   = spinning ? 'flex'  : 'none';
+  document.getElementById('summary-content-area').style.display   = 'none';
+}
+
+function showSummaryContent(text) {
+  document.getElementById('summary-generate-area').style.display  = 'none';
+  document.getElementById('summary-spinner-area').style.display   = 'none';
+  document.getElementById('summary-content-area').style.display   = 'block';
+  document.getElementById('summary-content').innerHTML = marked.parse(text || '', { breaks: true });
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+
+function setVideoMeta(title, author, url, initiatedBy) {
+  const metaEl        = document.getElementById('video-meta');
+  const titleEl       = document.getElementById('video-title');
+  const authorEl      = document.getElementById('video-author');
+  const urlRow        = document.getElementById('video-url-row');
+  const urlLink       = document.getElementById('video-url-link');
+  const initiatedRow  = document.getElementById('video-initiated-by');
+  const initiatedEmail = document.getElementById('video-initiated-by-email');
+  if (title || author || url || initiatedBy) {
+    titleEl.textContent     = title  || '';
+    authorEl.textContent    = author || '';
+    authorEl.style.display  = author ? 'block' : 'none';
+    if (url) {
+      urlLink.href         = url;
+      urlLink.textContent  = url;
+      urlRow.style.display = 'block';
+    } else {
+      urlRow.style.display = 'none';
+    }
+    if (initiatedBy && _isAdmin) {
+      initiatedEmail.textContent   = initiatedBy;
+      initiatedRow.style.display   = 'block';
+    } else {
+      initiatedRow.style.display   = 'none';
+    }
+    metaEl.style.display = 'block';
+  } else {
+    metaEl.style.display = 'none';
+  }
+}
+
+function setBtnBusy(mode, busy) {
+  const id  = mode === 'diarization' ? 'btn-diarize' : 'btn-no-diarize';
+  const btn = document.getElementById(id);
+  if (!btn) return;
   btn.disabled = busy;
-  label.textContent = busy ? '处理中…' : '开始转录';
-  spinner.style.display = busy ? 'inline-block' : 'none';
+  btn.querySelector('.btn-label').style.opacity   = busy ? '.5' : '1';
+  btn.querySelector('.btn-spinner').style.display = busy ? 'inline-block' : 'none';
+  if (busy) _activeBtn = mode;
+}
+
+function clearAllBtnBusy() {
+  ['no_diarization', 'diarization'].forEach(m => setBtnBusy(m, false));
+  _activeBtn = null;
 }
 
 function showUrlError(msg) {
@@ -184,54 +644,129 @@ function clearUrlError() {
 
 function resetResultCard() {
   stopPolling();
-  document.getElementById('result-card').style.display = 'none';
-  document.getElementById('error-panel').style.display  = 'none';
-  document.getElementById('done-panel').style.display   = 'none';
-  document.getElementById('summary-content').textContent   = '';
-  document.getElementById('transcript-content').textContent = '';
+  document.getElementById('result-card').style.display    = 'none';
+  document.getElementById('error-panel').style.display    = 'none';
+  document.getElementById('done-panel').style.display     = 'none';
+  document.getElementById('approval-panel').style.display = 'none';
+  document.getElementById('video-meta').style.display     = 'none';
+  document.getElementById('transcript-content').textContent    = '';
+  document.getElementById('transcript-zh-content').textContent = '';
+  document.getElementById('summary-content').textContent       = '';
+  document.getElementById('mode-badge').style.display          = 'none';
+  setTranslationState('idle');
+  setSummarySpinning(false);
 }
 
-function showResultCard(status, statusText) {
-  document.getElementById('result-card').style.display = 'block';
+function showResultCard(status, statusText, mode) {
+  document.getElementById('result-card').style.display    = 'block';
+  document.getElementById('error-panel').style.display    = 'none';
+  document.getElementById('done-panel').style.display     = 'none';
+  document.getElementById('approval-panel').style.display = 'none';
   updateStatusBadge(status);
   setStatusText(statusText);
-  document.getElementById('error-panel').style.display = 'none';
-  document.getElementById('done-panel').style.display  = 'none';
+  if (mode) setModeBadge(mode);
 }
 
 function updateStatusBadge(status) {
   const badge = document.getElementById('status-badge');
   const map = {
-    pending:    ['bg-secondary', '等待中'],
-    processing: ['bg-warning text-dark', '处理中'],
-    done:       ['bg-success',   '完成'],
-    error:      ['bg-danger',    '错误'],
+    pending:           ['bg-secondary',        '等待中'],
+    processing:        ['bg-warning text-dark', '处理中'],
+    awaiting_approval: ['bg-warning text-dark', '待确认'],
+    translating:       ['bg-info text-dark',    '翻译中'],
+    summarizing:       ['bg-info text-dark',    '摘要生成中'],
+    done:              ['bg-success',           '完成'],
+    error:             ['bg-danger',            '错误'],
   };
   const [cls, label] = map[status] || ['bg-secondary', status];
-  badge.className = `badge ${cls}`;
+  badge.className   = `badge ${cls}`;
   badge.textContent = label;
+}
+
+function setModeBadge(mode) {
+  const el = document.getElementById('mode-badge');
+  if (!mode) return;
+  el.textContent   = mode === 'diarization' ? '区分发言人' : '不区分发言人';
+  el.style.display = 'inline-block';
 }
 
 function setStatusText(msg) {
   document.getElementById('status-text').textContent = msg;
 }
 
-function showErrorPanel(msg) {
+function showErrorPanel(msg, hasCachedAudio, jobId) {
   updateStatusBadge('error');
   setStatusText('处理失败');
   const el = document.getElementById('error-panel');
-  el.textContent = msg;
+  el.innerHTML = '';
+  const msgEl = document.createElement('div');
+  msgEl.textContent = msg;
+  el.appendChild(msgEl);
+  if (hasCachedAudio && jobId) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-sm btn-warning mt-2';
+    btn.textContent = '重试转录（跳过下载）';
+    btn.onclick = () => retryTranscription(jobId);
+    el.appendChild(btn);
+  }
   el.style.display = 'block';
+}
+
+function retryTranscription(jobId) {
+  fetch(`/transcript/${jobId}/retry`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); return; }
+      document.getElementById('error-panel').style.display = 'none';
+      setStatusText('重新转录中…');
+      startPolling(jobId);
+    })
+    .catch(() => alert('请求失败，请重试。'));
 }
 
 function showDonePanel(data, jobId) {
   updateStatusBadge('done');
-  setStatusText('转录与摘要已生成。');
-
-  document.getElementById('summary-content').textContent    = data.summary || '（无摘要）';
+  setStatusText('转录完成。');
+  setModeBadge(data.mode);
+  setVideoMeta(data.video_title, data.video_author, data.video_url, data.initiated_by);
   document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
-  document.getElementById('download-btn').href = `/transcript/download/${jobId}`;
+  document.getElementById('download-original-txt').href = `/transcript/download/${jobId}?version=original`;
+  document.getElementById('download-original-pdf').href = `/transcript/download/${jobId}/pdf?version=original`;
   document.getElementById('done-panel').style.display = 'block';
+
+  // Translation section
+  if (data.transcript_zh) {
+    setTranslationState('done', data.transcript_zh, jobId);
+  } else {
+    setTranslationState('idle');
+  }
+
+  // Summary hint: update to reflect whether Chinese transcript is available
+  const hint = document.getElementById('summary-hint');
+  if (hint) {
+    hint.textContent = data.transcript_zh
+      ? '基于中文翻译生成摘要'
+      : '直接从原文生成中文摘要（或先翻译再摘要）';
+  }
+
+  if (data.summary) {
+    showSummaryContent(data.summary);
+  } else {
+    setSummarySpinning(false);
+  }
 }
+
+// ── Initial render ────────────────────────────────────────────────────────────
+renderSidebar({{ sidebar_jobs | tojson }});
+
+// Pre-fill URL from ?url= query param (e.g. clicked "转录此视频" from the feed)
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const preUrl = params.get('url');
+  if (preUrl) {
+    const input = document.getElementById('yt-url-input');
+    if (input) input.value = preUrl;
+  }
+})();
 </script>
 {% endblock %}

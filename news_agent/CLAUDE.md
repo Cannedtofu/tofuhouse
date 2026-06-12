@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+
+
 ## Running the app
 
 ```bash
@@ -50,37 +52,52 @@ pipeline.run_fetch_and_summarize()
           ├── Tier 1: Playwright (headed, non-headless) → trafilatura → Markdown + images
           └── Tier 2: browser-use LLM agent (Qwen qwen-vl-max) — only if Tier 1 < 300 chars
           ↓
-summarizer.py     → Qwen qwen-plus (article summaries + batch digest)
+article_summarizer.py   → Qwen qwen-plus (per-article 2-3 sentence blurbs)
           ↓
-digest.py         → markdown builder
+email_digest.py         → plain-text markdown builder for email
           ↓
-email_sender.py   → SMTP
+email_sender.py         → SMTP
+```
+
+### Data flow — AI digest (web UI)
+
+```
+POST /digest/generate  (user clicks "Generate AI Digest")
+    ↓
+ai_digest.generate_batch_digest()  [daemon thread]
+    ├── per RSS/web source: importance classification → abstracts for top articles
+    ├── per Nitter source: original-tweet discourse + retweet signal summaries
+    └── cross-source Big Picture synthesis (when >1 source)
+    ↓
+cached in digests table (keyed by sorted article ID hash)
 ```
 
 ### Data flow — YouTube transcript
 
 ```
-POST /transcript/process  (user pastes YouTube URL)
+POST /transcript/process  (user pastes YouTube URL + chooses mode)
     ↓
 transcript_worker.process_transcript_job()  [daemon thread]
     ↓
-Step 1: youtube-transcript-api (fast path)
-    ├── find_manually_created_transcript(["en", ...])
-    └── find_generated_transcript(["en", ...])
-    → if found: plain text transcript, skip to Step 3
-    → if not found: proceed to Step 2
+Mode: 不区分发言人 (no diarization)
+    Step 1: yt-dlp subtitle download (caption file only, no audio)
+        → if captions found: plain text transcript → done
+        → if no captions: pause at "awaiting_approval" — user must confirm audio download
 
-Step 2: audio fallback
-    ├── yt-dlp: download audio-only (mp3, mono, 64 kbps) to /tmp
-    ├── pydub: split on silence at ~4-min boundaries (max 5-min/10MB per API call)
-    │     never cuts mid-word — seeks ±30s for silence; 1.5s overlap between chunks
-    ├── qwen3-asr-flash (DashScope SDK): all chunks in parallel via ThreadPoolExecutor
-    │     wall-clock time ≈ one chunk regardless of video length
-    └── reassemble in order, deduplicate overlap words at boundaries
+    Step 2 (after user approval): audio download + paraformer-v2 ASR (no diarization)
+        ├── yt-dlp: download full audio (mp3, mono, 64 kbps) to /tmp
+        └── DashScope Recognition.call(): full file in one call (≤12 hours supported)
 
-Step 3: summarize with Qwen qwen-plus
-    ├── if transcript ≤ 12,000 chars: single call
-    └── if longer: summarize chunks separately → combine into final summary
+Mode: 区分发言人 (diarization)
+    Always starts audio download immediately (user chose this mode knowingly)
+        ├── yt-dlp: download full audio to /tmp
+        └── DashScope Recognition.call(diarization_enabled=True)
+              → sentence_info with speaker_id → formatted as [Speaker A] paragraphs
+              (consistent speaker IDs throughout the full video — no chunking)
+
+Step 3 (user-activated): AI summary via transcript_worker.generate_transcript_summary()
+    ├── if transcript ≤ 12,000 chars: single Qwen call
+    └── if longer: chunk summaries → final synthesis
 
 Step 4: store results, set status "done"
     ↓
@@ -131,13 +148,13 @@ Articles already in the DB are added to `known_urls` (skip list) only if their s
 APScheduler (daemon thread) fetches all Nitter sources on a clock-anchored schedule (default: daily at 11pm SGT). Since Nitter RSS only returns ~20 recent posts, running periodically builds up a historical database over time. The scheduler status is shown as a badge in the feed UI.
 
 ### YouTube transcript fast path
-`_fetch_transcript_fast()` tries: (1) manually-created English transcript, (2) auto-generated English transcript. Returns `None` if neither exists — no cascade to non-English or inferior quality. Captions are fetched directly from YouTube's timedtext API via youtube-transcript-api, with no audio download and no API key required.
+`_fetch_transcript_fast()` in `transcript_worker.py` downloads subtitles via yt-dlp (caption file only, no audio). Pass 1 tries English + Chinese; Pass 2 tries all languages. Returns `None` if no captions found, triggering the audio fallback approval flow.
 
-### YouTube audio fallback chunking
-pydub splits audio at silence boundaries near each 4-minute target. The 4-minute limit ensures chunks stay under qwen3-asr-flash's 5-minute/10MB per-call limit. Chunks overlap by 1.5 seconds to avoid losing words at boundaries; `_remove_boundary_duplicates()` trims the overlapping words during reassembly. All chunks are sent to qwen3-asr-flash concurrently (up to 8 parallel workers) so wall-clock time for a 2-hour video ≈ time for one 4-minute chunk.
+### YouTube audio transcription — no chunking
+paraformer-v2 supports up to 2 GB / 12 hours per call (diarization recommended ≤2 hours). The full audio file is sent in a single `Recognition.call()` — no chunking. This is critical for diarization mode: chunking would reset speaker IDs at each chunk boundary, making Speaker A in chunk 1 potentially different from Speaker A in chunk 2.
 
 ### AI Digest (batch, structured)
-`summarizer.generate_batch_digest()` groups articles by source. Nitter sources get separate Qwen calls for original tweets vs retweets. RSS/web sources get per-article abstracts. Sections joined with `---`, rendered as HTML via `renderDigest()` in `index.html`.
+`ai_digest.generate_batch_digest()` groups articles by source. Nitter sources get separate Qwen calls for original tweets vs retweets. RSS/web sources get per-article abstracts. Sections joined with `---`, rendered as HTML via `renderDigest()` in `index.html`.
 
 ### Background job patterns
 All long-running work uses `threading.Thread(target=_run, daemon=True).start()`:
@@ -159,9 +176,10 @@ Schema created/migrated by `db.init_db()`. New columns added via try/except `ALT
 
 **`articles`** — `id, source_id, title, url (UNIQUE), content, published_at, fetched_at, summary, digest_abstract`
 
-**`transcript_jobs`** — `job_id (UUID PK), video_url, video_id, status (pending|processing|done|error), transcript, summary, error_message, created_at, updated_at`
+**`transcript_jobs`** — `job_id (UUID PK), video_url, video_id, video_title, video_author, mode (no_diarization|diarization), status (pending|processing|awaiting_approval|summarizing|done|error), transcript, summary, error_message, created_at, updated_at`
 - Persisted to SQLite so jobs survive app restarts
 - Polled by the frontend every 3 seconds while status is pending/processing
+- Cached by (video_id, mode): re-submitting same URL+mode returns existing done job instantly
 
 **`fetch_log`** — `id, started_at, finished_at, trigger, total_new, total_fetched, sources_json, error`
 
@@ -247,12 +265,22 @@ Schema created/migrated by `db.init_db()`. New columns added via try/except `ALT
 app.py                          Flask app, all routes, APScheduler setup
 main.py                         CLI entry point (GitHub Actions)
 pipeline.py                     Shared fetch+summarize pipeline
-db.py                           SQLite layer — schema, migrations, all queries
 config.py                       All constants and env var loading
-summarizer.py                   Qwen summarization — per-article + batch digest
-digest.py                       Plain-text digest builder (CLI path)
+article_summarizer.py           Per-article 2-3 sentence blurbs via Qwen
+ai_digest.py                    AI-powered web UI digest (classification, abstracts, synthesis)
+email_digest.py                 Plain-text markdown builder for email delivery (CLI path)
 email_sender.py                 SMTP email delivery
-transcript_worker.py            YouTube transcript pipeline (fast path + audio fallback)
+transcript_worker.py            YouTube transcript pipeline (captions → audio fallback → ASR)
+
+db/                             SQLite layer — split by domain
+  __init__.py                   Re-exports all public functions (import db; db.fn() still works)
+  core.py                       Connection management, schema init, migrations
+  sources.py                    News source CRUD
+  articles.py                   Article CRUD, digest abstracts
+  fetch_log.py                  Fetch run history
+  users.py                      User accounts, source follows, digest preferences
+  digests.py                    AI digest cache, token usage tracking
+  transcripts.py                YouTube transcript jobs
 
 fetchers/
   rss.py                        RSS/Atom + Nitter RSS fetcher
@@ -276,6 +304,7 @@ scripts/
   deploy.sh                     Server deploy script
   reset_source.py               Dev utility — clear articles for one source
   fetch_history.py              Admin — backfill historical Nitter tweets
+  backup_db.sh                  Weekly DB backup (run by cron, keeps 2 most recent)
 ```
 
 ---
@@ -297,3 +326,32 @@ bash /opt/tofuhouse/news_agent/scripts/deploy.sh   # on server
 ```
 
 See `DEPLOY.md` for full deployment reference.
+
+
+---
+
+## Session Workflow
+
+- At session start: read `STATUS.md` — treat it as the source of truth for current state
+- After completing a major feature or meaningful fix: update `STATUS.md` before stopping
+- Do not update STATUS.md for small edits, typo fixes, or minor refactors
+
+---
+
+## Git
+
+- Always push immediately after committing.
+
+## Conventions
+
+- DB access always through `db/` layer — no raw SQL in routes or pipeline code
+- Config values always from `config.py` — no hardcoded strings, keys, or thresholds
+- Background tasks follow the existing `threading.Thread(target=fn, daemon=True).start()` pattern
+- New background jobs that need to survive restarts go in SQLite (follow `transcript_jobs`)
+- New background jobs that don't need persistence go in an in-memory dict (follow `_digest_jobs`)
+- New LLM calls use `QWEN_SUMMARY_MODEL` (qwen-plus) unless vision is required (`QWEN_VISION_MODEL`)
+- Chinese UI strings are intentional — do not translate or change them
+- Don't add type hints to existing files unless explicitly asked
+- Don't refactor code outside the scope of the current task — ask first
+- Write code directly; skip narrating what you're about to do
+- If something is ambiguous, ask one specific question before proceeding

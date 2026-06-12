@@ -30,6 +30,10 @@ CITY_INDEX_REGION = {
 }
 
 # --- Workflow: Applet Interaction (applet_interact.py) ---
+# Turn off blur / clear pop-up on applet start
+TURN_OFF_BLUR = True
+BLUR_CLOSE_COORD = (204, 619)
+
 # Main entry click on the applet home screen to enter store list
 STORE_LIST_ENTRY_REL_COORD = (120, 600)
 
@@ -53,11 +57,11 @@ BOX_MAX_HEIGHT = 500
 
 # Text Cropping Offsets (Inside each store box)
 # Store Name vertical range
-SN_CROP_Y_START = 27
-SN_CROP_HEIGHT = 22
+SN_CROP_Y_START = 25
+SN_CROP_HEIGHT = 25
 
 # Order Status vertical range
-OS_CROP_Y_START = 49
+OS_CROP_Y_START = 50
 OS_CROP_HEIGHT = 19
 
 # Horizontal Cutoff (% of box width to keep from left)
