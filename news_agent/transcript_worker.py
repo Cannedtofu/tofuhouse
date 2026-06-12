@@ -340,40 +340,53 @@ def _remove_boundary_duplicates(texts: list[str]) -> str:
 # ---------------------------------------------------------------------------
 
 _TRANSCRIPT_SUMMARY_SYSTEM = (
-    "You are a helpful assistant that summarizes video transcripts clearly and concisely. "
-    "Respond in the same language as the majority of the transcript content."
+    "你是专业的中文访谈摘要分析师。你的任务是提炼深度技术对话的核心内容：具体论点、关键数据、争议焦点。"
+    "禁止模糊表述（如"讨论了XX话题"）；每个论点必须说明具体主张和支撑依据。"
 )
 
 _TRANSCRIPT_SUMMARY_PROMPT = """\
-Please summarize the following video transcript in three clearly labeled sections:
+请对以下中文访谈转录进行深度摘要，按如下结构用中文输出：
 
-**Overview** (2-3 sentences): What is this video about?
+**概述**（2-3句）：访谈主题、受访者身份、核心命题。
 
-**Key Topics** (bulleted list): What are the main subjects covered?
+**核心议题与论点**（每个议题独立展开）：
+针对每个主要议题，写明：
+- 具体主张是什么
+- 用了什么论据或案例支撑
+- 是否存在反驳或未解答的质疑
 
-**Main Takeaways** (bulleted list): What are the key conclusions or insights?
+**关键数据与事实**：访谈中出现的具体数字、公司名、研究成果、时间节点。
 
-Transcript:
+**争议与开放性问题**：双方明确分歧点，或嘉宾自认存在不确定性的核心问题。
+
+**主要结论**（2-3句）：嘉宾最核心的判断或预测。
+
+转录文本：
 {transcript}"""
 
 _CHUNK_SUMMARY_PROMPT = """\
-Summarize the key points from this section (part {part} of {total}) of a video transcript. \
-Be concise and factual.
+以下是访谈转录的第{part}段（共{total}段），请用中文梳理：
+- 本段的核心论点（含具体理由，非泛述话题名）
+- 出现的关键数据、人名、机构
+- 对话中的张力或分歧（如有）
 
-Transcript section:
+转录片段：
 {transcript}"""
 
 _FINAL_SUMMARY_PROMPT = """\
-Based on these section-by-section summaries from a longer video transcript, \
-write a final summary in three clearly labeled sections:
+以下是一段长访谈的分段摘要，请综合整理为完整的中文深度摘要，结构如下：
 
-**Overview** (2-3 sentences): What is this video about?
+**概述**（2-3句）：访谈主题、受访者身份、核心命题。
 
-**Key Topics** (bulleted list): What are the main subjects covered?
+**核心议题与论点**（每个议题独立展开，保留具体论据和数据）
 
-**Main Takeaways** (bulleted list): What are the key conclusions or insights?
+**关键数据与事实**
 
-Section summaries:
+**争议与开放性问题**
+
+**主要结论**（2-3句）
+
+分段摘要内容：
 {summaries}"""
 
 
@@ -404,7 +417,7 @@ def _summarize_transcript(transcript: str) -> str:
     if len(transcript) <= _MAX_CHARS_PER_LLM_CALL:
         return _qwen_chat(
             _TRANSCRIPT_SUMMARY_PROMPT.format(transcript=transcript),
-            max_tokens=1024,
+            max_tokens=2500,
         )
 
     # Split transcript into text chunks for long content
@@ -419,14 +432,14 @@ def _summarize_transcript(transcript: str) -> str:
     for i, chunk in enumerate(raw_chunks):
         summary = _qwen_chat(
             _CHUNK_SUMMARY_PROMPT.format(part=i + 1, total=total, transcript=chunk),
-            max_tokens=512,
+            max_tokens=800,
         )
         chunk_summaries.append(f"Part {i + 1}:\n{summary}")
 
     combined = "\n\n".join(chunk_summaries)
     return _qwen_chat(
         _FINAL_SUMMARY_PROMPT.format(summaries=combined),
-        max_tokens=1024,
+        max_tokens=2500,
     )
 
 
