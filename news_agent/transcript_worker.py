@@ -658,23 +658,29 @@ Transcript section:
 {transcript}"""
 
 _EN_FINAL_PROMPT = """\
-Below are detailed notes from each section of an English-language video transcript. \
-Write a complete summary in Simplified Chinese with these sections:
+Below are detailed extraction notes from each section of an English-language video transcript.
+Your task is to REORGANIZE these notes into a coherent structure — do NOT summarize, \
+compress, or omit any content. Every specific claim, data point, named example, \
+statistic, and speaker position from the section notes must appear in the output. \
+Only deduplicate if the identical point appears verbatim across multiple sections.
+Write in Simplified Chinese.
 
 **概述**
 Format, speakers (names/roles), and the central subject.
 
 **议题与观点**
-For each major topic across all sections: what was argued, by whom, and with what reasoning. \
-Track how each speaker's position develops or stays consistent across sections. \
-Sub-headings per topic. Preserve disagreements — do not merge opposing positions.
+Group all discussion points from across sections by topic. For each topic sub-heading, \
+list every speaker's specific argument or claim exactly as recorded in the notes. \
+Do NOT merge, compress, or generalize. If a topic appears in multiple sections, \
+combine those entries under one sub-heading but keep all content.
 
 **关键论据与证据**
-Concrete supporting material: data, statistics, research, examples, named sources. \
-Attribute each to its speaker.
+All concrete supporting material from the notes: data, statistics, research findings, \
+named examples, cited sources. Attribute each to its speaker. Include every item.
 
 **分歧与开放性问题**
-Where speakers disagreed, hedged, or left questions unresolved across the full video.
+All disagreements, hedges, qualifications, and unresolved questions from the notes — \
+nothing omitted.
 
 Section notes:
 {summaries}"""
@@ -724,19 +730,23 @@ _ZH_CHUNK_PROMPT = """\
 
 _ZH_FINAL_PROMPT = """\
 以下是中文视频转录文稿各节的详细摘录笔记。
-请据此用简体中文撰写完整摘要，包含以下部分：
+你的任务是将这些笔记重新整理为有条理的结构——不得总结、压缩或遗漏任何内容。\
+各节笔记中的每一个具体主张、数据、具名实例、统计数字和发言人立场，都必须出现在输出中。\
+仅对逐字相同、在多节中重复出现的内容进行去重，其余内容一律保留。
 
 **概述**
 视频形式、发言人（姓名/身份）及核心议题。
 
 **议题与观点**
-梳理各节涉及的每个主要议题：论点内容、持论者及其推理依据。追踪每位发言人的立场在各节间的发展与一致性。每个议题使用小标题，保留分歧，不得合并对立观点。
+将各节内容按议题归类整理。每个议题设小标题，列出笔记中每位发言人的具体论点或主张，\
+不得合并、压缩或泛化表述。若某议题在多节中均有涉及，合并至同一小标题下，但保留全部内容。
 
 **关键论据与证据**
-援引的具体佐证材料：数据、统计数字、研究成果、具名实例、来源，并注明出处。
+笔记中援引的所有具体佐证材料：数据、统计数字、研究成果、具名实例、来源出处，\
+注明出处发言人。每一条均须收录，不得遗漏。
 
 **分歧与开放性问题**
-全片中发言人之间的分歧、保留意见或未解决问题。
+笔记中记录的所有分歧、保留意见、限定语及未解决问题——不得遗漏任何一条。
 
 各节笔记：
 {summaries}"""
