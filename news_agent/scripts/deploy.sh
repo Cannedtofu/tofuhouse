@@ -19,10 +19,19 @@ NITTER_CHANGED=$(git diff HEAD origin/main --name-only | grep -c '^news_agent/ni
 REQS_CHANGED=$(git diff HEAD origin/main --name-only | grep -c 'requirements.txt' || true)
 
 # ---------------------------------------------------------------
-# 2. Pull
+# 2. Pull (stash any local .env changes so they survive the merge)
 # ---------------------------------------------------------------
 echo "→ Pulling latest code…"
+STASHED=0
+if ! git diff --quiet -- .env 2>/dev/null; then
+  git stash push -m "deploy-auto-stash .env" -- .env -q
+  STASHED=1
+fi
 git pull
+if [ "$STASHED" -eq 1 ]; then
+  git stash pop -q
+  echo "  .env: local server version preserved"
+fi
 
 # ---------------------------------------------------------------
 # 3. Check required .env variables
