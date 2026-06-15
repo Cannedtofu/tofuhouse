@@ -797,6 +797,51 @@ _ZH_FINAL_PROMPT = """\
 # leaving headroom for system message and output tokens.
 _MT_CHUNK_CHARS = 4000
 
+# Formalization pass (qwen-plus). Chinese: ~1.5 chars/token.
+# 15 000 chars ≈ 10 000 input tokens; output is similar length (no summarization),
+# fitting comfortably within qwen-plus's 8 192-token output budget.
+_FORMALIZE_CHUNK_CHARS = 15_000
+
+_FORMALIZE_SYSTEM = (
+    "你是一位专业的文字编辑，专门整理口语转录稿件。"
+    "你的任务是在完整保留所有信息的前提下，将口语化的转录文本整理为规范、易读的书面文稿。"
+    "严禁概括、删减、合并任何实质内容；仅清理语言形式，不改变内容。"
+)
+
+_FORMALIZE_SINGLE_PROMPT = """\
+以下是一段中文转录文稿（由语音识别或机器翻译生成），语言较为口语化。
+
+请按以下规则整理，输出规范的书面文稿：
+
+1. **去除填充词**：删除"嗯""啊""哦""呢""就是""就是说""那个""这个""对吧""对对对""好的好的""然后然后""我的意思是""怎么说呢"等口语填充词。
+2. **消除逐字重复**：将同一意思的逐字重复表达合并为一次；不得合并内容不同但相似的句子。
+3. **规范句式**：将过长的流水句适当拆分；修正明显的语序问题。
+4. **合理分段**：按话题或论点转换划分段落，每段3至6句为宜。若有发言人标注（如[Speaker A]），保留标注，每位发言人切换时另起一段。
+5. **零信息丢失**：所有事实、数据、观点、举例、引用必须完整出现在输出中；不得概括或删减任何实质内容。
+
+直接输出整理后的文稿，不加任何解释或前言。
+
+---
+
+{text}"""
+
+_FORMALIZE_CHUNK_PROMPT = """\
+这是一段中文转录文稿的第 {part} 部分（共 {total} 部分）。{context_block}
+
+请按以下规则整理本部分，输出规范的书面文稿：
+
+1. **去除填充词**：删除"嗯""啊""哦""呢""就是""就是说""那个""这个""对吧""对对对""好的好的""然后然后""我的意思是""怎么说呢"等口语填充词。
+2. **消除逐字重复**：将同一意思的逐字重复表达合并为一次；不得合并内容不同但相似的句子。
+3. **规范句式**：将过长的流水句适当拆分；修正明显的语序问题。
+4. **合理分段**：按话题或论点转换划分段落，每段3至6句为宜。若有发言人标注（如[Speaker A]），保留标注，每位发言人切换时另起一段。
+5. **零信息丢失**：所有事实、数据、观点、举例、引用必须完整出现在输出中；不得概括或删减任何实质内容。
+
+仅处理本部分文本，直接输出整理后的内容，不加任何解释或前言。
+
+---
+
+{text}"""
+
 
 def _qwen_chat(prompt: str, max_tokens: int | None = None, model: str | None = None,
                system: str | None = None) -> str:
@@ -892,6 +937,38 @@ def _translate_to_chinese(text: str) -> str:
         prev_tail = translated[-200:] if len(translated) > 200 else translated
         logger.info("Translated chunk %d/%d", i + 1, len(chunks))
     return "".join(results)
+
+
+def _formalize_chinese(text: str) -> str:
+    """Pass 2: clean up translated Chinese — remove fillers/repetitions, add paragraphing."""
+    chunks = _split_into_chunks(text, _FORMALIZE_CHUNK_CHARS)
+    if len(chunks) == 1:
+        logger.info("Formalizing single chunk (%d chars)", len(text))
+        return _qwen_chat(
+            _FORMALIZE_SINGLE_PROMPT.format(text=text),
+            system=_FORMALIZE_SYSTEM,
+        )
+
+    total = len(chunks)
+    logger.info("Formalizing in %d chunks (%d chars)", total, len(text))
+    results: list[str] = []
+    for i, chunk in enumerate(chunks):
+        if results:
+            tail = results[-1][-400:]
+            context_block = f"\n\n【上文结尾（供衔接参考，请勿重复输出）】\n{tail}"
+        else:
+            context_block = ""
+        result = _qwen_chat(
+            _FORMALIZE_CHUNK_PROMPT.format(
+                part=i + 1, total=total,
+                context_block=context_block,
+                text=chunk,
+            ),
+            system=_FORMALIZE_SYSTEM,
+        )
+        results.append(result)
+        logger.info("Formalized chunk %d/%d", i + 1, total)
+    return "\n\n".join(results)
 
 
 def _detect_language(text: str) -> str:
@@ -1115,8 +1192,10 @@ def translate_transcript(job_id: str) -> None:
 
         logger.info("Translating transcript for job %s (%d chars)", job_id, len(transcript))
         transcript_zh = _translate_to_chinese(transcript)
+        logger.info("Translation pass done (%d chars); formalizing...", len(transcript_zh))
+        transcript_zh = _formalize_chinese(transcript_zh)
         db.update_transcript_job(job_id, status="done", transcript_zh=transcript_zh)
-        logger.info("Translation done for job %s (%d chars)", job_id, len(transcript_zh))
+        logger.info("Translation+formalization done for job %s (%d chars)", job_id, len(transcript_zh))
 
     except Exception as exc:
         logger.exception("Translation for job %s failed: %s", job_id, exc)
