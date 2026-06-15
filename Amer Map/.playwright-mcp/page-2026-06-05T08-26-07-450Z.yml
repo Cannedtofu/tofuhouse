@@ -1,0 +1,420 @@
+- generic [ref=e7]:
+  - link "Skip to main content" [ref=e9] [cursor=pointer]:
+    - /url: "#mainContent"
+  - generic [ref=e11]:
+    - main [ref=e14]:
+      - generic [ref=e15]:
+        - article [ref=e18]:
+          - generic [ref=e19]:
+            - img [ref=e23]
+            - generic [ref=e27]:
+              - heading "The LightSpray Cloudmonster 3 Hyper" [level=1] [ref=e28]
+              - paragraph [ref=e29]: The long run super trainer. Ultralight upper meets Helion™ HF hyper foam.
+              - link "Shop now" [ref=e30] [cursor=pointer]:
+                - /url: /en-us/products/cloudmonster-3-hyper-ls-u-3ug1001/unisex/black-apollo-shoes-3UG10014670
+                - generic: Shop now
+        - generic [ref=e34]:
+          - heading "Shop" [level=2] [ref=e35]
+          - generic [ref=e36]:
+            - button "Skip forward over a slideshow of items" [ref=e37] [cursor=pointer]
+            - generic [ref=e38]:
+              - link "Shoes" [ref=e41] [cursor=pointer]:
+                - /url: /en-us/shop/shoes
+                - img [ref=e44]
+                - generic "Shoes" [ref=e47]:
+                  - img
+                  - generic:
+                    - generic: Shoes
+              - link "Apparel" [ref=e50] [cursor=pointer]:
+                - /url: /en-us/shop/apparel
+                - img [ref=e53]
+                - generic "Apparel" [ref=e56]:
+                  - img
+                  - generic:
+                    - generic: Apparel
+              - link "Accessories" [ref=e59] [cursor=pointer]:
+                - /url: /en-us/shop/accessories
+                - img [ref=e62]
+                - generic "Accessories" [ref=e65]:
+                  - img
+                  - generic:
+                    - generic: Accessories
+            - button "Skip backward over a slideshow of items" [ref=e69] [cursor=pointer]
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - heading [level=3]
+            - list [ref=e74]:
+              - listitem [ref=e75]:
+                - link "Running" [ref=e76] [cursor=pointer]:
+                  - /url: /en-us/shop/running
+                  - text: Running
+                  - img [ref=e77]
+              - listitem [ref=e79]:
+                - link "Road running" [ref=e80] [cursor=pointer]:
+                  - /url: /en-us/shop/road-running
+                  - text: Road running
+                  - img [ref=e81]
+              - listitem [ref=e83]:
+                - link "Marathon" [ref=e84] [cursor=pointer]:
+                  - /url: /en-us/shop/marathon
+                  - text: Marathon
+                  - img [ref=e85]
+              - listitem [ref=e87]:
+                - link "Trail running" [ref=e88] [cursor=pointer]:
+                  - /url: /en-us/shop/trail-running
+                  - text: Trail running
+                  - img [ref=e89]
+              - listitem [ref=e91]:
+                - link "Lifestyle" [ref=e92] [cursor=pointer]:
+                  - /url: /en-us/shop/active-life
+                  - text: Lifestyle
+                  - img [ref=e93]
+              - listitem [ref=e95]:
+                - link "Hiking and outdoor" [ref=e96] [cursor=pointer]:
+                  - /url: /en-us/shop/hiking
+                  - text: Hiking and outdoor
+                  - img [ref=e97]
+              - listitem [ref=e99]:
+                - link "Tennis" [ref=e100] [cursor=pointer]:
+                  - /url: /en-us/shop/tennis
+                  - text: Tennis
+                  - img [ref=e101]
+              - listitem [ref=e103]:
+                - link "Training and gym" [ref=e104] [cursor=pointer]:
+                  - /url: /en-us/shop/training
+                  - text: Training and gym
+                  - img [ref=e105]
+          - generic [ref=e107]:
+            - link "Running" [ref=e108] [cursor=pointer]:
+              - /url: /en-us/shop/running
+              - img [ref=e111]
+            - link "Road running" [ref=e112] [cursor=pointer]:
+              - /url: /en-us/shop/road-running
+              - img [ref=e115]
+            - link "Marathon" [ref=e116] [cursor=pointer]:
+              - /url: /en-us/shop/marathon
+              - img [ref=e119]
+            - link "Trail running" [ref=e120] [cursor=pointer]:
+              - /url: /en-us/shop/trail-running
+              - img [ref=e123]
+            - link "Lifestyle" [ref=e124] [cursor=pointer]:
+              - /url: /en-us/shop/active-life
+              - img [ref=e127]
+            - link "Hiking and outdoor" [ref=e128] [cursor=pointer]:
+              - /url: /en-us/shop/hiking
+              - img [ref=e131]
+            - link "Tennis" [ref=e132] [cursor=pointer]:
+              - /url: /en-us/shop/tennis
+              - img [ref=e135]
+            - link "Training and gym" [ref=e136] [cursor=pointer]:
+              - /url: /en-us/shop/training
+              - img [ref=e139]
+        - generic [ref=e143]:
+          - button "Skip forward over a slideshow of items" [ref=e144] [cursor=pointer]
+          - generic:
+            - button "Previous":
+              - img
+              - generic: Previous
+            - button "Next":
+              - img
+              - generic: Next
+          - generic [ref=e145]:
+            - link "Cloudmonster" [ref=e148] [cursor=pointer]:
+              - /url: /en-us/shop/shoes/cloudmonster
+              - img [ref=e151]
+              - generic "Cloudmonster" [ref=e154]:
+                - img
+                - generic:
+                  - generic: Cloudmonster
+            - link "Cloud" [ref=e157] [cursor=pointer]:
+              - /url: /en-us/shop/shoes/cloud
+              - img [ref=e160]
+              - generic "Cloud" [ref=e163]:
+                - img
+                - generic:
+                  - generic: Cloud
+            - link "Cloudtilt" [ref=e166] [cursor=pointer]:
+              - /url: /en-us/shop/shoes/cloudtilt
+              - img [ref=e169]
+              - generic "Cloudtilt" [ref=e172]:
+                - img
+                - generic:
+                  - generic: Cloudtilt
+            - link "Cloudnova" [ref=e175] [cursor=pointer]:
+              - /url: /en-us/shop/shoes/cloudnova
+              - img [ref=e178]
+              - generic "Cloudnova" [ref=e181]:
+                - img
+                - generic:
+                  - generic: Cloudnova
+            - link "Cloudrunner" [ref=e184] [cursor=pointer]:
+              - /url: /en-us/shop/shoes/cloudrunner
+              - img [ref=e187]
+              - generic "Cloudrunner" [ref=e190]:
+                - img
+                - generic:
+                  - generic: Cloudrunner
+            - link "THE ROGER" [ref=e193] [cursor=pointer]:
+              - /url: /en-us/shop/shoes/roger
+              - img [ref=e196]
+              - generic "THE ROGER" [ref=e199]:
+                - img
+                - generic:
+                  - generic: THE ROGER
+            - link "Cloudsurfer" [ref=e202] [cursor=pointer]:
+              - /url: /en-us/shop/shoes/cloudsurfer
+              - img [ref=e205]
+              - generic "Cloudsurfer" [ref=e208]:
+                - img
+                - generic:
+                  - generic: Cloudsurfer
+            - link "Cloud X" [ref=e211] [cursor=pointer]:
+              - /url: /en-us/shop/shoes/cloud-x
+              - img [ref=e214]
+              - generic "Cloud X" [ref=e217]:
+                - img
+                - generic:
+                  - generic: Cloud X
+            - link "Cloudzone" [ref=e220] [cursor=pointer]:
+              - /url: /en-us/shop/shoes/cloudzone
+              - img [ref=e223]
+              - generic "Cloudzone" [ref=e226]:
+                - img
+                - generic:
+                  - generic: Cloudzone
+          - button "Skip backward over a slideshow of items" [ref=e230] [cursor=pointer]
+        - generic [ref=e236]:
+          - generic [ref=e238]:
+            - heading "Stories that move" [level=2] [ref=e239]
+            - generic [ref=e240]:
+              - button "Skip forward over a slideshow of items" [ref=e241] [cursor=pointer]
+              - generic [ref=e242]:
+                - link "On's shoe finder" [ref=e245] [cursor=pointer]:
+                  - /url: /en-us/collection/shoe-finder-road-running
+                  - img [ref=e248]
+                  - generic "On's shoe finder" [ref=e251]:
+                    - img
+                    - generic:
+                      - generic: On's shoe finder
+                - link "Tenniscore styling" [ref=e254] [cursor=pointer]:
+                  - /url: /en-us/stories/tenniscore
+                  - img [ref=e257]
+                  - generic "Tenniscore styling" [ref=e260]:
+                    - img
+                    - generic:
+                      - generic: Tenniscore styling
+                - 'link "Lane 1: The running mindset" [ref=e263] [cursor=pointer]':
+                  - /url: /en-us/stories/running-mental-toughness-x-ln1
+                  - img [ref=e266]
+                  - 'generic "Lane 1: The running mindset" [ref=e269]':
+                    - img
+                    - generic:
+                      - generic: "Lane 1: The running mindset"
+                - link "Discover our athletes" [ref=e272] [cursor=pointer]:
+                  - /url: /en-us/explore/athletes
+                  - img [ref=e275]
+                  - generic "Discover our athletes" [ref=e278]:
+                    - img
+                    - generic:
+                      - generic: Discover our athletes
+              - button "Skip backward over a slideshow of items" [ref=e282] [cursor=pointer]
+          - generic [ref=e283]:
+            - generic [ref=e284]:
+              - img [ref=e288]
+              - generic [ref=e289]:
+                - generic [ref=e290]:
+                  - heading "Our mission" [level=2] [ref=e291]
+                  - paragraph [ref=e292]: Ignite the human spirit through movement
+                - button "Read more" [ref=e294] [cursor=pointer]:
+                  - img
+                  - generic: Read more
+            - generic [ref=e296] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - generic:
+                    - button "Previous":
+                      - img
+                      - generic: Previous
+                    - button "Next":
+                      - img
+                      - generic: Next
+                  - generic:
+                    - generic [ref=e297]:
+                      - generic:
+                        - article "Inspired by athletes.":
+                          - generic:
+                            - generic:
+                              - img
+                          - generic:
+                            - paragraph: Inspired by athletes.
+                    - generic [ref=e298]:
+                      - generic:
+                        - article "Powered by Swiss engineering.":
+                          - generic:
+                            - generic:
+                              - img "Industrial engineer drawing on light box"
+                          - generic:
+                            - paragraph: Powered by Swiss engineering.
+                    - generic [ref=e299]:
+                      - generic:
+                        - article "We believe amazing things happen when we move.":
+                          - generic:
+                            - generic:
+                              - img "Woman running on trail"
+                          - generic:
+                            - paragraph: We believe amazing things happen when we move.
+                    - generic [ref=e300]:
+                      - generic:
+                        - article "Whether that’s breaking records on the track…":
+                          - generic:
+                            - generic:
+                              - img
+                          - generic:
+                            - paragraph: Whether that’s breaking records on the track…
+                    - generic [ref=e301]:
+                      - generic:
+                        - article "… Or developing innovative new technologies for a more sustainable future.":
+                          - generic:
+                            - generic:
+                              - img
+                          - generic:
+                            - paragraph: … Or developing innovative new technologies for a more sustainable future.
+                    - generic [ref=e302]:
+                      - generic:
+                        - link "Move with us, and Dream On.":
+                          - /url: /en-us/explore/about-on
+                          - generic:
+                            - generic:
+                              - img
+                          - generic:
+                            - generic:
+                              - generic "Move with us, and Dream On.":
+                                - img
+                                - generic:
+                                  - generic: Move with us, and Dream On.
+    - contentinfo [ref=e304]:
+      - generic [ref=e306]:
+        - paragraph [ref=e307]: Stay in the loop, with exclusive offers and product previews.
+        - generic [ref=e308]:
+          - generic [ref=e309]:
+            - generic [ref=e310]:
+              - generic: Email *
+              - textbox "Email" [ref=e311]
+            - alert [ref=e314]: Required field
+          - generic [ref=e317]:
+            - button "Subscribe" [ref=e318] [cursor=pointer]:
+              - generic: Subscribe
+            - region "By continuing, you accept our privacy policy. Your personal data will be passed on to On AG so we can contact you about our products and send you surveys via e-mail. Data processing and the statistical analysis of the data will be carried out by our service providers, Sailthru (USA) and Braze (USA). You can unsubscribe at any time by using the unsubscribe link in each e-mail. Please visit the On Group Privacy Notice for more information." [ref=e319]:
+              - paragraph [ref=e320]:
+                - text: By continuing, you accept our privacy policy. Your personal data will be passed on to On AG so we can contact you about our products and send you surveys via e-mail. Data processing and the statistical analysis of the data will be carried out by our service providers, Sailthru (USA) and Braze (USA). You can unsubscribe at any time by using the unsubscribe link in each e-mail. Please visit the
+                - link "On Group Privacy Notice" [ref=e321] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/privacy_policy
+                - text: for more information.
+      - list [ref=e323]:
+        - listitem [ref=e324]:
+          - link "Help & support" [ref=e325] [cursor=pointer]:
+            - /url: /en-us/support
+            - generic [ref=e328]: Help & support
+        - listitem [ref=e329]:
+          - button "Chat" [ref=e330] [cursor=pointer]:
+            - generic [ref=e333]: Chat
+      - navigation "primary footer" [ref=e335]:
+        - list [ref=e336]:
+          - listitem [ref=e337]:
+            - link "Become a member" [ref=e338] [cursor=pointer]:
+              - /url: /en-us/login
+          - listitem [ref=e339]:
+            - link "Refer a friend" [ref=e340] [cursor=pointer]:
+              - /url: /en-us/refer-a-friend
+          - listitem [ref=e341]:
+            - link "Gift cards" [ref=e342] [cursor=pointer]:
+              - /url: /en-us/products/digital-gift-card-907644gc
+          - listitem [ref=e343]:
+            - link "On stores" [ref=e344] [cursor=pointer]:
+              - /url: /en-us/explore/stores
+          - listitem [ref=e345]:
+            - link "Shop locator" [ref=e346] [cursor=pointer]:
+              - /url: https://customer-service.on-running.com/en-us/dealers
+          - listitem [ref=e347]:
+            - link "Supplier portal" [ref=e348] [cursor=pointer]:
+              - /url: /en-us/explore/on-coupa-supplier-portal
+          - listitem [ref=e349]:
+            - link "Sitemap" [ref=e350] [cursor=pointer]:
+              - /url: https://www.on.com/en-us/shop/o/pt/index
+      - navigation "Secondary footer" [ref=e352]:
+        - list [ref=e353]:
+          - listitem [ref=e354]:
+            - link "About On" [ref=e355] [cursor=pointer]:
+              - /url: /en-us/explore/about-on
+          - listitem [ref=e356]:
+            - link "Ondesign" [ref=e357] [cursor=pointer]:
+              - /url: https://design.on.com/
+          - listitem [ref=e358]:
+            - link "Careers" [ref=e359] [cursor=pointer]:
+              - /url: https://culture.on.com/
+          - listitem [ref=e360]:
+            - link "Investors" [ref=e361] [cursor=pointer]:
+              - /url: https://investors.on-running.com/home/default.aspx
+          - listitem [ref=e362]:
+            - link "Press & media" [ref=e363] [cursor=pointer]:
+              - /url: https://press.on-running.com/
+          - listitem [ref=e364]:
+            - link "Affiliates" [ref=e365] [cursor=pointer]:
+              - /url: /en-us/explore/affiliates
+          - listitem [ref=e366]:
+            - link "Backstage" [ref=e367] [cursor=pointer]:
+              - /url: https://backstage.on-running.com/#/login
+      - generic [ref=e369]:
+        - generic [ref=e370]:
+          - paragraph [ref=e371]: © On 2026
+          - navigation "utility footer" [ref=e372]:
+            - list [ref=e373]:
+              - listitem [ref=e374]:
+                - link "Terms & conditions" [ref=e375] [cursor=pointer]:
+                  - /url: /en-us/terms-and-conditions
+              - listitem [ref=e376]:
+                - link "Privacy policy" [ref=e377] [cursor=pointer]:
+                  - /url: /en-us/privacy-policy
+              - listitem [ref=e378]:
+                - link "Accessibility" [ref=e379] [cursor=pointer]:
+                  - /url: /en-us/accessibility
+              - listitem [ref=e380]:
+                - link "Imprint" [ref=e381] [cursor=pointer]:
+                  - /url: /en-us/company-information
+              - listitem [ref=e382]:
+                - link "Vulnerability reporting" [ref=e383] [cursor=pointer]:
+                  - /url: https://hackerone.com/on
+              - listitem [ref=e384]:
+                - link "Do not sell my personal information" [ref=e385] [cursor=pointer]:
+                  - /url: https://privacyportal-ch.onetrust.com/webform/f89a6a5a-3390-4671-99d9-0db312cf397d/645beaa1-f0ae-4e74-8099-362a31206178
+              - listitem [ref=e386]:
+                - link "Consent Settings" [ref=e387] [cursor=pointer]:
+                  - /url: /en-us/
+              - listitem [ref=e388]:
+                - link "Supply Chains Act" [ref=e389] [cursor=pointer]:
+                  - /url: https://assets.ctfassets.net/hnk2vsx53n6l/3aD6rYsXlYj0wvv2gWYE1t/ebeebc0715a388040bc03054937a5bff/Statement_on_Modern_Slavery_2023.pdf
+              - listitem [ref=e390]:
+                - link "Community Discounts" [ref=e391] [cursor=pointer]:
+                  - /url: https://www.on.com/explore/discount-programs
+        - list [ref=e393]:
+          - listitem [ref=e394]:
+            - link "Facebook" [ref=e395] [cursor=pointer]:
+              - /url: https://www.facebook.com/on
+          - listitem [ref=e397]:
+            - link "Instagram" [ref=e398] [cursor=pointer]:
+              - /url: https://www.instagram.com/on
+          - listitem [ref=e400]:
+            - link "LinkedIn" [ref=e401] [cursor=pointer]:
+              - /url: https://www.linkedin.com/company/on-ag/mycompany/
+          - listitem [ref=e403]:
+            - link "Strava" [ref=e404] [cursor=pointer]:
+              - /url: https://www.strava.com/clubs/on-226387
+          - listitem [ref=e406]:
+            - link "TikTok" [ref=e407] [cursor=pointer]:
+              - /url: https://www.tiktok.com/@on
+          - listitem [ref=e409]:
+            - link "Twitter" [ref=e410] [cursor=pointer]:
+              - /url: https://x.com/on_running
+          - listitem [ref=e412]:
+            - link "YouTube" [ref=e413] [cursor=pointer]:
+              - /url: https://www.youtube.com/On-Running

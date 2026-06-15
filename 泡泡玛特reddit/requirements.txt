@@ -1,0 +1,14 @@
+# Data processing
+requests>=2.31.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+
+# Alibaba Cloud DashScope (OpenAI-compatible API)
+openai>=1.30.0
+
+# Playwright browser scraper (v4.0) - after pip install, also run:
+#   playwright install chromium
+playwright>=1.44.0
+
+# Selenium (optional, only for popmart usa store.py)
+selenium>=4.0.0

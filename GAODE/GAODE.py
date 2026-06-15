@@ -19,6 +19,21 @@ from email.mime.base import MIMEBase
 from email import encoders
 import datetime
 import os
+import traceback as _traceback
+
+# Ensure working directory = script directory regardless of how the task is invoked
+# (Task Scheduler may use a different cwd, breaking relative paths like ./GaoDe.xlsx)
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+# File-based log so Task Scheduler failures are diagnosable
+_LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gaode_run.log')
+
+def _log(msg):
+    with open(_LOG_PATH, 'a', encoding='utf-8') as _f:
+        _f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+
+_log("=" * 60)
+_log("Script started")
 
 #delay = random.uniform(0, 600)
 #time.sleep(delay)
@@ -39,10 +54,28 @@ options.add_experimental_option("excludeSwitches", ["enable-logging"])
 options.add_experimental_option("excludeSwitches", ["enable-logging"])
 options.add_argument("--log-level=3")  # 0=ALL, 1=INFO, 2=WARNING, 3=ERROR
 
-service = Service(ChromeDriverManager().install())
-service.log_path = "NUL"  # discard chromedriver logs (use "/dev/null" on Linux/macOS)
-
-driver = webdriver.Chrome(service=service, options=options)
+_log("Initializing ChromeDriver...")
+try:
+    # Use a local chromedriver.exe in the same folder — no network calls, no version checks.
+    # When Chrome auto-updates, replace chromedriver.exe from:
+    #   https://googlechromelabs.github.io/chrome-for-testing/#stable
+    #   → chromedriver / win64
+    _LOCAL_DRIVER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chromedriver.exe")
+    if os.path.exists(_LOCAL_DRIVER):
+        _log(f"Using local chromedriver: {_LOCAL_DRIVER}")
+        service = Service(_LOCAL_DRIVER)
+        service.log_path = "NUL"
+        driver = webdriver.Chrome(service=service, options=options)
+    else:
+        # Local driver missing — fall back to ChromeDriverManager (requires network)
+        _log("Local chromedriver.exe not found, falling back to ChromeDriverManager")
+        service = Service(ChromeDriverManager().install())
+        service.log_path = "NUL"
+        driver = webdriver.Chrome(service=service, options=options)
+    _log("ChromeDriver OK")
+except Exception:
+    _log("ChromeDriver FAILED:\n" + _traceback.format_exc())
+    raise
 
 
 
@@ -168,3 +201,63 @@ else:
 attachment_path = file_path
 
 send_email(sender_email, sender_password, receiver_email, subject, message, attachment_path)
+
+# ---------------------------------------------------------------------------
+# Push to news_agent dashboard
+# ---------------------------------------------------------------------------
+import requests as _req
+import openpyxl as _xl
+from datetime import datetime as _dt
+
+_API_BASE = "http://47.239.66.248"
+_API_KEY  = "b1445fd803c77c5bff4b0eeced29f5b84c752d0bbd6642f89bd44c732a1646fa"
+
+# Parse full Excel history into annual-comparison datasets for 路网高延时运行时间占比
+_wb = _xl.load_workbook(file_path, data_only=True)
+_ws = _wb.active
+_annual: dict = {}
+for _row in _ws.iter_rows(min_row=2, values_only=True):
+    if not _row[0]:
+        continue
+    _d   = _dt.fromisoformat(str(_row[0])[:19])
+    _yr  = str(_d.year)
+    _val = float(str(_row[2]).rstrip('%'))
+    _annual.setdefault(_yr, []).append({"x": _d.strftime("%m-%d"), "y": _val})
+
+_panels = [{
+    "type":      "line",
+    "title":     "路网高延时运行时间占比 — 年度对比",
+    "x_type":    "day_of_year",
+    "span_gaps": True,
+    "datasets":  [{"label": yr, "data": pts} for yr, pts in sorted(_annual.items())],
+}]
+
+_ok = float(data[0][3].rstrip('%')) > 0
+_sess = _req.Session()
+_sess.verify = False
+_sess.trust_env = False  # Don't pick up Windows proxy settings — fixes Connection aborted on Windows
+
+try:
+    _sess.post(
+        f"{_API_BASE}/api/report",
+        headers={"X-API-Key": _API_KEY},
+        json={
+            "script": "gaode",
+            "status": "ok" if _ok else "error",
+            "expected_interval_hours": 24,
+            "panels": _panels,
+        },
+        timeout=30,
+    )
+    with open(file_path, "rb") as _f:
+        _sess.post(
+            f"{_API_BASE}/api/report/gaode/excel",
+            headers={"X-API-Key": _API_KEY},
+            files={"file": ("GaoDe.xlsx", _f)},
+            timeout=60,
+        )
+    _log("Dashboard push OK")
+    print("Dashboard push OK")
+except Exception as _e:
+    _log(f"Dashboard push FAILED: {_e}\n{_traceback.format_exc()}")
+    print(f"Dashboard push failed (non-fatal): {_e}")

@@ -1,0 +1,133 @@
+<h2>Dashboard Layout Options</h2>
+<p class="subtitle">How should the 数据 dashboard be structured? Pick the layout that feels right.</p>
+
+<div class="cards">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f9fa;padding:16px;font-family:sans-serif;font-size:12px;border-radius:6px;">
+      <!-- Nav mockup -->
+      <div style="background:#212529;color:#fff;padding:6px 12px;border-radius:4px;margin-bottom:10px;font-size:11px">
+        📰 新闻助手 &nbsp;&nbsp; 资讯 · 来源 · 转录 · <strong style="color:#6ea8fe">数据</strong> · 日志
+      </div>
+      <!-- Status table -->
+      <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:10px;margin-bottom:10px;">
+        <div style="font-weight:700;font-size:11px;margin-bottom:6px">脚本状态</div>
+        <table style="width:100%;font-size:10px;border-collapse:collapse">
+          <tr style="background:#f1f3f5">
+            <th style="padding:3px 6px;text-align:left">脚本</th>
+            <th style="padding:3px 6px;text-align:left">上次成功</th>
+            <th style="padding:3px 6px;text-align:center">状态</th>
+          </tr>
+          <tr><td style="padding:3px 6px">Script A</td><td style="padding:3px 6px;color:#6c757d">2 min ago</td><td style="text-align:center">🟢</td></tr>
+          <tr><td style="padding:3px 6px">Script B</td><td style="padding:3px 6px;color:#6c757d">1 hr ago</td><td style="text-align:center">🟢</td></tr>
+          <tr><td style="padding:3px 6px">Script C</td><td style="padding:3px 6px;color:#dc3545">8 hrs ago</td><td style="text-align:center">🔴</td></tr>
+        </table>
+      </div>
+      <!-- Panel selector bar -->
+      <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="background:#0d6efd;color:#fff;border-radius:12px;padding:2px 8px;font-size:10px">Script A ✓</span>
+        <span style="background:#0d6efd;color:#fff;border-radius:12px;padding:2px 8px;font-size:10px">Script B ✓</span>
+        <span style="background:#e9ecef;color:#6c757d;border-radius:12px;padding:2px 8px;font-size:10px">Script C</span>
+        <span style="background:#0d6efd;color:#fff;border-radius:12px;padding:2px 8px;font-size:10px">Script D ✓</span>
+      </div>
+      <!-- Chart panels grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:8px;height:70px">
+          <div style="font-size:10px;font-weight:600;margin-bottom:4px">Script A</div>
+          <div style="background:#e8f4f8;height:45px;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:9px">📈 Line Chart</div>
+        </div>
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:8px;height:70px">
+          <div style="font-size:10px;font-weight:600;margin-bottom:4px">Script B</div>
+          <div style="background:#e8f4f8;height:45px;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:9px">📊 Bar Chart</div>
+        </div>
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:8px;height:70px">
+          <div style="font-size:10px;font-weight:600;margin-bottom:4px">Script D</div>
+          <div style="background:#e8f4f8;height:45px;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:9px">📋 Table</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Pill toggles + grid panels</h3>
+      <p>Status table at top. Row of pill buttons to show/hide each script's panel. Active scripts render in a 2-column grid below.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f9fa;padding:16px;font-family:sans-serif;font-size:12px;border-radius:6px;">
+      <div style="background:#212529;color:#fff;padding:6px 12px;border-radius:4px;margin-bottom:10px;font-size:11px">
+        📰 新闻助手 &nbsp;&nbsp; 资讯 · 来源 · 转录 · <strong style="color:#6ea8fe">数据</strong> · 日志
+      </div>
+      <div style="display:flex;gap:8px">
+        <!-- Sidebar -->
+        <div style="width:90px;background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:8px;flex-shrink:0">
+          <div style="font-size:10px;font-weight:700;margin-bottom:6px">显示面板</div>
+          <div style="font-size:10px;margin-bottom:3px"><input type="checkbox" checked readonly> Script A</div>
+          <div style="font-size:10px;margin-bottom:3px"><input type="checkbox" checked readonly> Script B</div>
+          <div style="font-size:10px;margin-bottom:3px"><input type="checkbox" readonly> Script C</div>
+          <div style="font-size:10px;margin-bottom:3px"><input type="checkbox" checked readonly> Script D</div>
+          <hr style="margin:6px 0">
+          <div style="font-size:9px;color:#dc3545;font-weight:600">🔴 Script C<br><span style="color:#6c757d;font-weight:400">8 hrs ago</span></div>
+        </div>
+        <!-- Main -->
+        <div style="flex:1">
+          <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:8px;margin-bottom:8px">
+            <div style="font-size:10px;font-weight:600;margin-bottom:4px">Script A &nbsp;<span style="color:#198754;font-size:9px">● 2 min ago</span></div>
+            <div style="background:#e8f4f8;height:50px;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:9px">📈 Line Chart</div>
+          </div>
+          <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:8px">
+            <div style="font-size:10px;font-weight:600;margin-bottom:4px">Script B &nbsp;<span style="color:#198754;font-size:9px">● 1 hr ago</span></div>
+            <div style="background:#e8f4f8;height:50px;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:9px">📊 Bar Chart</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Sidebar checklist + stacked panels</h3>
+      <p>Left sidebar with checkboxes to show/hide scripts + status indicators inline. Selected scripts render as full-width stacked panels on the right.</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f9fa;padding:16px;font-family:sans-serif;font-size:12px;border-radius:6px;">
+      <div style="background:#212529;color:#fff;padding:6px 12px;border-radius:4px;margin-bottom:10px;font-size:11px">
+        📰 新闻助手 &nbsp;&nbsp; 资讯 · 来源 · 转录 · <strong style="color:#6ea8fe">数据</strong> · 日志
+      </div>
+      <!-- Status strip -->
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="background:#d1e7dd;border:1px solid #a3cfbb;border-radius:4px;padding:2px 8px;font-size:10px">🟢 Script A · 2m</span>
+        <span style="background:#d1e7dd;border:1px solid #a3cfbb;border-radius:4px;padding:2px 8px;font-size:10px">🟢 Script B · 1h</span>
+        <span style="background:#f8d7da;border:1px solid #f1aeb5;border-radius:4px;padding:2px 8px;font-size:10px">🔴 Script C · 8h</span>
+        <span style="background:#d1e7dd;border:1px solid #a3cfbb;border-radius:4px;padding:2px 8px;font-size:10px">🟢 Script D · 30m</span>
+        <span style="margin-left:auto;background:#fff;border:1px solid #dee2e6;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer">⚙ 自定义</span>
+      </div>
+      <!-- Full status table (collapsed by default, shown here open) -->
+      <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:8px;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;margin-bottom:4px">脚本状态 ▾</div>
+        <table style="width:100%;font-size:9px;border-collapse:collapse">
+          <tr style="background:#f1f3f5"><th style="padding:2px 5px;text-align:left">脚本</th><th style="padding:2px 5px">上次成功</th><th style="padding:2px 5px">间隔</th><th style="padding:2px 5px">状态</th></tr>
+          <tr><td style="padding:2px 5px">Script A</td><td style="padding:2px 5px;color:#6c757d">2 min ago</td><td style="padding:2px 5px;color:#6c757d">1h</td><td style="text-align:center">🟢</td></tr>
+          <tr><td style="padding:2px 5px">Script C</td><td style="padding:2px 5px;color:#dc3545">8 hrs ago</td><td style="padding:2px 5px;color:#6c757d">1h</td><td style="text-align:center">🔴</td></tr>
+        </table>
+      </div>
+      <!-- Chart panels -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:7px;height:60px">
+          <div style="font-size:9px;font-weight:600">Script A</div>
+          <div style="background:#e8f4f8;height:36px;border-radius:3px;margin-top:3px;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:8px">📈 Chart</div>
+        </div>
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:7px;height:60px">
+          <div style="font-size:9px;font-weight:600">Script D</div>
+          <div style="background:#e8f4f8;height:36px;border-radius:3px;margin-top:3px;display:flex;align-items:center;justify-content:center;color:#6c757d;font-size:8px">📊 Chart</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Status strip + gear modal</h3>
+      <p>Compact coloured status badges across the top, collapsible full status table, then chart grid. A ⚙ 自定义 button opens a modal to toggle panels.</p>
+    </div>
+  </div>
+
+</div>

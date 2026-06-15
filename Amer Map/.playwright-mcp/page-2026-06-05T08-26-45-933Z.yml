@@ -1,0 +1,202 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - banner:
+        - link "Go to On Homepage" [ref=e5] [cursor=pointer]:
+          - /url: https://on.com
+          - img "Go to On Homepage" [ref=e6]
+        - navigation "breadcrumbs" [ref=e8]:
+          - list [ref=e9]:
+            - listitem [ref=e10]:
+              - link "Home" [ref=e11] [cursor=pointer]:
+                - /url: https://on.com
+            - listitem [ref=e12]: shop locator
+      - heading "Shops close to you" [level=1] [ref=e13]
+    - main [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic:
+            - button "Keyboard shortcuts"
+          - region "Map" [ref=e17]
+          - generic [ref=e18]:
+            - generic [ref=e68]:
+              - generic:
+                - generic:
+                  - generic [ref=e69] [cursor=pointer]:
+                    - generic:  
+                  - generic [ref=e70] [cursor=pointer]:
+                    - generic:  
+                - generic:
+                  - generic [ref=e72] [cursor=pointer]: "4"
+                  - generic [ref=e73] [cursor=pointer]: "4"
+                  - generic [ref=e74] [cursor=pointer]: "2"
+                  - generic [ref=e75] [cursor=pointer]: "2"
+                  - generic [ref=e76] [cursor=pointer]: "4"
+                  - generic [ref=e77] [cursor=pointer]: "4"
+                  - generic [ref=e78] [cursor=pointer]: "2"
+            - iframe [ref=e79]:
+              
+            - generic [ref=e81] [cursor=pointer]:
+              - button "Zoom in" [ref=e82]
+              - button "Zoom out" [ref=e84]
+            - link "Open this area in Google Maps (opens a new window)" [ref=e86] [cursor=pointer]:
+              - /url: https://maps.google.com/maps?ll=1.28795,103.851784&z=13&t=m&hl=en&gl=US&mapclient=apiv3
+              - img "Google" [ref=e88]
+            - generic [ref=e89]:
+              - button "Keyboard shortcuts" [ref=e95] [cursor=pointer]
+              - generic [ref=e100]: Map data ©2026 Google
+              - link "Terms (opens in new tab)" [ref=e105] [cursor=pointer]:
+                - /url: https://www.google.com/intl/en_US/help/terms_maps.html
+                - text: Terms
+        - button "Expandable button" [ref=e107] [cursor=pointer]:
+          - img "Expandable button" [ref=e108]
+      - complementary [ref=e109]:
+        - generic [ref=e110]:
+          - generic [ref=e111]:
+            - generic [ref=e113]:
+              - combobox "My location" [ref=e116]
+              - button "Detect my location Detect my location" [ref=e119] [cursor=pointer]:
+                - text: Detect my location
+                - img "Detect my location" [ref=e120]
+            - generic [ref=e122]:
+              - heading "There are 12 stores close to buy On products" [level=2] [ref=e123]:
+                - generic [ref=e124]: There are 12 stores close to buy On products
+              - generic "Additional Information" [ref=e125] [cursor=pointer]:
+                - generic [ref=e127]:
+                  - generic [ref=e128]:
+                    - generic [ref=e129]:
+                      - img "Retailer" [ref=e131]
+                      - generic [ref=e132]: Retailer
+                    - generic [ref=e133]:
+                      - img "Premium retailer" [ref=e135]
+                      - generic [ref=e136]: Premium retailer
+                  - generic [ref=e138]:
+                    - img "Apparel retailer" [ref=e140]
+                    - generic [ref=e141]: Apparel retailer
+                - generic [ref=e142]:
+                  - generic [ref=e143]:
+                    - generic [ref=e144]:
+                      - img "Retailer" [ref=e146]
+                      - generic [ref=e147]: Retailer
+                      - generic [ref=e148]: Shoe dealers and partners that stock core and selected On models.
+                    - generic [ref=e149]:
+                      - img "Premium retailer" [ref=e151]
+                      - generic [ref=e152]: Premium retailer
+                      - generic [ref=e153]: Locations where the full On range and On experience are available.
+                  - generic [ref=e155]:
+                    - img "Apparel retailer" [ref=e157]
+                    - generic [ref=e158]: Apparel retailer
+                    - generic [ref=e159]: Stores and dealers that carry On Performance Running Gear.
+              - generic [ref=e160]:
+                - link "Outdoor Life premium 0.3 mile away" [ref=e161] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/outdor-life-singapore
+                  - generic [ref=e163]:
+                    - heading "Outdoor Life" [level=3] [ref=e164]
+                    - img "premium" [ref=e167]
+                  - generic [ref=e168]: 0.3 mile away
+                - link "Feder Sports retailer 0.3 mile away" [ref=e169] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/feder-sports-singapore
+                  - generic [ref=e171]:
+                    - heading "Feder Sports" [level=3] [ref=e172]
+                    - img "retailer" [ref=e175]
+                  - generic [ref=e176]: 0.3 mile away
+                - link "Running Lab Marina premium apparel 0.6 mile away" [ref=e177] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/runing-lab-marina-singapore
+                  - generic [ref=e179]:
+                    - heading "Running Lab Marina" [level=3] [ref=e180]
+                    - generic [ref=e181]:
+                      - img "premium" [ref=e183]
+                      - img "apparel" [ref=e185]
+                  - generic [ref=e186]: 0.6 mile away
+                - link "Liv Activ Suntec premium 0.8 mile away" [ref=e187] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/liv-activ-suntec-singapore
+                  - generic [ref=e189]:
+                    - heading "Liv Activ Suntec" [level=3] [ref=e190]
+                    - img "premium" [ref=e193]
+                  - generic [ref=e194]: 0.8 mile away
+                - link "Foot Locker Orchard retailer 1.3 miles away" [ref=e195] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/fot-locker-orchard-singapore
+                  - generic [ref=e197]:
+                    - heading "Foot Locker Orchard" [level=3] [ref=e198]
+                    - img "retailer" [ref=e201]
+                  - generic [ref=e202]: 1.3 miles away
+                - link "Irun Somerset 313 premium 1.3 miles away" [ref=e203] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/irun-somerset-313-singapore
+                  - generic [ref=e205]:
+                    - heading "Irun Somerset 313" [level=3] [ref=e206]
+                    - img "premium" [ref=e209]
+                  - generic [ref=e210]: 1.3 miles away
+                - link "Running Lab Takashimaya premium apparel 1.6 miles away" [ref=e211] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/runing-lab-takashimaya-singapore
+                  - generic [ref=e213]:
+                    - heading "Running Lab Takashimaya" [level=3] [ref=e214]
+                    - generic [ref=e215]:
+                      - img "premium" [ref=e217]
+                      - img "apparel" [ref=e219]
+                  - generic [ref=e220]: 1.6 miles away
+                - link "Liv Activ Isetan Scotts premium apparel 1.9 miles away" [ref=e221] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/liv-activ-isetan-scots-singapore
+                  - generic [ref=e223]:
+                    - heading "Liv Activ Isetan Scotts" [level=3] [ref=e224]
+                    - generic [ref=e225]:
+                      - img "premium" [ref=e227]
+                      - img "apparel" [ref=e229]
+                  - generic [ref=e230]: 1.9 miles away
+                - link "Running Lab Novena premium apparel 2.3 miles away" [ref=e231] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/runing-lab-novena-singapore
+                  - generic [ref=e233]:
+                    - heading "Running Lab Novena" [level=3] [ref=e234]
+                    - generic [ref=e235]:
+                      - img "premium" [ref=e237]
+                      - img "apparel" [ref=e239]
+                  - generic [ref=e240]: 2.3 miles away
+                - link "Liv Activ Novena premium 2.3 miles away" [ref=e241] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/liv-activ-novena-singapore
+                  - generic [ref=e243]:
+                    - heading "Liv Activ Novena" [level=3] [ref=e244]
+                    - img "premium" [ref=e247]
+                  - generic [ref=e248]: 2.3 miles away
+                - link "Dover Street Market Singapore retailer 3.1 miles away" [ref=e249] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/dover-stret-market-singapore
+                  - generic [ref=e251]:
+                    - heading "Dover Street Market Singapore" [level=3] [ref=e252]
+                    - img "retailer" [ref=e255]
+                  - generic [ref=e256]: 3.1 miles away
+                - link "Sports Profile premium 3.4 miles away" [ref=e257] [cursor=pointer]:
+                  - /url: https://customer-service.on-running.com/en-us/dealers/sports-profile-singapore
+                  - generic [ref=e259]:
+                    - heading "Sports Profile" [level=3] [ref=e260]
+                    - img "premium" [ref=e263]
+                  - generic [ref=e264]: 3.4 miles away
+          - generic [ref=e267]:
+            - navigation [ref=e268]:
+              - button "Back to results" [ref=e269] [cursor=pointer]:  Back to results
+            - generic [ref=e270]:
+              - heading [level=1] [ref=e272]
+              - generic [ref=e274] [cursor=pointer]:
+                - text: Get directions
+                - img "Get directions" [ref=e275]
+            - text:             
+    - contentinfo [ref=e277]:
+      - generic [ref=e278]:
+        - generic [ref=e279]: © On 2026
+        - list [ref=e281]:
+          - listitem [ref=e282]:
+            - link "Terms and conditions" [ref=e283] [cursor=pointer]:
+              - /url: https://customer-service.on-running.com/terms_and_conditions
+          - listitem [ref=e284]:
+            - link "Privacy policy" [ref=e285] [cursor=pointer]:
+              - /url: https://customer-service.on-running.com/privacy_policy
+          - listitem [ref=e286]:
+            - link "Accessibility" [ref=e287] [cursor=pointer]:
+              - /url: https://customer-service.on-running.com/accessibility
+          - listitem [ref=e288]:
+            - link "Imprint" [ref=e289] [cursor=pointer]:
+              - /url: https://customer-service.on-running.com/company_information
+          - listitem [ref=e290]:
+            - link "Vulnerability reporting" [ref=e291] [cursor=pointer]:
+              - /url: https://hackerone.com/on
+          - listitem [ref=e292]:
+            - link "Consent Settings" [ref=e293] [cursor=pointer]:
+              - /url: javascript:void(0)
+  - img [ref=e295]

@@ -12,7 +12,7 @@ Scripts push data to the news_agent server via two HTTP endpoints. The server st
 
 ## Step 1 — Push a Report
 
-**Endpoint:** `POST https://47.239.66.248/api/report`  
+**Endpoint:** `POST http://47.239.66.248/api/report`  
 **Auth:** `X-API-Key: <key>` header (get the key from `.env` → `REPORT_API_KEY`)  
 **Content-Type:** `application/json`
 
@@ -128,7 +128,7 @@ Copy this block into your script after all main logic runs. Replace the constant
 # ---------------------------------------------------------------------------
 import requests as _req
 
-_API_BASE = "https://47.239.66.248"
+_API_BASE = "http://47.239.66.248"
 _API_KEY  = "b1445fd803c77c5bff4b0eeced29f5b84c752d0bbd6642f89bd44c732a1646fa"  # REPORT_API_KEY from server .env
 
 _panels = [

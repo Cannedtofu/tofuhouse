@@ -1,0 +1,732 @@
+[2026-06-11 11:23:58] [START] Popmart Reddit scraper v4.0 (Playwright + old.reddit.com)
+[2026-06-11 11:23:58]         Browser: Chromium | headless=True
+[2026-06-11 11:23:58]         Source:  https://old.reddit.com
+[2026-06-11 11:23:58]         Range:   2025-01-01 -> now (real-time)
+
+[2026-06-11 11:23:58] [INFO] Warming up session on old.reddit.com...
+[2026-06-11 11:24:06] [INFO] Session ready: reddit: the front page of the internet
+[2026-06-11 11:24:07]   [FILE] popmart_v2.0_FULL.xlsx: loaded 10,009 IDs
+[2026-06-11 11:24:09]   [FILE] popmart_v2.5_2026-01-19.xlsx: loaded 17,725 IDs
+[2026-06-11 11:24:10]   [WARN] Could not read ID column from popmart_v2.5_2026-01-20.xlsx - skipping dedup
+[2026-06-11 11:24:10]   [FILE] popmart_v3.0_2026-06-09.xlsx: loaded 318 IDs
+[2026-06-11 11:24:10] [OK] 19,846 historical IDs loaded.
+
+[2026-06-11 11:24:10] =================================================================
+[2026-06-11 11:24:10] [PHASE 1] Keyword search via old.reddit.com (live data)
+[2026-06-11 11:24:10]           9 keywords | max 100 posts each
+[2026-06-11 11:24:10]           Date range: 2025-01-01 -> now
+[2026-06-11 11:24:10]           Min comments: >10 (low-engagement posts skipped)
+[2026-06-11 11:24:10] =================================================================
+[2026-06-11 11:24:10] 
+[KW] [popmart]
+[2026-06-11 11:24:16]    [PAGE] Page 1 | 25 posts | 2026-06-09 -> 2026-06-10
+[2026-06-11 11:24:16]       [LOW] Conversion and Leverage (0 comments - skip)
+[2026-06-11 11:24:16]       [LOW] UFS/UFT Manta Ray Plush (1 comments - skip)
+[2026-06-11 11:24:16]       [LOW] NEW IP: Bearibo (1 comments - skip)
+[2026-06-11 11:24:16]       [LOW] I finally caved (3 comments - skip)
+[2026-06-11 11:24:16]       [LOW] Behind Time is finally up on popmart.! (1 comments - skip)
+[2026-06-11 11:24:16]       [LOW] [US-CA] [H] Labubu with LOW PRICING [W] Payment macaron (0 comments - skip)
+[2026-06-11 11:24:16]       [LOW] this new series from crybaby is sooo cute ? (1 comments - skip)
+[2026-06-11 11:24:16]       [LOW] Trinket trading (0 comments - skip)
+[2026-06-11 11:24:16]       [LOW] [US-CA][H] Labubu Cinamoroll [W] Any other from the sam (1 comments - skip)
+[2026-06-11 11:24:16]       [LOW] New Friends From The PopMart Vending Machine! (2 comments - skip)
+[2026-06-11 11:24:16]       [LOW] Shake Tips: 1001MOONS Where?s the Elephant Slide? (2 comments - skip)
+[2026-06-11 11:24:16]       [LOW] [US-CA] [H] Finding Mokoko, Wacky Mart bag PRICE DROP [ (2 comments - skip)
+[2026-06-11 11:24:16]    [1] Whoopea Skullpanda Gentle edge (27 comments)
+[2026-06-11 11:24:22]       -> 26 comments fetched
+[2026-06-11 11:24:22]       [LOW] Love her?? (8 comments - skip)
+[2026-06-11 11:24:22]       [LOW] Popmart x Winnie the Pooh 6.11.2026 (0 comments - skip)
+[2026-06-11 11:24:22]       [LOW] Battle Against Akatsuki UFT [US ONLY] (0 comments - skip)
+[2026-06-11 11:24:22]       [LOW] [US-TX] [H] ? UFO Hirono ? Kodak x Hirono ? Rare Labubu (2 comments - skip)
+[2026-06-11 11:24:22]       [LOW] What charms/pins are we using for our Sandy Liang bags? (2 comments - skip)
+[2026-06-11 11:24:22]       [LOW] Fruit Punch Poppy (9 comments - skip)
+[2026-06-11 11:24:22]       [LOW] Got my prio! He's so cute (5 comments - skip)
+[2026-06-11 11:24:22]    [2] Popmart x Winnie the Pooh 6.11.2026 (21 comments)
+[2026-06-11 11:24:28]       -> 21 comments fetched
+[2026-06-11 11:24:28]    [3] On the Way to Meet Mom (20 comments)
+[2026-06-11 11:24:34]       -> 20 comments fetched
+[2026-06-11 11:24:34]       [LOW] [US-FL] [H] Crybaby Cry Me An Ocean Plush Pendants Shar (0 comments - skip)
+[2026-06-11 11:24:34]       [LOW] Hanzo's new ability! (Totally real trust) (6 comments - skip)
+[2026-06-11 11:24:34]       [LOW] [FOR SALE][TRADE][US-NY] [H] PopMart, Cino, Kimmon, Nar (0 comments - skip)
+[2026-06-11 11:24:34]    [INFO] No next page - done.
+[2026-06-11 11:24:34]    [DONE] [popmart] - 3 new posts added.
+[2026-06-11 11:24:34] [SAVE] kw_popmart | 70 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:24:34]    [WAIT] Pausing 12s...
+[2026-06-11 11:24:46] 
+[KW] [labubu]
+[2026-06-11 11:24:52]    [PAGE] Page 1 | 25 posts | 2026-06-10 -> 2026-06-11
+[2026-06-11 11:24:52]       [LOW] What do you think mystery N is? (2 comments - skip)
+[2026-06-11 11:24:52]       [LOW] Ququ being qute :) (0 comments - skip)
+[2026-06-11 11:24:52]       [LOW] The companion ~ (0 comments - skip)
+[2026-06-11 11:24:52]       [LOW] Dear Birds fanart (0 comments - skip)
+[2026-06-11 11:24:52]       [LOW] Super Cute, I?m always ordering from Ali Express and th (0 comments - skip)
+[2026-06-11 11:24:52]       [LOW] [US-CA] [H] FIFA | 10th | PFL (Mini Mokoko) | MAC | One (1 comments - skip)
+[2026-06-11 11:24:52]    [1] Soy milk & her first post here ?? (16 comments)
+[2026-06-11 11:24:58]       -> 16 comments fetched
+[2026-06-11 11:24:58]       [LOW] FINALLY (2 comments - skip)
+[2026-06-11 11:24:58]       [LOW] Cursed lafufu (9 comments - skip)
+[2026-06-11 11:24:58]       [LOW] KANON hanging out with her hero Kuma Kodi, at the Labub (3 comments - skip)
+[2026-06-11 11:24:58]       [LOW] Used the red labubu to match my uniform only to grab th (0 comments - skip)
+[2026-06-11 11:24:58]       [LOW] Finally, Labubu Luck has turned in my favor (7 comments - skip)
+[2026-06-11 11:24:58]       [LOW] UFS SKULLPANDA Celestial horse hang card $30?under reta (2 comments - skip)
+[2026-06-11 11:24:58]       [LOW] i can?t stop! ? (7 comments - skip)
+[2026-06-11 11:24:58]       [LOW] UFS CryBaby Dolls?under retail? (2 comments - skip)
+[2026-06-11 11:24:58]       [LOW] LOST Wallet (1 comments - skip)
+[2026-06-11 11:24:58]       [LOW] WTS NIB Checkmate Queen $30 (0 comments - skip)
+[2026-06-11 11:24:58]       [LOW] [US-CA] [H] MORE ITEMS NEED TO GO! Hirono Figures, The  (3 comments - skip)
+[2026-06-11 11:24:58]       [LOW] WTS Monsters Forest Base building blocks- Playful Home  (0 comments - skip)
+[2026-06-11 11:24:58]    [2] Serenity got knocked up again, apparently failed health class she (24 comments)
+[2026-06-11 11:25:04]       -> 24 comments fetched
+[2026-06-11 11:25:04]       [LOW] Hirono Mist Walker Group Order (4 comments - skip)
+[2026-06-11 11:25:04]       [LOW] I finally caved (3 comments - skip)
+[2026-06-11 11:25:04]       [LOW] UFS Pucky Dreamy Wishes ?HOT BUNDLE AVAILABLE? (0 comments - skip)
+[2026-06-11 11:25:04]       [LOW] Hello everyone if you like commentary YouTubers, check  (1 comments - skip)
+[2026-06-11 11:25:04]       [LOW] Hello everyone if you like commentary YouTubers, check  (0 comments - skip)
+[2026-06-11 11:25:04]    [INFO] No next page - done.
+[2026-06-11 11:25:04]    [DONE] [labubu] - 2 new posts added.
+[2026-06-11 11:25:04] [SAVE] kw_labubu | 112 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:25:04]    [WAIT] Pausing 12s...
+[2026-06-11 11:25:16] 
+[KW] [popmart hirono]
+[2026-06-11 11:25:23]    [PAGE] Page 1 | 25 posts | 2026-05-18 -> 2026-06-08
+[2026-06-11 11:25:23]       [LOW] WTS Popmart Items - Skullpanda & Hirono (0 comments - skip)
+[2026-06-11 11:25:23]       [LOW] My newest additions (3 comments - skip)
+[2026-06-11 11:25:23]       [LOW] My current popmart orders - Mist walker Hirono, peach r (7 comments - skip)
+[2026-06-11 11:25:23]       [LOW] Hirono x Kodak ? (6 comments - skip)
+[2026-06-11 11:25:23]       [LOW] First time ordering from app (0 comments - skip)
+[2026-06-11 11:25:23]       [LOW] Oipippi?!! Will she ever come back? Where can I find he (1 comments - skip)
+[2026-06-11 11:25:23]       [LOW] Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono LH (Secret (4 comments - skip)
+[2026-06-11 11:25:23]    [1] NEW HIRONO PLUSH (18 comments)
+[2026-06-11 11:25:30]       -> 18 comments fetched
+[2026-06-11 11:25:30]       [LOW] Do you guys think it will stay an Asia exclusive? (6 comments - skip)
+[2026-06-11 11:25:30]       [LOW] [US-CA] [H] Misc. Pop Mart IP [W] Payment (4 comments - skip)
+[2026-06-11 11:25:30]       [LOW] OMG?Hirono CLOT did restock (6 comments - skip)
+[2026-06-11 11:25:30]    [2] OMG?clot did restock? (14 comments)
+[2026-06-11 11:25:36]       -> 14 comments fetched
+[2026-06-11 11:25:36]       [LOW] Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono LH (Secret (8 comments - skip)
+[2026-06-11 11:25:36]    [3] Hirono Cheat codes (11 comments)
+[2026-06-11 11:25:43]       -> 11 comments fetched
+[2026-06-11 11:25:43]       [LOW] Do i dare? (5 comments - skip)
+[2026-06-11 11:25:43]       [LOW] what to do? (1 comments - skip)
+[2026-06-11 11:25:43]       [LOW] US Drops Updates? (10 comments - skip)
+[2026-06-11 11:25:43]       [LOW] UFS-MA - (several under retail!) - Nyota, CryBaby, Hiro (1 comments - skip)
+[2026-06-11 11:25:43]    [4] Hirono Road Journal production issues (18 comments)
+[2026-06-11 11:25:49]       -> 18 comments fetched
+[2026-06-11 11:25:49]    [5] BUDGET PUCKY SOURCES MASTERPOST (16 comments)
+[2026-06-11 11:25:56]       -> 16 comments fetched
+[2026-06-11 11:25:56]       [LOW] Return and refund (2 comments - skip)
+[2026-06-11 11:25:56]       [LOW] *Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono RJ, BIE,  (7 comments - skip)
+[2026-06-11 11:25:56]    [6] My first pick when my top target was Hirono. SO excited (14 comments)
+[2026-06-11 11:26:02]       -> 14 comments fetched
+[2026-06-11 11:26:02]       [LOW] I love my hirono phone case (5 comments - skip)
+[2026-06-11 11:26:02]       [LOW] where to buy hironos aside fullybooked? (7 comments - skip)
+[2026-06-11 11:26:03]    [INFO] No next page - done.
+[2026-06-11 11:26:03]    [DONE] [popmart hirono] - 6 new posts added.
+[2026-06-11 11:26:03] [SAVE] kw_popmart hirono | 209 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:26:03]    [WAIT] Pausing 12s...
+[2026-06-11 11:26:15] 
+[KW] [popmart skullpanda]
+[2026-06-11 11:26:20]    [PAGE] Page 1 | 25 posts | 2026-05-23 -> 2026-06-08
+[2026-06-11 11:26:20]       [LOW] WTS Popmart Items - Skullpanda & Hirono (0 comments - skip)
+[2026-06-11 11:26:20]       [LOW] Any way I can get rid of Amber? (6 comments - skip)
+[2026-06-11 11:26:20]       [LOW] Oipippi?!! Will she ever come back? Where can I find he (1 comments - skip)
+[2026-06-11 11:26:20]       [LOW] Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono LH (Secret (4 comments - skip)
+[2026-06-11 11:26:20]    [1] [US-CA][H] Secret Bundles with Great Prices : MLF Sunset Shimmer; (11 comments)
+[2026-06-11 11:26:26]       -> 11 comments fetched
+[2026-06-11 11:26:26]       [LOW] [TH-BK] [H] Moonlit Mask, Bubblegum, ID, Rising Star, C (2 comments - skip)
+[2026-06-11 11:26:26]       [LOW] [US-CA]UFS: MLP Secret Sunset Shimmer (2 comments - skip)
+[2026-06-11 11:26:26]       [LOW] [US-CA] [H] Misc. Pop Mart IP [W] Payment (4 comments - skip)
+[2026-06-11 11:26:26]       [LOW] Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono LH (Secret (8 comments - skip)
+[2026-06-11 11:26:26]       [LOW] The four skullpandas of the apocalypse (0 comments - skip)
+[2026-06-11 11:26:26]       [LOW] My first baby! (3 comments - skip)
+[2026-06-11 11:26:26]       [LOW] News from Popmart including extra fluffy Skullpanda! (2 comments - skip)
+[2026-06-11 11:26:26]       [LOW] [US-KY] [H] Labubu Customs, BIE, Molly, SkullPanda, Pop (1 comments - skip)
+[2026-06-11 11:26:26]       [LOW] US Drops Updates? (10 comments - skip)
+[2026-06-11 11:26:26]       [LOW] US only [UFS] Pinkie Pie Skullpanda unopened (0 comments - skip)
+[2026-06-11 11:26:26]       [LOW] [US-CA] [H] Labubu, Skullpanda, Crybaby, SpongeBob, Dis (2 comments - skip)
+[2026-06-11 11:26:26]    [2] [US-OR] [H] Labubu - Pochacco, Baba / Skullpanda - Pinkie Pie / D (25 comments)
+[2026-06-11 11:26:33]       -> 22 comments fetched
+[2026-06-11 11:26:33]       [LOW] [US-NJ] (H) Skullpanda figures and plush (W) Payment (3 comments - skip)
+[2026-06-11 11:26:33]    [3] She fell off :( (27 comments)
+[2026-06-11 11:26:40]       -> 27 comments fetched
+[2026-06-11 11:26:40]       [LOW] Shiny skullpanda diy design ?? (0 comments - skip)
+[2026-06-11 11:26:40]       [LOW] Impulse Buy - In The Garden (7 comments - skip)
+[2026-06-11 11:26:40]       [LOW] Comprehensive List of All Series & Single Releases? (3 comments - skip)
+[2026-06-11 11:26:40]    [4] guys i?m foolish and gullible pls tell me if this is legit or not (32 comments)
+[2026-06-11 11:26:46]       -> 30 comments fetched
+[2026-06-11 11:26:46]       [LOW] [US-CA] UFS SP Petals in Four Acts Figures (Popbeans -  (0 comments - skip)
+[2026-06-11 11:26:46]       [LOW] Apelar? O Volver a solicitar reembolso? (7 comments - skip)
+[2026-06-11 11:26:46]    [INFO] No next page - done.
+[2026-06-11 11:26:46]    [DONE] [popmart skullpanda] - 4 new posts added.
+[2026-06-11 11:26:46] [SAVE] kw_popmart skullpanda | 303 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:26:46]    [WAIT] Pausing 12s...
+[2026-06-11 11:26:58] 
+[KW] [popmart peach riot]
+[2026-06-11 11:27:04]    [PAGE] Page 1 | 25 posts | 2026-06-05 -> 2026-06-11
+[2026-06-11 11:27:04]       [LOW] [US-CA] [H] FIFA | 10th | PFL (Mini Mokoko) | MAC | One (1 comments - skip)
+[2026-06-11 11:27:04]       [LOW] UFS Punk Fairy Frankie Lily Pad $20- US only (0 comments - skip)
+[2026-06-11 11:27:04]       [LOW] UFS Rush Hour Tote $18 (0 comments - skip)
+[2026-06-11 11:27:04]       [LOW] [EU] ISO Bloody Valentine regular card set & A La Mode  (0 comments - skip)
+[2026-06-11 11:27:04]       [LOW] THIS FRIDAY! Heads Will Roll clubnight: electroclash/da (2 comments - skip)
+[2026-06-11 11:27:04]       [LOW] Fruit Punch Poppy (9 comments - skip)
+[2026-06-11 11:27:04]    [1] Has anyone ordered either of these? And what did you get?? (13 comments)
+[2026-06-11 11:27:10]       -> 13 comments fetched
+[2026-06-11 11:27:10]       [LOW] I need more I love peach riot figures (0 comments - skip)
+[2026-06-11 11:27:10]       [LOW] Peach Riot Fruit Punch (1 comments - skip)
+[2026-06-11 11:27:10]       [LOW] Does anyone know what some of the possible products are (6 comments - skip)
+[2026-06-11 11:27:10]       [LOW] [US-CA] UFS Punk Fairy | Rush Hour | Loading (2 comments - skip)
+[2026-06-11 11:27:10]       [LOW] Lore: Will Libby and Poppy share the same birthday? (5 comments - skip)
+[2026-06-11 11:27:10]    [2] PopMart US - what?s going on? (32 comments)
+[2026-06-11 11:27:17]       -> 31 comments fetched
+[2026-06-11 11:27:17]    [3] purchasing a trifecta of hirono/labubu/peach riot figs today hit  (11 comments)
+[2026-06-11 11:27:22]       -> 11 comments fetched
+[2026-06-11 11:27:22]       [LOW] [US-CA] [H] SP Plush Pendants + Figures (Cage-Uncage, M (3 comments - skip)
+[2026-06-11 11:27:22]       [LOW] usa uft gigi diner for poppy scientist or any (1 comments - skip)
+[2026-06-11 11:27:22]       [LOW] [US-CA] [H] SP Plush Pendants + Figures (Cage-Uncage, M (1 comments - skip)
+[2026-06-11 11:27:22]       [LOW] Peach riot UFS (US) (0 comments - skip)
+[2026-06-11 11:27:22]       [LOW] Let's try this again! Test for Test?? (8 comments - skip)
+[2026-06-11 11:27:22]    [4] Franky, Gigi, and poppy from peach riot(one of the many popmart s (13 comments)
+[2026-06-11 11:27:28]       -> 13 comments fetched
+[2026-06-11 11:27:28]       [LOW] How long do you think the Peach Riot Plush Pendants wil (4 comments - skip)
+[2026-06-11 11:27:28]    [5] Downsizing decisions? (11 comments)
+[2026-06-11 11:27:34]       -> 11 comments fetched
+[2026-06-11 11:27:34]       [LOW] UFT- (USA) 3 figures (0 comments - skip)
+[2026-06-11 11:27:34]       [LOW] My current popmart orders - Mist walker Hirono, peach r (7 comments - skip)
+[2026-06-11 11:27:34]       [LOW] Trying to find a short 3d animation I saw in one of Pea (0 comments - skip)
+[2026-06-11 11:27:34]    [INFO] No next page - done.
+[2026-06-11 11:27:34]    [DONE] [popmart peach riot] - 5 new posts added.
+[2026-06-11 11:27:34] [SAVE] kw_popmart peach riot | 387 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:27:34]    [WAIT] Pausing 12s...
+[2026-06-11 11:27:46] 
+[KW] [popmart twinkle twinkle]
+[2026-06-11 11:27:52]    [PAGE] Page 1 | 25 posts | 2026-06-10 -> 2026-06-11
+[2026-06-11 11:27:52]       [LOW] Y/N. (0 comments - skip)
+[2026-06-11 11:27:52]       [LOW] New outdoor space (0 comments - skip)
+[2026-06-11 11:27:52]       [LOW] Sharing my Pride mani! (2 comments - skip)
+[2026-06-11 11:27:52]       [LOW] [US-CA] [H] FIFA | 10th | PFL (Mini Mokoko) | MAC | One (1 comments - skip)
+[2026-06-11 11:27:52]    [1] (Selling) Pootie Tang, Dr. Seuss' The Grinch, Top Gun: Maverick,  (28 comments)
+[2026-06-11 11:27:58]       -> 28 comments fetched
+[2026-06-11 11:27:58]       [LOW] selling stuff, need these gone!!! (0 comments - skip)
+[2026-06-11 11:27:58]       [LOW] sellings a few items, need gone!! (1 comments - skip)
+[2026-06-11 11:27:58]       [LOW] Money and Power (0 comments - skip)
+[2026-06-11 11:27:58]       [LOW] Can anyone weigh in on a decision I?m trying to make? (3 comments - skip)
+[2026-06-11 11:27:58]       [LOW] IYKYK - And I think Mr. Matt knows! (8 comments - skip)
+[2026-06-11 11:27:58]       [LOW] proof 38; going second (their rh -> my adm) (2 comments - skip)
+[2026-06-11 11:27:58]       [LOW] High School Resource Websites (2 comments - skip)
+[2026-06-11 11:27:58]    [2] Crew bank can make your Christmas lights twinkle when you get a p (11 comments)
+[2026-06-11 11:28:03]       -> 11 comments fetched
+[2026-06-11 11:28:03]       [LOW] Only real ones remember this legend (2 comments - skip)
+[2026-06-11 11:28:03]    [3] The Ballad of Orange Tobby -CH63 (18 comments)
+[2026-06-11 11:28:10]       -> 18 comments fetched
+[2026-06-11 11:28:10]       [LOW] Overview for TwinklingDiamond (0 comments - skip)
+[2026-06-11 11:28:10]       [LOW] My SS Anne Restoration/Renovation (Part 3) (2 comments - skip)
+[2026-06-11 11:28:10]       [LOW] Original vs Reboot Twinkle N Flutters ! (0 comments - skip)
+[2026-06-11 11:28:10]       [LOW] Desperately looking for a Dark Green Life Ring & Berrie (1 comments - skip)
+[2026-06-11 11:28:10]    [4] I turned my T2 MacBook?s Touch Bar into a fully animated Linux da (12 comments)
+[2026-06-11 11:28:16]       -> 12 comments fetched
+[2026-06-11 11:28:16]    [5] Waited since 1PM Eastern time and no luck today. (46 comments)
+[2026-06-11 11:28:21]       -> 45 comments fetched
+[2026-06-11 11:28:21]       [LOW] I HATEEEE when people think I?m a little baby? (0 comments - skip)
+[2026-06-11 11:28:21]       [LOW] Personal narrative (0 comments - skip)
+[2026-06-11 11:28:21]    [6] Memes for your viewing pleasure (16 comments)
+[2026-06-11 11:28:28]       -> 16 comments fetched
+[2026-06-11 11:28:28]       [LOW] Rebate shop (3 comments - skip)
+[2026-06-11 11:28:28]    [INFO] No next page - done.
+[2026-06-11 11:28:28]    [DONE] [popmart twinkle twinkle] - 6 new posts added.
+[2026-06-11 11:28:28] [SAVE] kw_popmart twinkle twin | 523 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:28:28]    [WAIT] Pausing 12s...
+[2026-06-11 11:28:40] 
+[KW] [popmart crybaby]
+[2026-06-11 11:28:46]    [PAGE] Page 1 | 25 posts | 2026-05-08 -> 2026-06-10
+[2026-06-11 11:28:46]       [LOW] this new series from crybaby is sooo cute ? (1 comments - skip)
+[2026-06-11 11:28:46]       [LOW] [US-FL] [H] Crybaby Cry Me An Ocean Plush Pendants Shar (0 comments - skip)
+[2026-06-11 11:28:46]       [LOW] Historians Will Say They Were Shelfmates (2 comments - skip)
+[2026-06-11 11:28:46]       [LOW] Oipippi?!! Will she ever come back? Where can I find he (1 comments - skip)
+[2026-06-11 11:28:46]       [LOW] Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono LH (Secret (4 comments - skip)
+[2026-06-11 11:28:46]       [LOW] [US-CA] UFS Crybaby Cry Me An Ocean, Sad Club, Tears La (0 comments - skip)
+[2026-06-11 11:28:46]       [LOW] [US-CA] [H] Misc. Pop Mart IP [W] Payment (4 comments - skip)
+[2026-06-11 11:28:46]       [LOW] Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono LH (Secret (8 comments - skip)
+[2026-06-11 11:28:46]    [1] [US-NJ] [H] Hello Kitty| SECRETS Chestnut Cocoa PFL Heart Ma.K.|  (29 comments)
+[2026-06-11 11:28:52]       -> 27 comments fetched
+[2026-06-11 11:28:52]       [LOW] I (M26) talked to my crush (F24) and it went sideways. (5 comments - skip)
+[2026-06-11 11:28:52]       [LOW] Did I misread this workplace crush, or did it get awkwa (9 comments - skip)
+[2026-06-11 11:28:52]       [LOW] Did I misread this workplace crush, or did it get awkwa (3 comments - skip)
+[2026-06-11 11:28:52]       [LOW] UFS-MA - (several under retail!) - Nyota, CryBaby, Hiro (1 comments - skip)
+[2026-06-11 11:28:52]       [LOW] UFS/T (0 comments - skip)
+[2026-06-11 11:28:52]       [LOW] [US-CA] [H] Misc. POP MART IP [W] Payment (7 comments - skip)
+[2026-06-11 11:28:52]       [LOW] [US-CA] [H] Misc. PopMart [W] Payment (7 comments - skip)
+[2026-06-11 11:28:52]    [2] Hot take? (65 comments)
+[2026-06-11 11:28:58]       -> 65 comments fetched
+[2026-06-11 11:28:58]       [LOW] [US-VA] [H] ? Secret CrY BABY baby? Denim Cutie / Vinta (0 comments - skip)
+[2026-06-11 11:28:58]       [LOW] [US-CA][H] Misc. Pop Mart IP [W]Payment (0 comments - skip)
+[2026-06-11 11:28:58]       [LOW] [US-CA] [H] MISC. POP MART IP [W] Payment (1 comments - skip)
+[2026-06-11 11:28:58]    [3] Buy 2 Items, Get 3rd Free! [US-WA] [H] Skullpanda MLP (Secret), H (18 comments)
+[2026-06-11 11:29:04]       -> 17 comments fetched
+[2026-06-11 11:29:04]       [LOW] Popmart store availability (2 comments - skip)
+[2026-06-11 11:29:04]       [LOW] [US-CA] [H] Misc. Pop Mart IP [W] Payment by (3 comments - skip)
+[2026-06-11 11:29:04]       [LOW] [US-TX] [H] Mokoko | Labubu | Hirono | Skullpanda | Cry (0 comments - skip)
+[2026-06-11 11:29:04]       [LOW] Me and my boyfriend Collection (Spanish) (9 comments - skip)
+[2026-06-11 11:29:04]    [INFO] No next page - done.
+[2026-06-11 11:29:04]    [DONE] [popmart crybaby] - 3 new posts added.
+[2026-06-11 11:29:04] [SAVE] kw_popmart crybaby | 635 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:29:04]    [WAIT] Pausing 12s...
+[2026-06-11 11:29:17] 
+[KW] [popmart molly]
+[2026-06-11 11:29:23]    [PAGE] Page 1 | 25 posts | 2026-05-07 -> 2026-06-09
+[2026-06-11 11:29:23]       [LOW] [US-TX] [H] ? UFO Hirono ? Kodak x Hirono ? Rare Labubu (2 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [FOR SALE][TRADE][US-NY] [H] PopMart, Cino, Kimmon, Nar (0 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-TX] [H] ? Crybaby Cry Me An Ocean ? Dear Birds Seri (8 comments - skip)
+[2026-06-11 11:29:23]       [LOW] Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono LH (Secret (4 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-CA] [H] Hello Kitty, Pin for Love F, H, I, L, R, Wh (8 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-CA] [H] Misc. Pop Mart IP [W] Payment (4 comments - skip)
+[2026-06-11 11:29:23]       [LOW] Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono LH (Secret (8 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-KY] [H] Labubu Customs, BIE, Molly, SkullPanda, Pop (1 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-NY] [H] Monster x FIFA | Monsters 10th Anniv Figure (3 comments - skip)
+[2026-06-11 11:29:23]       [LOW] Dear Birds on AliExpress (1 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-CA] [H] Misc. POP MART IP [W] Payment (7 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-CA] [H] Misc. PopMart [W] Payment (7 comments - skip)
+[2026-06-11 11:29:23]       [LOW] *Buy 2 Items Get 3rd FREE! [US-WA] [H] Hirono RJ, BIE,  (7 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-CA] [H] Hello Kitty, Pin for Love F, H, I, L, R, Wh (2 comments - skip)
+[2026-06-11 11:29:23]       [LOW] ?? [CA-ON] [H] Various Popmart items incl Labubu, Skull (2 comments - skip)
+[2026-06-11 11:29:23]       [LOW] Crybaby & Space Molly (2 comments - skip)
+[2026-06-11 11:29:23]       [LOW] ?? [CA-ON] [H] Various Popmart items incl Labubu, Skull (0 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-NY] [H] Monster x FIFA | Monsters 10th Anniv Figure (1 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-CA][H] Misc. Pop Mart IP [W]Payment (0 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-CA] [H] MISC. POP MART IP [W] Payment (1 comments - skip)
+[2026-06-11 11:29:23]    [1] Buy 2 Items, Get 3rd Free! [US-WA] [H] Skullpanda MLP (Secret), H (18 comments)
+[2026-06-11 11:29:23]       [SKIP] Buy 2 Items, Get 3rd Free! [US-WA] [H] Skullpanda MLP (Secre
+[2026-06-11 11:29:23]       [LOW] [US-CA] [H] Misc. Pop Mart IP [W] Payment by (3 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-TX] [H] Mokoko | Labubu | Hirono | Skullpanda | Cry (0 comments - skip)
+[2026-06-11 11:29:23]       [LOW] [US-NY] [H] Monster x FIFA | Monsters 10th Anniv Figure (1 comments - skip)
+[2026-06-11 11:29:23]       [LOW] US-CA [H]Misc. Pop Mart[W]Payment (0 comments - skip)
+[2026-06-11 11:29:29]    [PAGE] Page 2 | 25 posts | 2026-04-07 -> 2026-05-07
+[2026-06-11 11:29:29]       [LOW] [US-CA] [H] Misc. Pop Mart [W] Payment (8 comments - skip)
+[2026-06-11 11:29:29]    [1] [US-CA] [H] Hello Kitty, Pin for Love F, H, I, L, R, Why So Serio (19 comments)
+[2026-06-11 11:29:36]       -> 19 comments fetched
+[2026-06-11 11:29:36]       [LOW] [US-CA] [H] Various Pop Mart [W] Payment (2 comments - skip)
+[2026-06-11 11:29:36]    [2] [US-WA] [H] HK & Friends, Macaron, BIE, HAS, PFL, Have a Good Run (23 comments)
+[2026-06-11 11:29:43]       -> 23 comments fetched
+[2026-06-11 11:29:43]       [LOW] [US-TX] [H]?Secret Items?Space Molly Series 1?Hironos f (0 comments - skip)
+[2026-06-11 11:29:43]       [LOW] [US-NY] [H] Monster x FIFA | Monsters 10th Anniv Figure (6 comments - skip)
+[2026-06-11 11:29:43]       [LOW] [US-WA] [H] HK&Friends, Macaron, BIE, HAS, PFL, Skullpa (6 comments - skip)
+[2026-06-11 11:29:43]       [LOW] UFS -CA - [H] Misc. Pop Mart [W] Payment (0 comments - skip)
+[2026-06-11 11:29:43]       [LOW] [US-CA] [H] Misc. Pop Mart [W] Payment (7 comments - skip)
+[2026-06-11 11:29:43]       [LOW] [US-TX] [H] ?Skullpanda from All Series ? Naughty Plant (0 comments - skip)
+[2026-06-11 11:29:43]       [LOW] [US-CA] [H] Hello Kitty, Pin for Love F, H, I, L, N, R, (0 comments - skip)
+[2026-06-11 11:29:43]    [3] [US-CA] [H] BIE, MAC, PFL Labubu, Why so serious, Skullpanda, Hav (15 comments)
+[2026-06-11 11:29:49]       -> 14 comments fetched
+[2026-06-11 11:29:49]       [LOW] UFS- CA- Various Pop Mart (1 comments - skip)
+[2026-06-11 11:29:49]       [LOW] [US-NY] [H] Monster x FIFA | Monsters 10th Anniv Figure (1 comments - skip)
+[2026-06-11 11:29:49]    [4] [US-TX] [H] PRICED TO SELL! ? Hello Kitty, Juggling Clown, Happy  (124 comments)
+[2026-06-11 11:29:55]       -> 122 comments fetched
+[2026-06-11 11:29:55]       [LOW] Can anyone tell me what set this Molly is from?? (5 comments - skip)
+[2026-06-11 11:29:55]       [LOW] Got my first Space Molly ? (4 comments - skip)
+[2026-06-11 11:29:55]       [LOW] Authenticate items purchased from mollyfactory. (9 comments - skip)
+[2026-06-11 11:29:55]       [LOW] Love carebears had to get these! (2 comments - skip)
+[2026-06-11 11:29:55]    [5] [US-CA] [H] Hello Kitty, Pin for Love C, D, F, H, I, L, N, R, Why (13 comments)
+[2026-06-11 11:30:01]       -> 13 comments fetched
+[2026-06-11 11:30:01]       [LOW] [US-NY] [H] Monster x FlFA | Monsters 10th Anniv Figure (1 comments - skip)
+[2026-06-11 11:30:01]    [6] [US-IL] [H] All under retail! Monsters x Sanrio Labubu (Cinnamoro (14 comments)
+[2026-06-11 11:30:08]       -> 14 comments fetched
+[2026-06-11 11:30:08]       [LOW] [US-CA] [H] Various Popmart [W] Payment (2 comments - skip)
+[2026-06-11 11:30:08]       [LOW] [US-NY] [H] Monsters 10th Anniv Figures & Phone Charms  (3 comments - skip)
+[2026-06-11 11:30:08]       [LOW] [US-IL] [H] Monsters x Sanrio Labubu (Cinnamoroll), Sku (1 comments - skip)
+[2026-06-11 11:30:09]    [INFO] No next page - done.
+[2026-06-11 11:30:09]    [DONE] [popmart molly] - 6 new posts added.
+[2026-06-11 11:30:09] [SAVE] kw_popmart molly | 846 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:30:09]    [WAIT] Pausing 12s...
+[2026-06-11 11:30:21] 
+[KW] [popmart dimoo]
+[2026-06-11 11:30:27]    [PAGE] Page 1 | 25 posts | 2026-04-24 -> 2026-06-09
+[2026-06-11 11:30:27]       [LOW] [US-TX] [H] ? UFO Hirono ? Kodak x Hirono ? Rare Labubu (2 comments - skip)
+[2026-06-11 11:30:27]       [LOW] [US-TX] [H] ? Crybaby Cry Me An Ocean ? Dear Birds Seri (8 comments - skip)
+[2026-06-11 11:30:27]       [LOW] Historians Will Say They Were Shelfmates (2 comments - skip)
+[2026-06-11 11:30:27]       [LOW] Oipippi?!! Will she ever come back? Where can I find he (1 comments - skip)
+[2026-06-11 11:30:27]       [LOW] Get it tonight or wait for my trip ? (1 comments - skip)
+[2026-06-11 11:30:27]       [LOW] Looking to Trade POPMART DIMOO figures (0 comments - skip)
+[2026-06-11 11:30:27]       [LOW] [US-NY] [H] Monster x FIFA | Monsters 10th Anniv Figure (3 comments - skip)
+[2026-06-11 11:30:27]       [LOW] Tiny Puppy US Release? (0 comments - skip)
+[2026-06-11 11:30:27]       [LOW] [ISO/trade] pucky forest baby [us] (1 comments - skip)
+[2026-06-11 11:30:27]       [LOW] ?? [CA-ON] [H] Various Popmart items incl Labubu, Skull (2 comments - skip)
+[2026-06-11 11:30:27]       [LOW] ?? [CA-ON] [H] Various Popmart items incl Labubu, Skull (0 comments - skip)
+[2026-06-11 11:30:27]       [LOW] [US-NY] [H] Monster x FIFA | Monsters 10th Anniv Figure (1 comments - skip)
+[2026-06-11 11:30:27]       [LOW] Dimoo Rondo of Dreams (1 comments - skip)
+[2026-06-11 11:30:27]       [LOW] This is not a drill! (10 comments - skip)
+[2026-06-11 11:30:27]    [1] Seller violating community guidelines - story & support advice (13 comments)
+[2026-06-11 11:30:33]       -> 12 comments fetched
+[2026-06-11 11:30:33]       [LOW] [US-NY] [H] Monster x FIFA | Monsters 10th Anniv Figure (1 comments - skip)
+[2026-06-11 11:30:33]       [LOW] Selling random move out items (4 comments - skip)
+[2026-06-11 11:30:33]    [2] [US-CA][H]labubu, skull panda, Angry Molly & Cry Baby [W]Payment  (30 comments)
+[2026-06-11 11:30:39]       -> 30 comments fetched
+[2026-06-11 11:30:39]    [3] [US-PA] [H] Labubu, Skullpanda, Peach Riot, Dimoo, CryBaby [W] Pa (16 comments)
+[2026-06-11 11:30:46]       -> 16 comments fetched
+[2026-06-11 11:30:46]       [LOW] [US-NY] [H] Monster x FIFA | Monsters 10th Anniv Figure (6 comments - skip)
+[2026-06-11 11:30:46]    [4] Dimoo Tiny Puppy BJDs (12 comments)
+[2026-06-11 11:30:52]       -> 12 comments fetched
+[2026-06-11 11:30:52]       [LOW] UFS -CA - [H] Misc. Pop Mart [W] Payment (0 comments - skip)
+[2026-06-11 11:30:52]       [LOW] [US-CA] [H] Misc. Pop Mart [W] Payment (7 comments - skip)
+[2026-06-11 11:30:52]       [LOW] The Chubby Penguin! ?? (4 comments - skip)
+[2026-06-11 11:30:52]       [LOW] I love them so much ? (0 comments - skip)
+[2026-06-11 11:30:52]    [INFO] No next page - done.
+[2026-06-11 11:30:52]    [DONE] [popmart dimoo] - 4 new posts added.
+[2026-06-11 11:30:52] [SAVE] kw_popmart dimoo | 920 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:30:52] 
+=================================================================
+[2026-06-11 11:30:52] [PHASE 2] Subreddit full scrape via old.reddit.com
+[2026-06-11 11:30:52]           8 subreddits | posts from 2025-01-01 to now
+[2026-06-11 11:30:52]           Min comments: >10 (low-engagement posts skipped)
+[2026-06-11 11:30:52] =================================================================
+[2026-06-11 11:30:52] 
+[SUB] r/SkullpandaArtDolls
+[2026-06-11 11:30:59]    [PAGE] Page 1 | 25 posts | 2026-06-07 -> 2026-06-11
+[2026-06-11 11:30:59]       [LOW] Which is more popular design? (5 comments - skip)
+[2026-06-11 11:30:59]       [LOW] Bedazzled XG !!! (1 comments - skip)
+[2026-06-11 11:30:59]       [LOW] Any tips for secret hunting? (3 comments - skip)
+[2026-06-11 11:30:59]       [LOW] SP Have a Good Run (3 comments - skip)
+[2026-06-11 11:30:59]       [LOW] my first ever skullpanda!! ? (1 comments - skip)
+[2026-06-11 11:30:59]       [LOW] Red Crystal Amid Flower Skullpanda (0 comments - skip)
+[2026-06-11 11:30:59]       [LOW] ?? Lightning ?? (0 comments - skip)
+[2026-06-11 11:30:59]       [LOW] My entire collection so far! (6 comments - skip)
+[2026-06-11 11:30:59]    [1] Whoopea Skullpanda Gentle edge (27 comments)
+[2026-06-11 11:30:59]       [SKIP] Whoopea Skullpanda Gentle edge
+[2026-06-11 11:30:59]       [LOW] Dear Birds (1 comments - skip)
+[2026-06-11 11:30:59]       [LOW] ? My Pink Angel Ghostie ? (0 comments - skip)
+[2026-06-11 11:30:59]       [LOW] Anyone have a spare card for the Image of Reality serie (0 comments - skip)
+[2026-06-11 11:30:59]       [LOW] She?s soooo pretty. I can?t wait to make her more punk. (1 comments - skip)
+[2026-06-11 11:30:59]       [LOW] Winter symphony (2 comments - skip)
+[2026-06-11 11:30:59]       [LOW] Petals in four acts magnet (0 comments - skip)
+[2026-06-11 11:30:59]       [LOW] Pond & dawn (0 comments - skip)
+[2026-06-11 11:30:59]       [LOW] The Queen atop her beast ? (6 comments - skip)
+[2026-06-11 11:30:59]    [1] Skullpanda Fragrances Review! (25 comments)
+[2026-06-11 11:31:05]       -> 22 comments fetched
+[2026-06-11 11:31:05]       [LOW] Petals in Four Acts Secret (1 comments - skip)
+[2026-06-11 11:31:05]       [LOW] Skullpanda BJD Posing (0 comments - skip)
+[2026-06-11 11:31:05]    [2] ? The purple collection begins... (12 comments)
+[2026-06-11 11:31:11]       -> 12 comments fetched
+[2026-06-11 11:31:11]       [LOW] Meet my little Dew in a blue fantasy bat-wing look ?? (0 comments - skip)
+[2026-06-11 11:31:11]       [LOW] Xiong Panpan ??? (7 comments - skip)
+[2026-06-11 11:31:11]       [LOW] Love her (1 comments - skip)
+[2026-06-11 11:31:11]    [3] Can you guess which SKULLPANDA this is? ?? (11 comments)
+[2026-06-11 11:31:16]       -> 10 comments fetched
+[2026-06-11 11:31:16]    [INFO] No next page - done.
+[2026-06-11 11:31:16]    [DONE] r/SkullpandaArtDolls - 3 new posts added.
+[2026-06-11 11:31:17] [SAVE] sub_SkullpandaArtDolls | 967 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:31:17]    [WAIT] Pausing 12s...
+[2026-06-11 11:31:29] 
+[SUB] r/labubu
+[2026-06-11 11:31:35]    [PAGE] Page 1 | 25 posts | 2026-06-09 -> 2026-06-11
+[2026-06-11 11:31:35]       [LOW] Ququ being qute :) (0 comments - skip)
+[2026-06-11 11:31:35]       [LOW] The companion ~ (0 comments - skip)
+[2026-06-11 11:31:35]       [LOW] Dear Birds fanart (0 comments - skip)
+[2026-06-11 11:31:35]    [1] Soy milk & her first post here ?? (16 comments)
+[2026-06-11 11:31:35]       [SKIP] Soy milk & her first post here ??
+[2026-06-11 11:31:35]       [LOW] Cursed lafufu (9 comments - skip)
+[2026-06-11 11:31:35]       [LOW] Finally, Labubu Luck has turned in my favor (7 comments - skip)
+[2026-06-11 11:31:35]       [LOW] i can?t stop! ? (7 comments - skip)
+[2026-06-11 11:31:35]    [1] Serenity got knocked up again, apparently failed health class she (24 comments)
+[2026-06-11 11:31:35]       [SKIP] Serenity got knocked up again, apparently failed health clas
+[2026-06-11 11:31:35]       [LOW] I finally caved (3 comments - skip)
+[2026-06-11 11:31:35]       [LOW] Her ears are so funky! (4 comments - skip)
+[2026-06-11 11:31:35]    [1] I got my first Labubu and hated the colour. Now he?s a black Labu (69 comments)
+[2026-06-11 11:31:42]       -> 69 comments fetched
+[2026-06-11 11:31:42]    [2] Ordered the Merkoko! (14 comments)
+[2026-06-11 11:31:48]       -> 14 comments fetched
+[2026-06-11 11:31:48]    [3] Coffee cart is open for business! (14 comments)
+[2026-06-11 11:31:54]       -> 14 comments fetched
+[2026-06-11 11:31:54]    [4] Is my child fake. Be honest? (21 comments)
+[2026-06-11 11:32:00]       -> 21 comments fetched
+[2026-06-11 11:32:00]       [LOW] Wife is still asleep, time to fry some shrimp labubu! (0 comments - skip)
+[2026-06-11 11:32:00]       [LOW] Halloween Labubu on Amazon Now! (6 comments - skip)
+[2026-06-11 11:32:00]    [5] Wacky Mart! ? (12 comments)
+[2026-06-11 11:32:07]       -> 12 comments fetched
+[2026-06-11 11:32:07]       [LOW] My lafufu oc (4 comments - skip)
+[2026-06-11 11:32:07]       [LOW] birdbubu is home! (3 comments - skip)
+[2026-06-11 11:32:07]    [6] our feelings heading into game 4 ?? (11 comments)
+[2026-06-11 11:32:13]       -> 11 comments fetched
+[2026-06-11 11:32:13]       [LOW] New Friends From The PopMart Vending Machine! (2 comments - skip)
+[2026-06-11 11:32:13]       [LOW] pin for love ? (7 comments - skip)
+[2026-06-11 11:32:13]    [7] Lil Wacky Mart fit (12 comments)
+[2026-06-11 11:32:20]       -> 12 comments fetched
+[2026-06-11 11:32:20]       [LOW] Help (repair advice) (0 comments - skip)
+[2026-06-11 11:32:20]       [LOW] The newest members of my bubu family ?? (4 comments - skip)
+[2026-06-11 11:32:20]    [INFO] No next page - done.
+[2026-06-11 11:32:20]    [DONE] r/labubu - 7 new posts added.
+[2026-06-11 11:32:20] [SAVE] sub_labubu | 1,127 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:32:20]    [WAIT] Pausing 12s...
+[2026-06-11 11:32:32] 
+[SUB] r/CryBabyDolls
+[2026-06-11 11:32:39]    [PAGE] Page 1 | 25 posts | 2026-06-04 -> 2026-06-11
+[2026-06-11 11:32:39]       [LOW] Crybaby discord? (3 comments - skip)
+[2026-06-11 11:32:39]       [LOW] UFS/UFT OCTOPUS (1 comments - skip)
+[2026-06-11 11:32:39]       [LOW] UFS/UFT Manta Ray Plush (1 comments - skip)
+[2026-06-11 11:32:39]       [LOW] UFS CryBaby Dolls?under retail? (2 comments - skip)
+[2026-06-11 11:32:39]       [LOW] [US-TX] [H] Mega Crybaby 400% - The Queen of Broken Hea (0 comments - skip)
+[2026-06-11 11:32:39]       [LOW] UFS Angler Fish *free shipping* (1 comments - skip)
+[2026-06-11 11:32:39]       [LOW] [US-FL] [H] Crybaby Cry Me An Ocean Plush Pendants Shar (0 comments - skip)
+[2026-06-11 11:32:39]       [LOW] [US-OH] Crybaby Cry Me An Ocean Plush (2 comments - skip)
+[2026-06-11 11:32:39]       [LOW] Who?s that crybaby (4 comments - skip)
+[2026-06-11 11:32:39]       [LOW] UFS- Mic Crybaby items (w) Payment (0 comments - skip)
+[2026-06-11 11:32:39]    [1] Anyone own this beauty? Overseas exclusive (43 comments)
+[2026-06-11 11:32:45]       -> 34 comments fetched
+[2026-06-11 11:32:45]       [LOW] UFS - Crybaby Cry me an ocean - Free shipping for bundl (0 comments - skip)
+[2026-06-11 11:32:45]       [LOW] UFS - USA (0 comments - skip)
+[2026-06-11 11:32:45]       [LOW] Happy Pride Month Everyone...2026 ?? with my TJ mini to (9 comments - skip)
+[2026-06-11 11:32:45]       [LOW] Same size, dear birds booby and cry me ocean figure sup (0 comments - skip)
+[2026-06-11 11:32:45]       [LOW] my first Pop Mart Secret !!!!! (10 comments - skip)
+[2026-06-11 11:32:45]    [2] Double otter day ?? (15 comments)
+[2026-06-11 11:32:51]       -> 15 comments fetched
+[2026-06-11 11:32:51]       [LOW] Pufferfish?s face is super cute! (0 comments - skip)
+[2026-06-11 11:32:51]       [LOW] ISO (0 comments - skip)
+[2026-06-11 11:32:51]       [LOW] [US-CA] [UFS] Crying Again, Wild but Cutie, Cry Me an O (3 comments - skip)
+[2026-06-11 11:32:51]       [LOW] CA-US [UFS] Have A Good Run SWEET LOVE, Wild but Cutie  (0 comments - skip)
+[2026-06-11 11:32:51]       [LOW] Selling Crybaby Secrets (0 comments - skip)
+[2026-06-11 11:32:51]       [LOW] [US-MA] Crybaby Cry Me An Ocean Plush (2 comments - skip)
+[2026-06-11 11:32:51]       [LOW] targets! ?? (5 comments - skip)
+[2026-06-11 11:32:51]       [LOW] [US-CA] CRY ME AN OCEAN PLUSH /FIGURES [W] PAYMENT (0 comments - skip)
+[2026-06-11 11:32:51]    [INFO] No next page - done.
+[2026-06-11 11:32:51]    [DONE] r/CryBabyDolls - 2 new posts added.
+[2026-06-11 11:32:51] [SAVE] sub_CryBabyDolls | 1,178 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:32:51]    [WAIT] Pausing 12s...
+[2026-06-11 11:33:03] 
+[SUB] r/hirono
+[2026-06-11 11:33:10]    [PAGE] Page 1 | 25 posts | 2026-06-07 -> 2026-06-11
+[2026-06-11 11:33:10]       [LOW] hirono mist walkers us release (0 comments - skip)
+[2026-06-11 11:33:10]       [LOW] Twins~ (0 comments - skip)
+[2026-06-11 11:33:10]       [LOW] Super Cute, I?m always ordering from Ali Express and th (0 comments - skip)
+[2026-06-11 11:33:10]       [LOW] Hirono mist-walkers (4 comments - skip)
+[2026-06-11 11:33:10]       [LOW] Behind Time is finally up on popmart.! (1 comments - skip)
+[2026-06-11 11:33:10]       [LOW] Hi, does anyone know where to get the hirono whisper wi (1 comments - skip)
+[2026-06-11 11:33:10]       [LOW] Possible US Hirono pop up? (6 comments - skip)
+[2026-06-11 11:33:10]       [LOW] What type of birds are the new mist walker series ? (10 comments - skip)
+[2026-06-11 11:33:10]       [LOW] Finally! Probably my favorite one! (4 comments - skip)
+[2026-06-11 11:33:10]    [1] I bought it!! (Not my vid!!) (13 comments)
+[2026-06-11 11:33:16]       -> 13 comments fetched
+[2026-06-11 11:33:16]       [LOW] road journal (6 comments - skip)
+[2026-06-11 11:33:16]       [LOW] I saw a crow building a nest? (0 comments - skip)
+[2026-06-11 11:33:16]       [LOW] Does anyone know if the Hirono ? Kodak Click Bear will  (6 comments - skip)
+[2026-06-11 11:33:16]       [LOW] Hirono Kodak is finally here! (7 comments - skip)
+[2026-06-11 11:33:16]    [2] Hirono Freedom Island Hare and A Moment's Rest Customs (28 comments)
+[2026-06-11 11:33:22]       -> 28 comments fetched
+[2026-06-11 11:33:22]       [LOW] Woven Woods + Moss Purse (1 comments - skip)
+[2026-06-11 11:33:22]    [3] Hirono Mist Walker? (12 comments)
+[2026-06-11 11:33:28]       -> 12 comments fetched
+[2026-06-11 11:33:28]       [LOW] Where to buy mist walker blanket and bag (10 comments - skip)
+[2026-06-11 11:33:28]    [4] 2 hironos stolen (11 comments)
+[2026-06-11 11:33:35]       -> 11 comments fetched
+[2026-06-11 11:33:35]       [LOW] I couldn?t resist ? (7 comments - skip)
+[2026-06-11 11:33:35]    [5] Is it real? Please help (11 comments)
+[2026-06-11 11:33:41]       -> 11 comments fetched
+[2026-06-11 11:33:41]       [LOW] GUYS! it only took me 2 tries!? (6 comments - skip)
+[2026-06-11 11:33:41]       [LOW] Hirono ? Kodak, but make it sparkle ?? (6 comments - skip)
+[2026-06-11 11:33:41]    [6] PopMart US - what?s going on? (32 comments)
+[2026-06-11 11:33:41]       [SKIP] PopMart US - what?s going on?
+[2026-06-11 11:33:41]       [LOW] Can somebody make me a hirono frodo? (5 comments - skip)
+[2026-06-11 11:33:41]    [INFO] No next page - done.
+[2026-06-11 11:33:41]    [DONE] r/hirono - 5 new posts added.
+[2026-06-11 11:33:41] [SAVE] sub_hirono | 1,258 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:33:41]    [WAIT] Pausing 12s...
+[2026-06-11 11:33:53] 
+[SUB] r/peachriot
+[2026-06-11 11:34:00]    [PAGE] Page 1 | 25 posts | 2026-06-07 -> 2026-06-10
+[2026-06-11 11:34:00]       [LOW] Frankie Streamer UFS (US) (3 comments - skip)
+[2026-06-11 11:34:00]       [LOW] UFS [CAD]: Sleepover - Gigi Alarm and Prank Call, Frank (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] UFS Punk Fairy Frankie Lily Pad $20- US only (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] UFS Rush Hour Tote $18 (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] [EU] ISO Bloody Valentine regular card set & A La Mode  (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] UFS: poppy acorn & frankie sick beats! (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] Just received Poppy Dream! (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] Love her?? (8 comments - skip)
+[2026-06-11 11:34:00]       [LOW] uft?usa only! (6 comments - skip)
+[2026-06-11 11:34:00]       [LOW] UFS US only (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] Fruit Punch Poppy (9 comments - skip)
+[2026-06-11 11:34:00]       [LOW] Proof for Helpful_Racoon_8240 (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] DISO Poppy Scientist (US) (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] Stopped by my local pop mart (1 comments - skip)
+[2026-06-11 11:34:00]    [1] Has anyone ordered either of these? And what did you get?? (13 comments)
+[2026-06-11 11:34:00]       [SKIP] Has anyone ordered either of these? And what did you get??
+[2026-06-11 11:34:00]       [LOW] DISO Poppy Seraphim (5 comments - skip)
+[2026-06-11 11:34:00]       [LOW] [US/CA based] fruit punch poppy ufs $50 shipped (5 comments - skip)
+[2026-06-11 11:34:00]       [LOW] Mercari purchase! (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] My collection so far (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] Trade proof with u/actually-ansel (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] UFS - USA (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] I need more I love peach riot figures (0 comments - skip)
+[2026-06-11 11:34:00]       [LOW] Guys guys guys!! (1 comments - skip)
+[2026-06-11 11:34:00]       [LOW] DIY Frankie mermaid figure (2 comments - skip)
+[2026-06-11 11:34:00]       [LOW] Fruit punch! (0 comments - skip)
+[2026-06-11 11:34:06]    [PAGE] Page 2 | 25 posts | 2026-06-05 -> 2026-06-07
+[2026-06-11 11:34:06]       [LOW] In love ???????? (4 comments - skip)
+[2026-06-11 11:34:06]       [LOW] NYC spotted at Newbury Comics at Providence Place (9 comments - skip)
+[2026-06-11 11:34:06]       [LOW] [US-CA] UFS Punk Fairy | Rush Hour | Loading (2 comments - skip)
+[2026-06-11 11:34:06]       [LOW] Lore: Will Libby and Poppy share the same birthday? (5 comments - skip)
+[2026-06-11 11:34:06]    [1] dyeing gigi's jumper? (14 comments)
+[2026-06-11 11:34:12]       -> 14 comments fetched
+[2026-06-11 11:34:12]       [LOW] Fruit Punch Love! (9 comments - skip)
+[2026-06-11 11:34:12]       [LOW] usa uft gigi diner for poppy scientist or any (1 comments - skip)
+[2026-06-11 11:34:12]       [LOW] UFS - USA Frankie Moonrise ? (2 comments - skip)
+[2026-06-11 11:34:12]       [LOW] ? uft - usa only ? (0 comments - skip)
+[2026-06-11 11:34:12]       [LOW] ? ufs - gigi and poppy - usa only ? (0 comments - skip)
+[2026-06-11 11:34:12]       [LOW] Peach riot UFS (US) (0 comments - skip)
+[2026-06-11 11:34:12]       [LOW] My girls tho I still need Gigi ?? (3 comments - skip)
+[2026-06-11 11:34:12]       [LOW] i tried making it look like an album cover (1 comments - skip)
+[2026-06-11 11:34:12]       [LOW] ISO ? (1 comments - skip)
+[2026-06-11 11:34:12]       [LOW] How long do you think the Peach Riot Plush Pendants wil (4 comments - skip)
+[2026-06-11 11:34:12]    [2] Downsizing decisions? (11 comments)
+[2026-06-11 11:34:12]       [SKIP] Downsizing decisions?
+[2026-06-11 11:34:12]       [LOW] UFT- (USA) 3 figures (0 comments - skip)
+[2026-06-11 11:34:12]       [LOW] Fruit Punch Obtained ????? (5 comments - skip)
+[2026-06-11 11:34:12]       [LOW] I got Poppy and my sis got Gigi!! (5 comments - skip)
+[2026-06-11 11:34:12]       [LOW] UFT Frankie Moonrise (0 comments - skip)
+[2026-06-11 11:34:12]       [LOW] Trying to find a short 3d animation I saw in one of Pea (0 comments - skip)
+[2026-06-11 11:34:12]    [2] what?s the surprise box? (13 comments)
+[2026-06-11 11:34:17]       -> 13 comments fetched
+[2026-06-11 11:34:17]    [3] Fruit punch gone already (19 comments)
+[2026-06-11 11:34:24]       -> 19 comments fetched
+[2026-06-11 11:34:24]       [LOW] Peach Riot Fruit Punch Series sold out immediately (7 comments - skip)
+[2026-06-11 11:34:24]       [LOW] Something Big Is Coming Soon! (6 comments - skip)
+[2026-06-11 11:34:24]    [INFO] No next page - done.
+[2026-06-11 11:34:24]    [DONE] r/peachriot - 3 new posts added.
+[2026-06-11 11:34:25] [SAVE] sub_peachriot | 1,307 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:34:25]    [WAIT] Pausing 12s...
+[2026-06-11 11:34:37] 
+[SUB] r/PopMartCollectors
+[2026-06-11 11:34:44]    [PAGE] Page 1 | 25 posts | 2026-06-08 -> 2026-06-11
+[2026-06-11 11:34:44]       [LOW] Pingu Blind Box Question (2 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Adorable birds! (1 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Used the red labubu to match my uniform only to grab th (0 comments - skip)
+[2026-06-11 11:34:44]       [LOW] My new fuzzy babies arrived (3 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Dales Christmas tree house (0 comments - skip)
+[2026-06-11 11:34:44]       [LOW] NEW IP: Bearibo (1 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Found one of those crybaby things on the ground today (5 comments - skip)
+[2026-06-11 11:34:44]       [LOW] So chuffed with this ??? used plastic garden grid and d (4 comments - skip)
+[2026-06-11 11:34:44]       [LOW] June Birthday Gift (Japan) (5 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Chase Aquired! ?? (2 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Got My Dear Birds! (3 comments - skip)
+[2026-06-11 11:34:44]       [LOW] My new pop mart setup (0 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Got my prio! He's so cute (5 comments - skip)
+[2026-06-11 11:34:44]       [LOW] He?s cute! (1 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Not my first choice but (6 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Always use your hint cards! (2 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Pop Bean Collection storage (10 comments - skip)
+[2026-06-11 11:34:44]       [LOW] ? The purple collection begins... (4 comments - skip)
+[2026-06-11 11:34:44]       [LOW] My First Molly ?? (0 comments - skip)
+[2026-06-11 11:34:44]       [LOW] New additions ? (4 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Sleeping Party (0 comments - skip)
+[2026-06-11 11:34:44]       [LOW] She's perfect ? (2 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Most recent haul ??? (6 comments - skip)
+[2026-06-11 11:34:44]       [LOW] hacipupu enchanted realm tales (6 comments - skip)
+[2026-06-11 11:34:44]       [LOW] Finally Dimoo Why So Serious. (0 comments - skip)
+[2026-06-11 11:34:51]    [PAGE] Page 2 | 25 posts | 2026-06-06 -> 2026-06-08
+[2026-06-11 11:34:51]       [LOW] Help identifying this plush (4 comments - skip)
+[2026-06-11 11:34:51]       [LOW] Aespa x Popmart (2 comments - skip)
+[2026-06-11 11:34:51]       [LOW] Coach Purse + Skullpanda Tattoo Design (0 comments - skip)
+[2026-06-11 11:34:51]       [LOW] Hirono is totes winning me over. Ty pop now (2 comments - skip)
+[2026-06-11 11:34:51]       [LOW] Peach Riot Fruit Punch (1 comments - skip)
+[2026-06-11 11:34:51]       [LOW] Does anyone know what some of the possible products are (6 comments - skip)
+[2026-06-11 11:34:51]       [LOW] My newest additions (3 comments - skip)
+[2026-06-11 11:34:51]       [LOW] Is my mokoko legit? (5 comments - skip)
+[2026-06-11 11:34:51]       [LOW] Black baby with this bag is a perfect match. (1 comments - skip)
+[2026-06-11 11:34:51]       [LOW] My first skullpanda!!! (10 comments - skip)
+[2026-06-11 11:34:51]    [1] When Does Your Collection Become Too Big? (29 comments)
+[2026-06-11 11:34:57]       -> 29 comments fetched
+[2026-06-11 11:34:57]       [LOW] Stolen secret + defect (5 comments - skip)
+[2026-06-11 11:34:57]       [LOW] My New Buddy (1 comments - skip)
+[2026-06-11 11:34:57]    [2] i hate her (15 comments)
+[2026-06-11 11:35:03]       -> 15 comments fetched
+[2026-06-11 11:35:03]    [3] purchasing a trifecta of hirono/labubu/peach riot figs today hit  (11 comments)
+[2026-06-11 11:35:03]       [SKIP] purchasing a trifecta of hirono/labubu/peach riot figs today
+[2026-06-11 11:35:03]    [3] Neighbors ripped open my blind box (27 comments)
+[2026-06-11 11:35:09]       -> 27 comments fetched
+[2026-06-11 11:35:09]       [LOW] I guess its hirono season (0 comments - skip)
+[2026-06-11 11:35:09]       [LOW] Hacipupu (0 comments - skip)
+[2026-06-11 11:35:09]       [LOW] Popboxss.com a bust...? (3 comments - skip)
+[2026-06-11 11:35:09]       [LOW] got my pino set for $46.60 ?? (0 comments - skip)
+[2026-06-11 11:35:09]    [4] My Deepest Secret vs. The Backlit Messenger (19 comments)
+[2026-06-11 11:35:17]       -> 19 comments fetched
+[2026-06-11 11:35:17]    [5] Good pulls or nah?!? (25 comments)
+[2026-06-11 11:35:23]       -> 25 comments fetched
+[2026-06-11 11:35:23]       [LOW] Set complete ?? (2 comments - skip)
+[2026-06-11 11:35:23]       [LOW] Dimoo x Vans ? ? (0 comments - skip)
+[2026-06-11 11:35:23]       [LOW] Problems with the new app (3 comments - skip)
+[2026-06-11 11:35:23]    [INFO] No next page - done.
+[2026-06-11 11:35:23]    [DONE] r/PopMartCollectors - 5 new posts added.
+[2026-06-11 11:35:23] [SAVE] sub_PopMartCollectors | 1,427 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:35:23]    [WAIT] Pausing 12s...
+[2026-06-11 11:35:35] 
+[SUB] r/Dimoos
+[2026-06-11 11:35:41]    [PAGE] Page 1 | 25 posts | 2026-05-23 -> 2026-06-08
+[2026-06-11 11:35:41]       [LOW] Ebay seller sent extra goodie (5 comments - skip)
+[2026-06-11 11:35:41]       [LOW] My $7.99 add-on offer from Popmart PopNow (8 comments - skip)
+[2026-06-11 11:35:41]       [LOW] Just some of my 200% dimoos (2 comments - skip)
+[2026-06-11 11:35:41]       [LOW] My first Dimoos (6 comments - skip)
+[2026-06-11 11:35:41]       [LOW] Dimoo x Vans ? ? (3 comments - skip)
+[2026-06-11 11:35:41]       [LOW] Does anybody else's hoglet son have a bowl cut or its j (3 comments - skip)
+[2026-06-11 11:35:41]       [LOW] Vans Dimoo (2 comments - skip)
+[2026-06-11 11:35:41]       [LOW] Plane spotting! ?? (3 comments - skip)
+[2026-06-11 11:35:41]       [LOW] Dimoo community my bookshelf. (3 comments - skip)
+[2026-06-11 11:35:41]    [1] OMG PIXAR DIMOO!!!!!!!! (18 comments)
+[2026-06-11 11:35:47]       -> 18 comments fetched
+[2026-06-11 11:35:47]       [LOW] Just wanted to share my newest addition to my collectio (4 comments - skip)
+[2026-06-11 11:35:47]       [LOW] ReWhiten Mickey Shirt? (4 comments - skip)
+[2026-06-11 11:35:47]       [LOW] Why is he so cute? (5 comments - skip)
+[2026-06-11 11:35:47]       [LOW] He?s too precious for this world ? (7 comments - skip)
+[2026-06-11 11:35:47]       [LOW] Christmas in May (3 comments - skip)
+[2026-06-11 11:35:47]       [LOW] Hello! (2 comments - skip)
+[2026-06-11 11:35:47]       [LOW] Dimoo that started it all (2 comments - skip)
+[2026-06-11 11:35:47]       [LOW] My very first Dimoo~ (8 comments - skip)
+[2026-06-11 11:35:47]       [LOW] Dimoo spreadsheet (2 comments - skip)
+[2026-06-11 11:35:47]       [LOW] Ducky Stroll (2 comments - skip)
+[2026-06-11 11:35:47]    [2] Now what did they do to our boy?! ? (22 comments)
+[2026-06-11 11:35:53]       -> 22 comments fetched
+[2026-06-11 11:35:53]       [LOW] Raindrop Posture (0 comments - skip)
+[2026-06-11 11:35:53]       [LOW] Minions dimoo (5 comments - skip)
+[2026-06-11 11:35:53]       [LOW] Collection update (10 comments - skip)
+[2026-06-11 11:35:53]    [3] Newest bestest cat boy (11 comments)
+[2026-06-11 11:35:58]       -> 11 comments fetched
+[2026-06-11 11:35:58]    [INFO] No next page - done.
+[2026-06-11 11:35:58]    [DONE] r/Dimoos - 3 new posts added.
+[2026-06-11 11:35:58] [SAVE] sub_Dimoos | 1,481 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:35:58]    [WAIT] Pausing 12s...
+[2026-06-11 11:36:10] 
+[SUB] r/TwinkleTwinkleCollect
+[2026-06-11 11:36:16]    [PAGE] Page 1 | 25 posts | 2026-05-16 -> 2026-06-09
+[2026-06-11 11:36:16]       [LOW] completed my create your taste series today ?? (4 comments - skip)
+[2026-06-11 11:36:16]    [1] Just Saw This Twinkle Twinkle and Ordered It (17 comments)
+[2026-06-11 11:36:22]       -> 17 comments fetched
+[2026-06-11 11:36:22]       [LOW] Dear Birds? ??? (2 comments - skip)
+[2026-06-11 11:36:22]       [LOW] Twinkle journal page ?? (3 comments - skip)
+[2026-06-11 11:36:22]       [LOW] Y?all seen these? Mexico release for next week (3 comments - skip)
+[2026-06-11 11:36:22]       [LOW] My Dear Birds Twinkle arrived ? (4 comments - skip)
+[2026-06-11 11:36:22]       [LOW] matcha cream snow ? (4 comments - skip)
+[2026-06-11 11:36:22]    [2] Twinkle came home ?? (11 comments)
+[2026-06-11 11:36:28]       -> 11 comments fetched
+[2026-06-11 11:36:28]       [LOW] I?m not finished yet but I couldn?t wait to share?? cro (1 comments - skip)
+[2026-06-11 11:36:28]    [3] My Pink Twinkle! (13 comments)
+[2026-06-11 11:36:35]       -> 13 comments fetched
+[2026-06-11 11:36:35]       [LOW] Bought 2 random boxes?I can?t believe my luck (1 comments - skip)
+[2026-06-11 11:36:35]       [LOW] eunchae & twinkle twinkle!!!! (8 comments - skip)
+[2026-06-11 11:36:35]       [LOW] make a wish ? (1 comments - skip)
+[2026-06-11 11:36:35]       [LOW] Omggg (6 comments - skip)
+[2026-06-11 11:36:35]       [LOW] Somebody call for a dessert? (2 comments - skip)
+[2026-06-11 11:36:35]       [LOW] ID request (8 comments - skip)
+[2026-06-11 11:36:35]       [LOW] Got the secret! (3 comments - skip)
+[2026-06-11 11:36:35]       [LOW] My first twinkle secret (5 comments - skip)
+[2026-06-11 11:36:35]    [4] Love ? (11 comments)
+[2026-06-11 11:36:41]       -> 11 comments fetched
+[2026-06-11 11:36:41]    [5] McDonald's China x Twinkle Twinkle Collab Series: The Extra-Long  (18 comments)
+[2026-06-11 11:36:47]       -> 17 comments fetched
+[2026-06-11 11:36:47]       [LOW] Book club ready (0 comments - skip)
+[2026-06-11 11:36:47]       [LOW] He?s so cute ? (5 comments - skip)
+[2026-06-11 11:36:47]       [LOW] Crush on you (5 comments - skip)
+[2026-06-11 11:36:47]       [LOW] Almost my whole collection! (4 comments - skip)
+[2026-06-11 11:36:47]       [LOW] he is... ?The Moment? (7 comments - skip)
+[2026-06-11 11:36:47]    [INFO] No next page - done.
+[2026-06-11 11:36:47]    [DONE] r/TwinkleTwinkleCollect - 5 new posts added.
+[2026-06-11 11:36:47] [SAVE] sub_TwinkleTwinkleCollec | 1,555 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:36:47] [SAVE] FINAL | 1,555 rows -> popmart_v4.0_2026-06-11.xlsx
+[2026-06-11 11:36:47] [INFO] No failed posts - nothing to save.
+[2026-06-11 11:36:47] 
+[DONE] All tasks complete.
+[2026-06-11 11:36:47]        New records : 1,555
+[2026-06-11 11:36:47]        Failed posts: 0
+[2026-06-11 11:36:47]        Elapsed     : 0h 12m 48s

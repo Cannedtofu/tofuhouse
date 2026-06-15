@@ -1,0 +1,220 @@
+<h2>GaoDe 高德 — Dashboard Panel</h2>
+<p class="subtitle">How should the GaoDe traffic data be displayed? Pick the panel style that shows what matters most to you.</p>
+
+<div class="cards">
+
+  <!-- Option A: Line charts focus -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f9fa;padding:14px;font-family:sans-serif;font-size:11px;border-radius:6px">
+
+      <!-- Card header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <span style="font-weight:700;font-size:12px">📍 高德交通监测</span>
+          <span style="margin-left:8px;background:#d1e7dd;color:#0a3622;border-radius:10px;padding:1px 7px;font-size:10px">🟢 1h ago</span>
+        </div>
+        <span style="color:#6c757d;font-size:10px;cursor:pointer">⬇ 下载 Excel</span>
+      </div>
+
+      <!-- Two line chart panels -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:8px">
+          <div style="font-size:10px;font-weight:600;color:#495057;margin-bottom:4px">平均速度 (km/h)</div>
+          <svg viewBox="0 0 120 50" style="width:100%;height:50px">
+            <polyline points="0,35 15,33 30,30 45,32 60,28 75,26 90,29 105,25 120,27"
+              fill="none" stroke="#0d6efd" stroke-width="2"/>
+            <polyline points="0,42 15,44 30,41 45,43 60,40 75,38 90,41 105,37 120,39"
+              fill="none" stroke="#6c757d" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <text x="0" y="49" font-size="7" fill="#6c757d">Jul</text>
+            <text x="55" y="49" font-size="7" fill="#6c757d">Oct</text>
+            <text x="105" y="49" font-size="7" fill="#6c757d">Jan</text>
+          </svg>
+          <div style="display:flex;gap:8px;margin-top:3px;font-size:9px;color:#6c757d">
+            <span><span style="color:#0d6efd">—</span> 均值</span>
+            <span><span style="color:#6c757d">- -</span> 最差</span>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:8px">
+          <div style="font-size:10px;font-weight:600;color:#495057;margin-bottom:4px">路网行程延时指数</div>
+          <svg viewBox="0 0 120 50" style="width:100%;height:50px">
+            <polyline points="0,20 15,22 30,18 45,25 60,23 75,27 90,22 105,28 120,24"
+              fill="none" stroke="#fd7e14" stroke-width="2"/>
+            <polyline points="0,12 15,14 30,10 45,16 60,13 75,18 90,12 105,17 120,14"
+              fill="none" stroke="#6c757d" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <text x="0" y="49" font-size="7" fill="#6c757d">Jul</text>
+            <text x="55" y="49" font-size="7" fill="#6c757d">Oct</text>
+            <text x="105" y="49" font-size="7" fill="#6c757d">Jan</text>
+          </svg>
+          <div style="display:flex;gap:8px;margin-top:3px;font-size:9px;color:#6c757d">
+            <span><span style="color:#fd7e14">—</span> 均值</span>
+            <span><span style="color:#6c757d">- -</span> 最差</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Today's snapshot row -->
+      <div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:7px">
+        <div style="font-size:10px;font-weight:600;margin-bottom:4px;color:#495057">今日快照 · 2024-01-14</div>
+        <table style="width:100%;font-size:9px;border-collapse:collapse">
+          <tr style="background:#f8f9fa">
+            <th style="padding:2px 5px;text-align:left;font-weight:600">指标</th>
+            <th style="padding:2px 5px;text-align:right">均值</th>
+            <th style="padding:2px 5px;text-align:right">最差值</th>
+            <th style="padding:2px 5px;text-align:center">最差城市</th>
+          </tr>
+          <tr><td style="padding:2px 5px">平均速度</td><td style="padding:2px 5px;text-align:right">32.38</td><td style="padding:2px 5px;text-align:right;color:#dc3545">23.91</td><td style="padding:2px 5px;text-align:center">伊犁</td></tr>
+          <tr style="background:#f8f9fa"><td style="padding:2px 5px">延时指数</td><td style="padding:2px 5px;text-align:right">1.38</td><td style="padding:2px 5px;text-align:right;color:#dc3545">1.68</td><td style="padding:2px 5px;text-align:center">香港</td></tr>
+          <tr><td style="padding:2px 5px">拥堵里程比</td><td style="padding:2px 5px;text-align:right">0.49%</td><td style="padding:2px 5px;text-align:right;color:#dc3545">2.28%</td><td style="padding:2px 5px;text-align:center">广州</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Line charts + daily snapshot</h3>
+      <p>Two trend charts (avg speed + delay index, each showing avg vs worst), plus a today's-values summary table with worst city per metric.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Table focus + sparklines -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f9fa;padding:14px;font-family:sans-serif;font-size:11px;border-radius:6px">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <span style="font-weight:700;font-size:12px">📍 高德交通监测</span>
+          <span style="margin-left:8px;background:#d1e7dd;color:#0a3622;border-radius:10px;padding:1px 7px;font-size:10px">🟢 1h ago</span>
+        </div>
+        <span style="color:#6c757d;font-size:10px;cursor:pointer">⬇ 下载 Excel</span>
+      </div>
+
+      <!-- Full metrics table with sparklines -->
+      <div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:8px">
+        <table style="width:100%;font-size:9px;border-collapse:collapse">
+          <tr style="background:#f8f9fa">
+            <th style="padding:3px 5px;text-align:left">指标</th>
+            <th style="padding:3px 5px;text-align:right">最新均值</th>
+            <th style="padding:3px 5px;text-align:center">趋势</th>
+            <th style="padding:3px 5px;text-align:center">最差城市</th>
+            <th style="padding:3px 5px;text-align:right">低于均值城市</th>
+          </tr>
+          <tr>
+            <td style="padding:3px 5px;font-weight:500">平均速度</td>
+            <td style="padding:3px 5px;text-align:right">32.38 km/h</td>
+            <td style="padding:3px 5px;text-align:center">
+              <svg viewBox="0 0 40 16" style="width:40px;height:16px"><polyline points="0,12 8,10 16,11 24,8 32,9 40,7" fill="none" stroke="#198754" stroke-width="1.5"/></svg>
+            </td>
+            <td style="padding:3px 5px;text-align:center">伊犁</td>
+            <td style="padding:3px 5px;text-align:right">41</td>
+          </tr>
+          <tr style="background:#f8f9fa">
+            <td style="padding:3px 5px;font-weight:500">延时指数</td>
+            <td style="padding:3px 5px;text-align:right">1.38</td>
+            <td style="padding:3px 5px;text-align:center">
+              <svg viewBox="0 0 40 16" style="width:40px;height:16px"><polyline points="0,8 8,9 16,7 24,10 32,8 40,11" fill="none" stroke="#dc3545" stroke-width="1.5"/></svg>
+            </td>
+            <td style="padding:3px 5px;text-align:center">香港</td>
+            <td style="padding:3px 5px;text-align:right">41</td>
+          </tr>
+          <tr>
+            <td style="padding:3px 5px;font-weight:500">拥堵里程比</td>
+            <td style="padding:3px 5px;text-align:right">0.49%</td>
+            <td style="padding:3px 5px;text-align:center">
+              <svg viewBox="0 0 40 16" style="width:40px;height:16px"><polyline points="0,6 8,8 16,5 24,9 32,7 40,8" fill="none" stroke="#fd7e14" stroke-width="1.5"/></svg>
+            </td>
+            <td style="padding:3px 5px;text-align:center">广州</td>
+            <td style="padding:3px 5px;text-align:right">35</td>
+          </tr>
+          <tr style="background:#f8f9fa">
+            <td style="padding:3px 5px;font-weight:500">常发拥堵比</td>
+            <td style="padding:3px 5px;text-align:right">0.22%</td>
+            <td style="padding:3px 5px;text-align:center">
+              <svg viewBox="0 0 40 16" style="width:40px;height:16px"><polyline points="0,8 8,7 16,9 24,6 32,8 40,7" fill="none" stroke="#0d6efd" stroke-width="1.5"/></svg>
+            </td>
+            <td style="padding:3px 5px;text-align:center">广州</td>
+            <td style="padding:3px 5px;text-align:right">35</td>
+          </tr>
+          <tr>
+            <td style="padding:3px 5px;font-weight:500">速度偏差率</td>
+            <td style="padding:3px 5px;text-align:right">6.51%</td>
+            <td style="padding:3px 5px;text-align:center">
+              <svg viewBox="0 0 40 16" style="width:40px;height:16px"><polyline points="0,9 8,7 16,10 24,8 32,9 40,6" fill="none" stroke="#6f42c1" stroke-width="1.5"/></svg>
+            </td>
+            <td style="padding:3px 5px;text-align:center">大连</td>
+            <td style="padding:3px 5px;text-align:right">41</td>
+          </tr>
+          <tr style="background:#f8f9fa">
+            <td style="padding:3px 5px;font-weight:500">高延时占比</td>
+            <td style="padding:3px 5px;text-align:right">18.11%</td>
+            <td style="padding:3px 5px;text-align:center">
+              <svg viewBox="0 0 40 16" style="width:40px;height:16px"><polyline points="0,7 8,9 16,6 24,9 32,7 40,8" fill="none" stroke="#20c997" stroke-width="1.5"/></svg>
+            </td>
+            <td style="padding:3px 5px;text-align:center">兰州</td>
+            <td style="padding:3px 5px;text-align:right">43</td>
+          </tr>
+        </table>
+      </div>
+
+    </div>
+    <div class="card-body">
+      <h3>B — Full metrics table + sparklines</h3>
+      <p>All 6 metrics in one table: latest value, inline sparkline trend, worst city, cities-below-average count. Compact and scannable.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Both -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8f9fa;padding:14px;font-family:sans-serif;font-size:11px;border-radius:6px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-weight:700;font-size:12px">📍 高德交通监测</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="background:#d1e7dd;color:#0a3622;border-radius:10px;padding:1px 7px;font-size:10px">🟢 1h ago</span>
+          <span style="color:#6c757d;font-size:10px">⬇ Excel</span>
+        </div>
+      </div>
+      <!-- Tab switcher -->
+      <div style="display:flex;gap:0;margin-bottom:8px;border-bottom:1px solid #dee2e6">
+        <span style="padding:4px 10px;font-size:10px;border-bottom:2px solid #0d6efd;color:#0d6efd;font-weight:600">图表</span>
+        <span style="padding:4px 10px;font-size:10px;color:#6c757d">数据表</span>
+      </div>
+      <!-- Chart tab content -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:7px">
+          <div style="font-size:9px;font-weight:600;margin-bottom:3px">平均速度</div>
+          <svg viewBox="0 0 100 40" style="width:100%;height:40px">
+            <polyline points="0,30 14,28 28,25 42,27 56,22 70,20 84,23 100,19"
+              fill="none" stroke="#0d6efd" stroke-width="2"/>
+          </svg>
+        </div>
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:7px">
+          <div style="font-size:9px;font-weight:600;margin-bottom:3px">延时指数</div>
+          <svg viewBox="0 0 100 40" style="width:100%;height:40px">
+            <polyline points="0,15 14,18 28,13 42,20 56,17 70,22 84,16 100,20"
+              fill="none" stroke="#fd7e14" stroke-width="2"/>
+          </svg>
+        </div>
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:7px">
+          <div style="font-size:9px;font-weight:600;margin-bottom:3px">拥堵里程比</div>
+          <svg viewBox="0 0 100 40" style="width:100%;height:40px">
+            <polyline points="0,20 14,18 28,22 42,16 56,20 70,14 84,18 100,16"
+              fill="none" stroke="#198754" stroke-width="2"/>
+          </svg>
+        </div>
+        <div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:7px">
+          <div style="font-size:9px;font-weight:600;margin-bottom:3px">差于均值城市量</div>
+          <svg viewBox="0 0 100 40" style="width:100%;height:40px">
+            <rect x="5" y="15" width="10" height="25" fill="#0d6efd" opacity=".7"/>
+            <rect x="20" y="10" width="10" height="30" fill="#0d6efd" opacity=".7"/>
+            <rect x="35" y="18" width="10" height="22" fill="#0d6efd" opacity=".7"/>
+            <rect x="50" y="12" width="10" height="28" fill="#0d6efd" opacity=".7"/>
+            <rect x="65" y="16" width="10" height="24" fill="#0d6efd" opacity=".7"/>
+            <rect x="80" y="14" width="10" height="26" fill="#0d6efd" opacity=".7"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Tabbed: 4 charts + data table</h3>
+      <p>Two tabs: 图表 shows 4 individual metric charts (switchable), 数据表 shows the full sparkline table. More detail, slightly more complex.</p>
+    </div>
+  </div>
+
+</div>

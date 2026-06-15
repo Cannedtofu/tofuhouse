@@ -1,153 +1,425 @@
+from __future__ import annotations
+
+import sys
 import requests
 import pandas as pd
 import time
 import datetime
+from datetime import timezone
 import os
+import glob
 
-# ========================= 配置区域 (Configuration) =========================
-USER_NAME = "MasterTofu996"
-USER_AGENT = f'python:popmart_key_words_project:v2.5 (by /u/{USER_NAME})'
+# ========================= Configuration =========================
+USER_AGENT = "popmart_key_words_project:v3.0 (research; contact /u/MasterTofu996)"
+
+# PullPush: free community Reddit archive (Pushshift successor)
+# Docs: https://api.pullpush.io  |  Rate limits: 15 req/min soft, 1000 req/hr hard
+BASE_URL = "https://api.pullpush.io"
+
+# Date filters
+# PullPush archive covers up to ~May 2025, so we pull everything from 2025.
+# The existing Jan-2026 keyword data is already in our Excel files; 2025 is all new.
+KEYWORD_MIN_DATE   = datetime.datetime(2025, 1, 1, tzinfo=timezone.utc)
+SUBREDDIT_MIN_DATE = datetime.datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+KEYWORD_MIN_TS   = int(KEYWORD_MIN_DATE.timestamp())
+SUBREDDIT_MIN_TS = int(SUBREDDIT_MIN_DATE.timestamp())
 
 KEYWORDS = [
-    "popmart", "labubu", "popmart hirono", "popmart skullpanda", 
-    "popmart peach riot", "popmart twinkle twinkle", "popmart crybaby", 
+    "popmart", "labubu", "popmart hirono", "popmart skullpanda",
+    "popmart peach riot", "popmart twinkle twinkle", "popmart crybaby",
     "popmart molly", "popmart dimoo"
 ]
 
-TEST_MODE = False
-POSTS_PER_KEYWORD = 1 if TEST_MODE else 50
-SCRAPE_ALL = True
+SUBREDDITS = [
+    "SkullpandaArtDolls", "labubu", "CryBabyDolls", "hirono",
+    "peachriot", "PopMartCollectors", "Dimoos", "TwinkleTwinkleCollect"
+]
 
-# 性能调节
-REQUEST_DELAY = 3.0   # 基础延迟（建议从 2.0 提高到 3.0）
-KEYWORD_PAUSE = 60.0  # 每个关键词处理完后，强制休息 60 秒回满“令牌桶”
-# ===========================================================================
+TEST_MODE         = False
+POSTS_PER_KEYWORD = 1 if TEST_MODE else 100   # keyword search cap per keyword
+
+EXISTING_EXCEL_PATTERN = "popmart_v*.xlsx"
+
+# Stay well within PullPush rate limits: 15 req/min soft = 1 per 4s
+# 1000 req/hr hard = 1 per 3.6s  ->  use 4s to be safe
+REQUEST_DELAY = 4.0    # seconds between API requests
+SECTION_PAUSE = 10.0   # seconds between keywords / subreddits
+# =================================================================
+
+
+def _ts() -> str:
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def log(msg: str) -> None:
+    print(f"[{_ts()}] {msg}", flush=True)
+
 
 class PopmartScraper:
-    def __init__(self):
+
+    def __init__(self) -> None:
         self.session = requests.Session()
-        self.session.headers.update({'User-Agent': USER_AGENT})
+        self.session.headers.update({"User-Agent": USER_AGENT})
         self.base_path = os.path.dirname(os.path.abspath(__file__))
-        self.all_results = []
+        self.all_results: list[dict] = []
+        self.scraped_post_ids: set[str] = set()
 
-    def fetch_json(self, url, params=None):
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def load_existing_ids(self) -> set[str]:
+        existing_ids: set[str] = set()
+        pattern = os.path.join(self.base_path, EXISTING_EXCEL_PATTERN)
+        files   = sorted(glob.glob(pattern))
+
+        if not files:
+            log("No existing data files found - full scrape will run.")
+            return existing_ids
+
+        for f in files:
+            fname = os.path.basename(f)
+            for col in ["ID", "id"]:
+                try:
+                    df  = pd.read_excel(f, usecols=[col])
+                    ids = df[col].dropna().astype(str).tolist()
+                    existing_ids.update(ids)
+                    log(f"  [FILE] {fname}: loaded {len(ids):,} IDs")
+                    break
+                except Exception:
+                    continue
+            else:
+                log(f"  [WARN] Could not read ID column from {fname} - skipping dedup")
+
+        log(f"[OK] {len(existing_ids):,} historical IDs loaded.\n")
+        return existing_ids
+
+    def fetch_json(self, url: str, params: dict | None = None) -> dict | None:
+        """GET with rate-limit header awareness and one retry on 429."""
         try:
-            response = self.session.get(url, params=params, timeout=15)
-            
-            # 读取 Reddit 官方频率头
-            rem = response.headers.get('X-Ratelimit-Remaining')
-            reset = response.headers.get('X-Ratelimit-Reset')
-            
-            if rem is not None:
-                rem_val = float(rem)
-                # 策略：如果剩余请求不多了，提前减速
-                if rem_val < 10:
-                    wait_time = float(reset) + 1
-                    print(f"🛑 [频率预警] 令牌即将耗尽，MasterTofu996 强制休息 {wait_time}s...")
-                    time.sleep(wait_time)
-                elif rem_val < 30:
-                    # 动态微调：剩余不多时，额外增加 1s 延迟
-                    time.sleep(1.0)
+            resp = self.session.get(url, params=params, timeout=20)
 
-            if response.status_code == 200:
-                return response.json()
-            elif response.status_code == 429:
-                print("⚠️ 触发 429 限流，进入 90s 长休眠...")
-                time.sleep(90)
+            if resp.status_code == 200:
+                return resp.json()
+
+            if resp.status_code == 429:
+                retry_after = int(resp.headers.get("Retry-After", 60))
+                log(f"[WARN] 429 rate-limited - sleeping {retry_after + 5}s")
+                time.sleep(retry_after + 5)
+                resp = self.session.get(url, params=params, timeout=20)
+                if resp.status_code == 200:
+                    return resp.json()
+
+            log(f"[WARN] HTTP {resp.status_code}: {url}")
             return None
+
         except Exception as e:
-            print(f"❌ 网络异常: {e}")
+            log(f"[ERR] Network error: {e}")
             return None
 
-    def flatten_comments(self, children, post_title, keyword, total_comments, link_id, level=1):
-        flat_data = []
-        for child in children:
-            if child.get('kind') == 't1':
-                data = child.get('data', {})
-                flat_data.append({
-                    "ID": data.get("name"),
-                    "父级ID": data.get("parent_id"),
-                    "发布时间": datetime.datetime.fromtimestamp(data.get("created_utc", 0)).strftime('%Y-%m-%d %H:%M:%S'),
-                    "搜索关键词": keyword,
-                    "数据类型": "评论 (Comment)",
-                    "层级": f"第 {level} 层",
-                    "帖子总评论数": total_comments,
-                    "内容正文": data.get("body", ""),
-                    "作者": data.get("author", "[deleted]"),
-                    "热度(Score)": data.get("score", 0),
-                    "所属标题": post_title
-                })
-                replies = data.get("replies")
-                if isinstance(replies, dict):
-                    inner = replies.get("data", {}).get("children", [])
-                    flat_data.extend(self.flatten_comments(inner, post_title, keyword, total_comments, link_id, level + 1))
-        return flat_data
+    # ------------------------------------------------------------------
+    # Data conversion
+    # ------------------------------------------------------------------
 
-    def save_data(self, keyword_tag):
-        if not self.all_results: return
-        df = pd.DataFrame(self.all_results).drop_duplicates(subset=['ID'])
-        file_name = f"popmart_v2.5_{datetime.date.today()}.xlsx"
-        full_path = os.path.join(self.base_path, file_name)
+    def _make_post_record(self, post: dict, keyword: str) -> dict:
+        # PullPush returns `name` with full t3_ prefix already
+        post_id = post.get("name") or f"t3_{post.get('id', '')}"
+        return {
+            "ID":             post_id,
+            "Parent_ID":      "ROOT",
+            "Posted_Time":    datetime.datetime.fromtimestamp(
+                                  post.get("created_utc", 0), tz=timezone.utc
+                              ).strftime("%Y-%m-%d %H:%M:%S"),
+            "Keyword":        keyword,
+            "Data_Type":      "Post",
+            "Level":          0,
+            "Total_Comments": post.get("num_comments", 0),
+            "Body":           post.get("selftext", ""),
+            "Author":         post.get("author", "[deleted]"),
+            "Score":          post.get("score", 0),
+            "Post_Title":     post.get("title", ""),
+        }
+
+    def _make_comment_record(self, comment: dict, keyword: str,
+                             post_title: str, total_comments: int) -> dict:
+        cid       = comment.get("name") or f"t1_{comment.get('id', '')}"
+        parent_id = comment.get("parent_id", "")
+        # Compute approximate level from parent_id prefix
+        level = 1 if parent_id.startswith("t3_") else 2
+        return {
+            "ID":             cid,
+            "Parent_ID":      parent_id,
+            "Posted_Time":    datetime.datetime.fromtimestamp(
+                                  comment.get("created_utc", 0), tz=timezone.utc
+                              ).strftime("%Y-%m-%d %H:%M:%S"),
+            "Keyword":        keyword,
+            "Data_Type":      "Comment",
+            "Level":          level,
+            "Total_Comments": total_comments,
+            "Body":           comment.get("body", ""),
+            "Author":         comment.get("author", "[deleted]"),
+            "Score":          comment.get("score", 0),
+            "Post_Title":     post_title,
+        }
+
+    def fetch_comments(self, post_id_short: str, post_title: str,
+                       keyword: str, total_comments: int) -> list[dict]:
+        """
+        Fetch all comments for a post via PullPush, paginating if needed.
+        post_id_short: the bare Reddit post ID without t3_ prefix.
+        """
+        records: list[dict] = []
+        after_ts = 0
+        seen: set[str] = set()
+
+        while True:
+            params: dict = {
+                "link_id":   post_id_short,
+                "sort_type": "created_utc",
+                "sort":      "asc",
+                "size":      100,
+            }
+            if after_ts:
+                params["after"] = after_ts
+
+            data = self.fetch_json(
+                f"{BASE_URL}/reddit/search/comment/", params
+            )
+            time.sleep(REQUEST_DELAY)
+
+            if not data:
+                break
+
+            comments = data.get("data", [])
+            if not comments:
+                break
+
+            new_on_page = 0
+            for c in comments:
+                cid = c.get("id", "")
+                if cid in seen:
+                    continue
+                seen.add(cid)
+                records.append(self._make_comment_record(
+                    c, keyword, post_title, total_comments
+                ))
+                new_on_page += 1
+                after_ts = max(after_ts, c.get("created_utc", 0))
+
+            # Stop if we got fewer than a full page (last page)
+            if len(comments) < 100 or new_on_page == 0:
+                break
+
+        return records
+
+    def fetch_post_with_comments(
+        self,
+        post: dict,
+        keyword: str,
+        existing_ids: set[str],
+    ) -> tuple[list, str | None]:
+        post_fullname = post.get("name") or f"t3_{post.get('id', '')}"
+        post_id_short = post.get("id", "")
+
+        if post_fullname in existing_ids or post_fullname in self.scraped_post_ids:
+            log(f"      [SKIP] {post.get('title', '')[:60]}")
+            return [], None
+
+        total_comments = post.get("num_comments", 0)
+        records = [self._make_post_record(post, keyword)]
+
+        comments = self.fetch_comments(
+            post_id_short,
+            post.get("title", ""),
+            keyword,
+            total_comments,
+        )
+        records.extend(comments)
+        log(f"      -> {len(comments)} comments fetched")
+
+        return records, post_fullname
+
+    def save_data(self, tag: str) -> None:
+        if not self.all_results:
+            return
+        df       = pd.DataFrame(self.all_results).drop_duplicates(subset=["ID"])
+        filename = f"popmart_v3.0_{datetime.date.today()}.xlsx"
+        path     = os.path.join(self.base_path, filename)
         try:
-            df.to_excel(full_path, index=False)
-            print(f"💾 [阶段保存] 完成关键词 [{keyword_tag}]，当前总行数: {len(df)}")
+            df.to_excel(path, index=False)
+            log(f"[SAVE] {tag} | {len(df):,} rows -> {filename}")
         except Exception as e:
-            print(f"❌ 保存失败: {e}")
+            log(f"[ERR] Save failed: {e}")
 
-    def run(self):
+    # ------------------------------------------------------------------
+    # Phase 1: keyword search
+    # ------------------------------------------------------------------
+
+    def scrape_keywords(self, existing_ids: set[str]) -> None:
         run_keywords = [KEYWORDS[0]] if TEST_MODE else KEYWORDS
-        print(f"🚀 启动全量采集任务 | 目标帖子总数: {len(run_keywords) * POSTS_PER_KEYWORD}")
+        log("=" * 65)
+        log(f"[PHASE 1] Keyword search via PullPush")
+        log(f"          {len(run_keywords)} keywords | max {POSTS_PER_KEYWORD} new posts each")
+        log(f"          Date range: {KEYWORD_MIN_DATE.strftime('%Y-%m-%d')} -> archive limit (~May 2025)")
+        log("=" * 65)
 
         for kw in run_keywords:
-            print(f"\n🔍 正在处理关键词: [{kw}]")
-            posts_collected = []
-            after = None
-            
-            # 翻页搜索
-            while len(posts_collected) < POSTS_PER_KEYWORD:
-                search_params = {"q": kw, "sort": "relevance", "t": "all", "limit": 100, "after": after}
-                search_data = self.fetch_json("https://www.reddit.com/search.json", search_params)
-                if not search_data: break
-                children = search_data['data'].get('children', [])
-                if not children: break
-                posts_collected.extend(children)
-                after = search_data['data'].get('after')
-                if not after or TEST_MODE: break
+            log(f"\n[KW] [{kw}]")
+            new_posts = 0
+            after_ts  = KEYWORD_MIN_TS
+            seen: set[str] = set()
+
+            while new_posts < POSTS_PER_KEYWORD:
+                params = {
+                    "q":         kw,
+                    "sort_type": "created_utc",
+                    "sort":      "asc",
+                    "size":      100,
+                    "after":     after_ts,
+                }
+                data = self.fetch_json(
+                    f"{BASE_URL}/reddit/search/submission/", params
+                )
                 time.sleep(REQUEST_DELAY)
 
-            # 抓取每个帖子
-            for i, p in enumerate(posts_collected[:POSTS_PER_KEYWORD]):
-                item = p['data']
-                title, link_id = item.get('title'), item.get('name')
-                total_comments = item.get('num_comments', 0)
-                
-                print(f"   [{i+1}/{POSTS_PER_KEYWORD}] 抓取中: {title[:20]}...")
-                
-                self.all_results.append({
-                    "ID": link_id, "父级ID": "ROOT", 
-                    "发布时间": datetime.datetime.fromtimestamp(item.get("created_utc", 0)).strftime('%Y-%m-%d %H:%M:%S'),
-                    "搜索关键词": kw, "数据类型": "帖子 (Post)", "层级": "0", "帖子总评论数": total_comments,
-                    "内容正文": item.get("selftext", ""), "作者": item.get("author"), 
-                    "热度(Score)": item.get("score"), "所属标题": title
-                })
+                if not data:
+                    break
 
-                detail_data = self.fetch_json(f"https://www.reddit.com{item.get('permalink')}.json")
-                if detail_data and len(detail_data) > 1:
-                    raw_comments = detail_data[1]['data'].get('children', [])
-                    self.all_results.extend(self.flatten_comments(raw_comments, title, kw, total_comments, link_id))
-                
-                # 帖子之间的基础延迟
-                time.sleep(REQUEST_DELAY)
-            
-            # 关键词保存
-            self.save_data(kw)
-            
-            # 关键：关键词之间的大休眠，防止请求堆积
+                posts = data.get("data", [])
+                if not posts:
+                    log(f"   [INFO] No more results for [{kw}].")
+                    break
+
+                last_ts = after_ts
+                for post in posts:
+                    if new_posts >= POSTS_PER_KEYWORD:
+                        break
+
+                    pid = post.get("id", "")
+                    if pid in seen:
+                        continue
+                    seen.add(pid)
+                    last_ts = max(last_ts, post.get("created_utc", last_ts))
+
+                    log(f"   [{new_posts + 1}] {post.get('title', '')[:60]}")
+                    records, fullname = self.fetch_post_with_comments(
+                        post, kw, existing_ids
+                    )
+                    if fullname:
+                        self.all_results.extend(records)
+                        self.scraped_post_ids.add(fullname)
+                        new_posts += 1
+
+                if last_ts == after_ts or len(posts) < 100:
+                    break
+                after_ts = last_ts
+
+                if TEST_MODE:
+                    break
+
+            log(f"   [DONE] [{kw}] - {new_posts} new posts added.")
+            self.save_data(f"kw_{kw[:20]}")
+
             if kw != run_keywords[-1]:
-                print(f"⏳ 关键词处理完毕，强制休眠 {KEYWORD_PAUSE}s 以回满频率配额...")
-                time.sleep(KEYWORD_PAUSE)
+                log(f"   [WAIT] Pausing {SECTION_PAUSE:.0f}s...")
+                time.sleep(SECTION_PAUSE)
 
-        print(f"\n🎉 任务已圆满结束！")
+    # ------------------------------------------------------------------
+    # Phase 2: subreddit full scrape
+    # ------------------------------------------------------------------
+
+    def scrape_subreddits(self, existing_ids: set[str]) -> None:
+        run_subs = [SUBREDDITS[0]] if TEST_MODE else SUBREDDITS
+        log("\n" + "=" * 65)
+        log(f"[PHASE 2] Subreddit full scrape via PullPush")
+        log(f"          {len(run_subs)} subreddits | all posts from {SUBREDDIT_MIN_DATE.strftime('%Y-%m-%d')}")
+        log("=" * 65)
+
+        for sub in run_subs:
+            log(f"\n[SUB] r/{sub}")
+            new_posts = 0
+            after_ts  = SUBREDDIT_MIN_TS
+            page      = 0
+            seen: set[str] = set()
+
+            while True:
+                page += 1
+                params = {
+                    "subreddit": sub,
+                    "sort_type": "created_utc",
+                    "sort":      "asc",
+                    "size":      100,
+                    "after":     after_ts,
+                }
+                data = self.fetch_json(
+                    f"{BASE_URL}/reddit/search/submission/", params
+                )
+                time.sleep(REQUEST_DELAY)
+
+                if not data:
+                    log(f"   [WARN] Page {page} request failed - stopping.")
+                    break
+
+                posts = data.get("data", [])
+                if not posts:
+                    log(f"   [INFO] Page {page} empty - done.")
+                    break
+
+                oldest = datetime.datetime.fromtimestamp(
+                    posts[0].get("created_utc", 0), tz=timezone.utc
+                )
+                newest = datetime.datetime.fromtimestamp(
+                    posts[-1].get("created_utc", 0), tz=timezone.utc
+                )
+                log(f"   [PAGE] Page {page} | {len(posts)} posts | "
+                    f"{oldest.strftime('%Y-%m-%d')} -> {newest.strftime('%Y-%m-%d')}")
+
+                last_ts = after_ts
+                for post in posts:
+                    pid = post.get("id", "")
+                    if pid in seen:
+                        continue
+                    seen.add(pid)
+                    last_ts = max(last_ts, post.get("created_utc", last_ts))
+
+                    records, fullname = self.fetch_post_with_comments(
+                        post, f"r/{sub}", existing_ids
+                    )
+                    if fullname:
+                        self.all_results.extend(records)
+                        self.scraped_post_ids.add(fullname)
+                        new_posts += 1
+
+                if last_ts == after_ts or len(posts) < 100:
+                    log(f"   [INFO] Last page reached.")
+                    break
+                after_ts = last_ts
+
+            log(f"   [DONE] r/{sub} - {new_posts} new posts added.")
+            self.save_data(f"sub_{sub[:20]}")
+
+            if sub != run_subs[-1]:
+                log(f"   [WAIT] Pausing {SECTION_PAUSE:.0f}s...")
+                time.sleep(SECTION_PAUSE)
+
+    # ------------------------------------------------------------------
+    # Entry point
+    # ------------------------------------------------------------------
+
+    def run(self) -> None:
+        log("[START] Popmart Reddit scraper v3.0 (PullPush)")
+        log(f"        Date range: {KEYWORD_MIN_DATE.strftime('%Y-%m-%d')} -> ~May 2025 (PullPush archive limit)")
+        log(f"        Data source: {BASE_URL}\n")
+
+        existing_ids = self.load_existing_ids()
+        self.scrape_keywords(existing_ids)
+        self.scrape_subreddits(existing_ids)
+        self.save_data("FINAL")
+
+        unique_new = len(set(r["ID"] for r in self.all_results))
+        log(f"\n[DONE] All tasks complete. {unique_new:,} unique new records added.")
+
 
 if __name__ == "__main__":
     PopmartScraper().run()

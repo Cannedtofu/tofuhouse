@@ -1,0 +1,12 @@
+- generic [ref=e3]:
+  - link "Go to homepage" [ref=e4] [cursor=pointer]:
+    - /url: /en-us/
+    - img "Go to homepage" [ref=e5]
+  - generic [ref=e7]:
+    - paragraph [ref=e8]: 404 - Not Found
+    - paragraph [ref=e9]:
+      - text: Oops. You've run off course ...
+      - text: Head back home to try a different route.
+    - link "Home" [ref=e10] [cursor=pointer]:
+      - /url: /en-us/
+      - generic: Home

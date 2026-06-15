@@ -1,121 +1,137 @@
+"""
+实际费用审计 — 阿里云 DashScope 版
+=====================================
+读取已下载的 Batch 结果 JSONL 文件，从 usage 字段提取真实 Token 用量并计算费用。
+也可补下载尚未缓存到本地的结果文件。
+"""
+
 import json
 import os
 import glob
-from google import genai
+from openai import OpenAI
 
 # ==================== 核心配置 ====================
-API_KEY = "AIzaSyCPCdPj75PoBjfhX5xzGHcw2A1Ei_N-qkU"
-RAW_DATA_DIR = "raw_batch_results"  # 你的原始数据存放目录
-JOB_LOG_FILE = "batch_job_log.txt"  # 任务日志
+API_KEY      = ""         # 填入阿里云 DashScope API Key
+RAW_DATA_DIR = "raw_batch_results"
+JOB_LOG_FILE = "alibaba_batch_log.txt"
 
-# Gemini 2.5 Flash (Batch) 估算费率 ($/1M Tokens)
-PRICE_IN_1M = 0.15 
-PRICE_OUT_1M = 0.60 
+# 实际计费价格（USD / 1M tokens），请以阿里云官网最新公告为准
+# 此处以 qwen-plus 正式价为示例（Batch 任务通常有 50% 折扣）
+PRICE_IN_1M  = 0.07    # qwen-plus 输入
+PRICE_OUT_1M = 0.21    # qwen-plus 输出
+# ==================================================
 
-client = genai.Client(api_key=API_KEY)
+client   = OpenAI(
+    api_key=API_KEY,
+    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# =================================================
 
-def ensure_raw_files_exist():
-    """确保所有完成的任务都下载了原始文件"""
+
+def ensure_raw_files() -> None:
+    """对日志中已完成但本地尚无缓存的任务，补充下载结果文件。"""
     log_path = os.path.join(BASE_DIR, JOB_LOG_FILE)
-    if not os.path.exists(log_path): return []
-    
-    downloaded_count = 0
-    save_dir = os.path.join(BASE_DIR, RAW_DATA_DIR)
-    if not os.path.exists(save_dir): os.makedirs(save_dir)
-
-    with open(log_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            if ":" in line:
-                _, job_id = line.strip().split(":", 1)
-                job_id = job_id.strip()
-                
-                # 检查本地是否已有文件
-                safe_name = job_id.replace("/", "_").replace(":", "")
-                local_path = os.path.join(save_dir, f"raw_{safe_name}.jsonl")
-                
-                if not os.path.exists(local_path):
-                    print(f"📥 补下载结果文件: {job_id} ...")
-                    try:
-                        job = client.batches.get(name=job_id)
-                        if job.state == "JOB_STATE_SUCCEEDED" or str(job.state).endswith("SUCCEEDED"):
-                            fname = job.dest.file_name if hasattr(job.dest, 'file_name') else str(job.dest)
-                            content = client.files.download(file=fname)
-                            with open(local_path, 'wb') as f_out:
-                                f_out.write(content)
-                            downloaded_count += 1
-                    except Exception as e:
-                        print(f"   ❌ 下载失败: {e}")
-    
-    if downloaded_count > 0:
-        print(f"✅ 已补全 {downloaded_count} 个缺失的文件。")
-
-def audit_local_files():
-    # 1. 确保文件齐全
-    ensure_raw_files_exist()
-    
-    raw_dir = os.path.join(BASE_DIR, RAW_DATA_DIR)
-    jsonl_files = glob.glob(os.path.join(raw_dir, "*.jsonl"))
-    
-    if not jsonl_files:
-        print(f"❌ 在 {RAW_DATA_DIR} 目录下没有找到数据文件。")
+    if not os.path.exists(log_path):
         return
 
-    print(f"\n📊 正在审计 {len(jsonl_files)} 个结果文件...")
-    
-    total_input = 0
+    save_dir = os.path.join(BASE_DIR, RAW_DATA_DIR)
+    os.makedirs(save_dir, exist_ok=True)
+
+    downloaded = 0
+    with open(log_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if ":" not in line:
+                continue
+            _, job_id = line.strip().split(":", 1)
+            job_id    = job_id.strip()
+            if not job_id:
+                continue
+
+            safe_name  = job_id.replace("/", "_").replace(":", "")
+            local_path = os.path.join(save_dir, f"raw_{safe_name}.jsonl")
+
+            if os.path.exists(local_path):
+                continue  # 已有缓存，跳过
+
+            print(f"⬇️  补下载: {job_id} ...")
+            try:
+                job = client.batches.retrieve(job_id)
+                if job.status == "completed" and job.output_file_id:
+                    content = client.files.content(job.output_file_id).read()
+                    with open(local_path, "wb") as out:
+                        out.write(content)
+                    downloaded += 1
+                else:
+                    print(f"   ⏳ 状态: {job.status}，跳过。")
+            except Exception as e:
+                print(f"   ❌ 下载失败: {e}")
+
+    if downloaded:
+        print(f"✅ 补下载了 {downloaded} 个文件。\n")
+
+
+def audit_local_files() -> None:
+    ensure_raw_files()
+
+    raw_dir    = os.path.join(BASE_DIR, RAW_DATA_DIR)
+    jsonl_list = glob.glob(os.path.join(raw_dir, "*.jsonl"))
+
+    if not jsonl_list:
+        print(f"❌ {RAW_DATA_DIR}/ 目录下没有 JSONL 文件。")
+        return
+
+    print(f"📊 审计 {len(jsonl_list)} 个结果文件...\n")
+
+    total_input  = 0
     total_output = 0
-    valid_lines = 0
-    
-    for file_path in jsonl_files:
-        filename = os.path.basename(file_path)
-        file_in = 0
-        file_out = 0
-        
-        with open(file_path, 'r', encoding='utf-8') as f:
+    total_valid  = 0
+
+    for fpath in sorted(jsonl_list):
+        fname    = os.path.basename(fpath)
+        f_input  = 0
+        f_output = 0
+
+        with open(fpath, "r", encoding="utf-8") as f:
             for line in f:
-                if not line.strip(): continue
+                if not line.strip():
+                    continue
                 try:
                     data = json.loads(line)
-                    # 从 usageMetadata 提取 Token (注意 API 返回通常是驼峰命名)
-                    # 路径通常是 data['response']['usageMetadata']
-                    # 或者如果是 inline response，结构可能略有不同
-                    
-                    usage = {}
-                    if 'response' in data and 'usageMetadata' in data['response']:
-                        usage = data['response']['usageMetadata']
-                    elif 'usageMetadata' in data:
-                         usage = data['usageMetadata']
-                    
+                    # OpenAI 兼容格式：response.body.usage
+                    usage = (
+                        data.get("response", {})
+                            .get("body", {})
+                            .get("usage", {})
+                    )
+                    if not usage:
+                        # 备用路径
+                        usage = data.get("usage", {})
+
                     if usage:
-                        # 兼容 promptTokenCount 和 prompt_token_count
-                        i_tokens = usage.get('promptTokenCount', usage.get('prompt_token_count', 0))
-                        o_tokens = usage.get('candidatesTokenCount', usage.get('candidates_token_count', 0))
-                        
-                        file_in += i_tokens
-                        file_out += o_tokens
-                        valid_lines += 1
-                except:
+                        f_input  += usage.get("prompt_tokens",     usage.get("input_tokens",  0))
+                        f_output += usage.get("completion_tokens", usage.get("output_tokens", 0))
+                        total_valid += 1
+                except Exception:
                     pass
-        
-        total_input += file_in
-        total_output += file_out
-        # print(f"   📄 {filename}: In={file_in}, Out={file_out}")
 
-    # 计算最终费用
-    cost_in = (total_input / 1_000_000) * PRICE_IN_1M
+        total_input  += f_input
+        total_output += f_output
+
+    cost_in  = (total_input  / 1_000_000) * PRICE_IN_1M
     cost_out = (total_output / 1_000_000) * PRICE_OUT_1M
-    total_cost = cost_in + cost_out
+    total    = cost_in + cost_out
 
-    print("\n" + "="*50)
-    print(f"✅ 审计完成 (共处理 {valid_lines} 条数据)")
-    print("-" * 50)
-    print(f"Total Input Tokens : {total_input:>12,}  ( x ${PRICE_IN_1M}/1M )")
-    print(f"Total Output Tokens: {total_output:>12,}  ( x ${PRICE_OUT_1M}/1M )")
-    print("-" * 50)
-    print(f"💰 最终预估成本    : ${total_cost:>12.4f} USD")
-    print("="*50)
+    print("=" * 52)
+    print(f"✅ 审计完成（共 {total_valid:,} 条有效记录）")
+    print("-" * 52)
+    print(f"输入 Tokens  : {total_input:>12,}   × ${PRICE_IN_1M}/1M")
+    print(f"输出 Tokens  : {total_output:>12,}   × ${PRICE_OUT_1M}/1M")
+    print("-" * 52)
+    print(f"💰 实际总费用 : ${total:>12.4f} USD")
+    print(f"   (约合人民币: ¥{total * 7.2:.2f})")
+    print("=" * 52)
+    print("⚠️  以阿里云账单实际扣款为准，以上为估算值。")
+
 
 if __name__ == "__main__":
     audit_local_files()
