@@ -1,0 +1,11 @@
+.env
+*.pyc
+__pycache__/
+.venv/
+*.db
+*.db-wal
+*.db-shm
+audio_cache/
+backups/
+yt_browser_profile/
+yt_cookies.txt
