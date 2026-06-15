@@ -147,14 +147,56 @@ def _parse_vtt(content: str) -> str:
     return " ".join(texts)
 
 
+def _fetch_via_transcript_api(video_id: str) -> str | None:
+    """
+    Try youtube-transcript-api as a no-auth fast path for YouTube captions.
+    Uses YouTube's internal transcript endpoint — not blocked on cloud IPs.
+    Returns plain text or None if no transcript is available.
+    """
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+        kwargs = {}
+        if SOCKS_PROXY:
+            kwargs["proxies"] = {"https": SOCKS_PROXY, "http": SOCKS_PROXY}
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, **kwargs)
+        preferred = ["en", "en-US", "en-GB", "en-AU",
+                     "zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK"]
+        transcript = None
+        try:
+            transcript = transcript_list.find_transcript(preferred)
+        except NoTranscriptFound:
+            for t in transcript_list:
+                transcript = t
+                break
+        if transcript is None:
+            logger.info("youtube-transcript-api: no transcript for %s", video_id)
+            return None
+        data = transcript.fetch()
+        text = " ".join(item["text"].strip() for item in data if item.get("text", "").strip())
+        if text:
+            logger.info("youtube-transcript-api: got transcript for %s (%d chars, lang=%s)",
+                        video_id, len(text), transcript.language_code)
+        return text or None
+    except Exception as exc:
+        logger.warning("youtube-transcript-api failed for %s: %s", video_id, exc)
+        return None
+
+
 def _fetch_transcript_fast(video_id_or_url: str) -> str | None:
     """
-    Probe available subtitles via yt-dlp extract_info, pick the best VTT URL,
-    download it through yt-dlp's own networking (proxy-aware), then parse.
+    Probe available subtitles. For YouTube video IDs, tries youtube-transcript-api
+    first (no auth needed), then falls back to yt-dlp. For full URLs (Bilibili etc.)
+    goes straight to yt-dlp.
     Returns plain text or None to trigger audio fallback.
-    Accepts either a YouTube video ID or a full URL (Bilibili, etc.).
     """
     import yt_dlp
+
+    # YouTube bare video IDs: try the no-auth API path first
+    if not video_id_or_url.startswith("http"):
+        result = _fetch_via_transcript_api(video_id_or_url)
+        if result is not None:
+            return result
+        logger.info("youtube-transcript-api returned None for %s — falling back to yt-dlp", video_id_or_url)
 
     # Short alias used throughout log messages (avoids NameError — parameter is video_id_or_url)
     video_id = video_id_or_url
