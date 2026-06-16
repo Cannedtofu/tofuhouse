@@ -24,7 +24,7 @@ REQS_CHANGED=$(git diff HEAD origin/main --name-only | grep -c 'requirements.txt
 echo "→ Pulling latest code…"
 STASHED=0
 if ! git diff --quiet -- .env 2>/dev/null; then
-  git stash push -m "deploy-auto-stash .env" -- .env -q
+  git stash push -q -m "deploy-auto-stash .env" -- .env
   STASHED=1
 fi
 git pull
