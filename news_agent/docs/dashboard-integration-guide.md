@@ -184,6 +184,7 @@ except Exception as _e:
 | Script | `script` name | Panel type | `x_type` | Excel upload |
 |---|---|---|---|---|
 | GAODE.py | `gaode` | line | `day_of_year` | ✓ |
+| openrouter_usage.py | `openrouter_usage` | line (2 panels) | `date` | ✓ |
 
 Add a row here each time a new script is integrated.
 
