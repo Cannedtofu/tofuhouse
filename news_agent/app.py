@@ -219,6 +219,28 @@ def _run_gpu_price_fetch():
         _gpu_fetch_lock.release()
 
 
+def _run_openrouter_usage_fetch():
+    """Fetch weekly OpenRouter token-usage data and push panels + Excel to the dashboard.
+
+    Runs in-process (no HTTP round-trip to our own /api/report — this server
+    IS the dashboard), writing directly to the same script_reports/script_files
+    tables that the external-script API route writes to.
+    """
+    import json as _json
+    try:
+        from fetchers.openrouter_usage import run_openrouter_usage_fetch
+        logger_dashboard.info("OpenRouter usage fetch starting…")
+        panels, excel_bytes = run_openrouter_usage_fetch()
+        db.upsert_script_report(
+            "openrouter_usage", "ok", None, _json.dumps(panels), 168,  # 168h = 7 days
+        )
+        db.upsert_script_file("openrouter_usage", "openrouter_usage.xlsx", excel_bytes)
+        logger_dashboard.info("OpenRouter usage fetch done: %d panels", len(panels))
+    except Exception as exc:
+        logger_dashboard.error("OpenRouter usage fetch error: %s", exc)
+        db.upsert_script_report("openrouter_usage", "error", str(exc), None, 168)
+
+
 # Explicit SGT timezone so all cron hours are unambiguous regardless of server clock.
 _scheduler = BackgroundScheduler(daemon=True, timezone="Asia/Singapore")
 
@@ -227,6 +249,10 @@ _scheduler.add_job(_scheduled_digest_send, "cron", hour=9,  minute=0, id="digest
 _scheduler.add_job(                                                                         # 09:00 SGT
     lambda: _run_gpu_price_fetch(),
     "cron", hour=9, minute=0, id="gpu_price_daily",
+)
+_scheduler.add_job(                                                                         # Mondays 09:30 SGT
+    lambda: _run_openrouter_usage_fetch(),
+    "cron", day_of_week="mon", hour=9, minute=30, id="openrouter_usage_weekly",
 )
 
 _scheduler.start()
