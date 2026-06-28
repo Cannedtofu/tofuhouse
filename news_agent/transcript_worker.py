@@ -13,8 +13,13 @@ Workflow per mode:
 ASR: paraformer-v2 via DashScope Recognition API
   - Full audio file sent in one call (supports ≤2 GB / ≤12 h; diarization recommended ≤2 h)
   - Without diarization: plain text output
-  - With diarization:    sentence_info with speaker_id, formatted as [Speaker A] lines;
-                         consistent speaker IDs throughout the entire video
+  - With diarization:    sentence_info with speaker_id, formatted as [Speaker A HH:MM:SS] lines
+                         (timestamp = start of that speaker turn); consistent speaker IDs
+                         throughout the entire video
+
+Captions (yt-dlp VTT / youtube-transcript-api): cues are grouped into paragraphs at
+~30-second intervals, each prefixed with a [HH:MM:SS] marker (per-cue timestamps would
+be too dense — cues arrive every few seconds).
 """
 
 from __future__ import annotations
@@ -127,24 +132,82 @@ def is_bilibili_url(url: str) -> bool:
 # Fast path — yt-dlp subtitle download (caption file only, no audio)
 # ---------------------------------------------------------------------------
 
-def _parse_vtt(content: str) -> str:
-    """Convert WebVTT (including YouTube karaoke-style) to plain text."""
+# Captions arrive as cues every few seconds — too dense to stamp individually.
+# Cues are grouped into paragraphs spanning roughly this many seconds, each
+# prefixed with a single [HH:MM:SS] marker.
+_CAPTION_PARAGRAPH_INTERVAL_SEC = 30
+
+
+def _format_timestamp(seconds: float) -> str:
+    total = int(seconds)
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+def _format_captions_with_timestamps(cues: list[tuple[float, str]]) -> str:
+    """Group caption cues into paragraphs, marking each with a [HH:MM:SS] timestamp
+    at the start of every ~_CAPTION_PARAGRAPH_INTERVAL_SEC-second span."""
+    if not cues:
+        return ""
+    paragraphs: list[str] = []
+    para_start = cues[0][0]
+    para_parts: list[str] = []
+    for start, text in cues:
+        if para_parts and (start - para_start) >= _CAPTION_PARAGRAPH_INTERVAL_SEC:
+            paragraphs.append(f"[{_format_timestamp(para_start)}] {' '.join(para_parts)}")
+            para_start = start
+            para_parts = [text]
+        else:
+            para_parts.append(text)
+    if para_parts:
+        paragraphs.append(f"[{_format_timestamp(para_start)}] {' '.join(para_parts)}")
+    return "\n\n".join(paragraphs)
+
+
+def _parse_vtt_cues(content: str) -> list[tuple[float, str]]:
+    """Parse WebVTT into (start_seconds, text) cues, deduping consecutive identical
+    lines (YouTube auto-captions repeat the rolling line in karaoke-style overlap)."""
     content = re.sub(r"<\d{2}:\d{2}:\d{2}\.\d{3}>", "", content)
     content = re.sub(r"<[^>]+>", "", content)
-    texts = []
-    prev = None
+
+    cues: list[tuple[float, str]] = []
+    prev_text = None
+    current_start: float = 0.0
+    current_lines: list[str] = []
+
     for line in content.splitlines():
         line = line.strip()
         if not line:
             continue
-        if (line.startswith("WEBVTT") or "-->" in line
+        m = re.match(r"^(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->", line)
+        if m:
+            if current_lines:
+                text = " ".join(current_lines)
+                if text != prev_text:
+                    cues.append((current_start, text))
+                    prev_text = text
+            h, mnt, sec, ms = map(int, m.groups())
+            current_start = h * 3600 + mnt * 60 + sec + ms / 1000
+            current_lines = []
+            continue
+        if (line.startswith("WEBVTT")
                 or re.match(r"^\d+$", line)
                 or re.match(r"^[A-Z][a-z]+: ", line)):
             continue
-        if line != prev:
-            texts.append(line)
-            prev = line
-    return " ".join(texts)
+        current_lines.append(line)
+
+    if current_lines:
+        text = " ".join(current_lines)
+        if text != prev_text:
+            cues.append((current_start, text))
+
+    return cues
+
+
+def _parse_vtt(content: str) -> str:
+    """Convert WebVTT (including YouTube karaoke-style) to timestamped paragraphs."""
+    return _format_captions_with_timestamps(_parse_vtt_cues(content))
 
 
 def _fetch_via_transcript_api(video_id: str) -> str | None:
@@ -172,7 +235,8 @@ def _fetch_via_transcript_api(video_id: str) -> str | None:
             logger.info("youtube-transcript-api: no transcript for %s", video_id)
             return None
         data = transcript.fetch()
-        text = " ".join(item["text"].strip() for item in data if item.get("text", "").strip())
+        cues = [(item["start"], item["text"].strip()) for item in data if item.get("text", "").strip()]
+        text = _format_captions_with_timestamps(cues)
         if text:
             logger.info("youtube-transcript-api: got transcript for %s (%d chars, lang=%s)",
                         video_id, len(text), transcript.language_code)
@@ -345,10 +409,18 @@ def _speaker_label(speaker_id) -> str:
 
 
 def _format_diarized_sentences(sentences: list) -> str:
-    """Group consecutive sentences by speaker_id and format as labeled paragraphs."""
+    """Group consecutive sentences by speaker_id and format as labeled paragraphs,
+    each prefixed with the speaker turn's start time: [Speaker A 01:23]."""
     lines: list[str] = []
     current_speaker = None
     current_parts: list[str] = []
+    turn_start_ms = None
+
+    def _flush():
+        if not current_parts:
+            return
+        ts = f" {_format_timestamp(turn_start_ms / 1000)}" if turn_start_ms is not None else ""
+        lines.append(f"[{_speaker_label(current_speaker)}{ts}] {' '.join(current_parts)}")
 
     for s in sentences:
         spk  = s.get("speaker_id")
@@ -356,16 +428,14 @@ def _format_diarized_sentences(sentences: list) -> str:
         if not text:
             continue
         if spk != current_speaker:
-            if current_parts:
-                lines.append(f"[{_speaker_label(current_speaker)}] {' '.join(current_parts)}")
+            _flush()
             current_speaker = spk
             current_parts   = [text]
+            turn_start_ms   = s.get("begin_time")
         else:
             current_parts.append(text)
 
-    if current_parts:
-        lines.append(f"[{_speaker_label(current_speaker)}] {' '.join(current_parts)}")
-
+    _flush()
     return "\n".join(lines)
 
 
@@ -816,7 +886,7 @@ _FORMALIZE_SINGLE_PROMPT = """\
 1. **去除填充词**：删除"嗯""啊""哦""呢""就是""就是说""那个""这个""对吧""对对对""好的好的""然后然后""我的意思是""怎么说呢"等口语填充词。
 2. **消除逐字重复**：将同一意思的逐字重复表达合并为一次；不得合并内容不同但相似的句子。
 3. **规范句式**：将过长的流水句适当拆分；修正明显的语序问题。
-4. **合理分段**：按话题或论点转换划分段落，每段3至6句为宜。若有发言人标注（如[Speaker A]），保留标注，每位发言人切换时另起一段。
+4. **合理分段**：按话题或论点转换划分段落，每段3至6句为宜。若有发言人标注（如[Speaker A]）或时间戳标注（如[01:23]），原样保留标注，每位发言人切换或每个时间戳处另起一段，不得删除或修改时间戳数字。
 5. **零信息丢失**：所有事实、数据、观点、举例、引用必须完整出现在输出中；不得概括或删减任何实质内容。
 
 直接输出整理后的文稿，不加任何解释或前言。
@@ -833,7 +903,7 @@ _FORMALIZE_CHUNK_PROMPT = """\
 1. **去除填充词**：删除"嗯""啊""哦""呢""就是""就是说""那个""这个""对吧""对对对""好的好的""然后然后""我的意思是""怎么说呢"等口语填充词。
 2. **消除逐字重复**：将同一意思的逐字重复表达合并为一次；不得合并内容不同但相似的句子。
 3. **规范句式**：将过长的流水句适当拆分；修正明显的语序问题。
-4. **合理分段**：按话题或论点转换划分段落，每段3至6句为宜。若有发言人标注（如[Speaker A]），保留标注，每位发言人切换时另起一段。
+4. **合理分段**：按话题或论点转换划分段落，每段3至6句为宜。若有发言人标注（如[Speaker A]）或时间戳标注（如[01:23]），原样保留标注，每位发言人切换或每个时间戳处另起一段，不得删除或修改时间戳数字。
 5. **零信息丢失**：所有事实、数据、观点、举例、引用必须完整出现在输出中；不得概括或删减任何实质内容。
 
 仅处理本部分文本，直接输出整理后的内容，不加任何解释或前言。
