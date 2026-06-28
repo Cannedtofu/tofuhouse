@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>News Agent — 系统架构介绍</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d2e;
+      --border: #2e3150;
+      --accent: #6c8eff;
+      --accent2: #a78bfa;
+      --accent3: #34d399;
+      --accent4: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #8892b0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+    .page-title {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    .page-title h1 {
+      font-size: 2.6rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+    .page-title p {
+      color: var(--muted);
+      font-size: 1.1rem;
+    }
+    .section {
+      max-width: 1000px;
+      margin: 0 auto 60px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .section-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    .num-blue   { background: rgba(108,142,255,0.2); color: var(--accent);  border: 1px solid var(--accent); }
+    .num-purple { background: rgba(167,139,250,0.2); color: var(--accent2); border: 1px solid var(--accent2); }
+    .num-green  { background: rgba(52,211,153,0.2);  color: var(--accent3); border: 1px solid var(--accent3); }
+    .num-amber  { background: rgba(245,158,11,0.2);  color: var(--accent4); border: 1px solid var(--accent4); }
+    .section-header h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+    .section-header p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 2px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      overflow: auto;
+    }
+    .card .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+    .pill-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .pill {
+      border-radius: 12px;
+      padding: 20px 24px;
+      border: 1px solid var(--border);
+    }
+    .pill-blue   { background: rgba(108,142,255,0.08); border-color: rgba(108,142,255,0.3); }
+    .pill-purple { background: rgba(167,139,250,0.08); border-color: rgba(167,139,250,0.3); }
+    .pill-green  { background: rgba(52,211,153,0.08);  border-color: rgba(52,211,153,0.3); }
+    .pill-amber  { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.3); }
+    .pill-icon { font-size: 2rem; margin-bottom: 10px; }
+    .pill h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .pill p  { font-size: 0.85rem; color: var(--muted); line-height: 1.7; }
+    .mermaid svg { max-width: 100%; }
+  </style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>📰 News Agent</h1>
+  <p>系统架构介绍 — 整体运作方式</p>
+</div>
+
+<!-- ─── 1. 这个工具能做什么 ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num num-blue">1</div>
+    <div>
+      <h2>这个工具能做什么？</h2>
+      <p>四大核心功能，集于一体</p>
+    </div>
+  </div>
+  <div class="pill-grid">
+    <div class="pill pill-blue">
+      <div class="pill-icon">📡</div>
+      <h3>自动收集资讯</h3>
+      <p>每天定时从 RSS 订阅源、各大网站、X（Twitter）抓取最新文章，无需手动浏览。</p>
+    </div>
+    <div class="pill pill-purple">
+      <div class="pill-icon">✍️</div>
+      <h3>AI 智能摘要</h3>
+      <p>调用通义千问（Qwen）为每篇文章生成 2–3 句话的摘要，并跨来源生成"全局视野"综合简报。</p>
+    </div>
+    <div class="pill pill-green">
+      <div class="pill-icon">🎬</div>
+      <h3>YouTube 视频转录</h3>
+      <p>自动提取任意 YouTube 视频的字幕或音频转文字，支持区分不同发言人。</p>
+    </div>
+    <div class="pill pill-amber">
+      <div class="pill-icon">📧</div>
+      <h3>每日邮件简报</h3>
+      <p>每天早晨自动发送格式化的资讯摘要邮件，也可在网页端随时浏览全部内容。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 2. 系统全局视图 ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num num-blue">2</div>
+    <div>
+      <h2>系统全局视图</h2>
+      <p>数据从哪里来、怎么流转、最终去往哪里</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="mermaid">
+flowchart LR
+    subgraph SOURCES["📥  数据来源"]
+        A1["🗞️ RSS / Atom\n订阅源"]
+        A2["🌐 各大网站\n新闻与公告"]
+        A3["🐦 X / Twitter\n推文"]
+        A4["▶️ YouTube\n视频"]
+    end
+
+    subgraph ENGINE["⚙️  News Agent 服务器"]
+        B1["定时采集器\n每日自动运行"]
+        B2["内容提取器\n模拟真实浏览器"]
+        B3["AI 摘要\n通义千问"]
+        B4["数据库\n本地存储"]
+        B5["YouTube\n转录模块"]
+    end
+
+    subgraph OUTPUT["📤  输出"]
+        C1["🖥️ 网页端"]
+        C2["📧 每日邮件"]
+        C3["📄 转录文件\n.txt 下载"]
+    end
+
+    A1 & A2 & A3 --> B1
+    A4 --> B5
+    B1 --> B2 --> B3 --> B4
+    B5 --> B4
+    B4 --> C1 & C2 & C3
+    </div>
+  </div>
+</div>
+
+<!-- ─── 3. 新闻采集流程 ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num num-purple">3</div>
+    <div>
+      <h2>一篇文章是如何被采集的？</h2>
+      <p>从来源链接到可读摘要的完整旅程</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="mermaid">
+flowchart TD
+    S(["⏰ 每日定时触发\n晚上 11 点（新加坡时间）"])
+    S --> F["读取数据库中\n所有新闻来源"]
+
+    F --> R{"来源类型？"}
+
+    R -->|"RSS 订阅源"| RSS["下载 RSS 文章列表"]
+    R -->|"网站"| WEB["AI 自动识别\n页面上的文章链接"]
+    R -->|"X / Twitter"| NIT["通过 Nitter\n抓取推文"]
+
+    RSS --> DUP{"文章是否\n已在数据库中？"}
+    WEB --> DUP
+    NIT --> SAVE2["直接保存推文\n到数据库"]
+
+    DUP -->|"是 — 跳过"| SKIP(["⏭️ 跳过"])
+    DUP -->|"否 — 继续抓取"| PW["用隐藏浏览器\n打开文章页面"]
+
+    PW --> EXT["提取正文与图片"]
+    EXT --> CHK{"内容是否足够？\n≥ 300 字符"}
+    CHK -->|"不够"| AI["AI 接管浏览器：\n自动滚动、关闭弹窗\n再次提取"]
+    CHK -->|"足够"| SAVE["保存到数据库"]
+    AI --> SAVE
+
+    SAVE --> SUM["AI 生成\n2–3 句摘要\n通义千问"]
+    SUM --> DONE(["✅ 文章出现在资讯页面"])
+    </div>
+  </div>
+</div>
+
+<!-- ─── 4. AI 简报生成 ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num num-purple">4</div>
+    <div>
+      <h2>AI 综合简报是如何生成的？</h2>
+      <p>将几十篇文章浓缩为一份连贯的简报</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="mermaid">
+flowchart TD
+    U(["👤 用户点击\n「生成 AI 简报」"])
+    U --> G["按来源对文章分组"]
+
+    G --> P1["为每篇文章打分：\n高 / 中 / 低 重要性"]
+    P1 --> P2["为重要文章\n生成简短摘要"]
+    P2 --> P3{"是否有\n多个来源？"}
+    P3 -->|"是"| P4["跨来源生成\n「全局视野」综合分析"]
+    P3 -->|"否"| CACHE
+    P4 --> CACHE["缓存结果\n相同文章组合直接复用"]
+    CACHE --> SHOW(["📋 简报展示在\n网页侧边栏"])
+    </div>
+  </div>
+</div>
+
+<!-- ─── 5. YouTube 转录流程 ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num num-green">5</div>
+    <div>
+      <h2>YouTube 视频转录是如何工作的？</h2>
+      <p>从粘贴链接到下载 .txt 文件</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="mermaid">
+flowchart TD
+    U(["👤 用户粘贴\nYouTube 链接"])
+    U --> MODE{"选择模式？"}
+
+    MODE -->|"不区分发言人"| FAST["尝试下载\n视频自带字幕\n快速、无需下载音频"]
+    MODE -->|"区分发言人"| AUDIO
+
+    FAST --> FC{"找到字幕？"}
+    FC -->|"找到 ✅"| TRANS["转录文本就绪"]
+    FC -->|"未找到"| GATE["⚠️ 询问用户：\n「是否下载音频转录？\n需要更长时间」"]
+    GATE -->|"用户确认"| AUDIO
+
+    AUDIO["下载视频音频"]
+    AUDIO --> ASR["发送至 AI 语音识别\nparaformer-v2"]
+    ASR --> TRANS
+
+    TRANS --> SUM{"需要 AI 总结？"}
+    SUM -->|"是"| SUMQ["通义千问\n生成总结"]
+    SUM -->|"否"| DL
+    SUMQ --> DL(["📄 下载 .txt 文件\n总结 + 完整转录"])
+    </div>
+  </div>
+</div>
+
+<!-- ─── 6. 智能内容提取 ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num num-green">6</div>
+    <div>
+      <h2>如何突破网站反爬虫限制？</h2>
+      <p>两级内容提取策略</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="mermaid">
+flowchart LR
+    URL(["文章链接"])
+
+    URL --> T1["🥇 第一级 — 快速通道\n在后台打开隐藏浏览器\n模拟真实用户访问\n绕过反爬虫检测"]
+    T1 --> T1R{"提取到足够内容？"}
+    T1R -->|"是 ✅"| DONE(["内容保存成功"])
+    T1R -->|"否 ❌\n不足 300 字符"| T2
+
+    T2["🥈 第二级 — AI 接管\nAI 控制浏览器：\n自动滚动、关闭弹窗\n智能提取有效内容"]
+    T2 --> DONE
+    </div>
+  </div>
+</div>
+
+<!-- ─── 7. 数据存储结构 ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num num-amber">7</div>
+    <div>
+      <h2>数据存储在哪里？</h2>
+      <p>一个 SQLite 数据库文件，多张数据表</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="mermaid">
+erDiagram
+    来源表 {
+        int ID
+        string 名称
+        string 类型
+        string 链接
+    }
+    文章表 {
+        int ID
+        string 标题
+        string 链接
+        string 正文内容
+        string AI摘要
+        date 发布时间
+    }
+    用户表 {
+        int ID
+        string 邮箱
+        bool 是否订阅简报
+    }
+    转录任务表 {
+        string 任务ID
+        string 视频链接
+        string 状态
+        string 转录文本
+        string AI总结
+    }
+    简报缓存表 {
+        int ID
+        string 简报内容
+        date 生成时间
+    }
+
+    来源表 ||--o{ 文章表 : "包含"
+    用户表 }o--o{ 来源表 : "关注"
+    文章表 }o--o{ 简报缓存表 : "汇入"
+    </div>
+  </div>
+</div>
+
+<!-- ─── 8. 如何 24 小时不间断运行 ─── -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num num-amber">8</div>
+    <div>
+      <h2>如何做到 24 小时不间断运行？</h2>
+      <p>部署与自动化架构</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="mermaid">
+flowchart TB
+    subgraph CLOUD["☁️  阿里云服务器（香港）"]
+        SVC["news-agent 服务\n常驻运行"]
+        SCH["定时调度器\n每晚 11 点自动采集"]
+        DB["📁 news.db\n数据库文件"]
+        SVC <--> DB
+        SCH --> SVC
+    end
+
+    subgraph GH["🐙  GitHub Actions（云端自动化）"]
+        GA["每日任务\n北京时间 15:00\n采集 → 摘要 → 发邮件"]
+    end
+
+    subgraph LOCAL["💻  开发者电脑"]
+        DEV["git push 推送代码\n→ 服务器自动更新"]
+    end
+
+    LOCAL -->|"推送代码"| CLOUD
+    GH -->|"执行 main.py"| CLOUD
+    CLOUD -->|"发送邮件"| EMAIL(["📧 订阅用户收件箱"])
+    CLOUD -->|"提供网页服务"| USERS(["👤 用户通过浏览器访问"])
+    </div>
+  </div>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1e2340',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#3d4475',
+      lineColor: '#6c8eff',
+      secondaryColor: '#252a45',
+      tertiaryColor: '#1a1d2e',
+      edgeLabelBackground: '#1a1d2e',
+      fontSize: '15px',
+    },
+    flowchart: { curve: 'basis', htmlLabels: true },
+    er: { diagramPadding: 20 }
+  });
+</script>
+</body>
+</html>
