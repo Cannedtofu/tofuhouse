@@ -250,9 +250,14 @@ _scheduler.add_job(                                                             
     lambda: _run_gpu_price_fetch(),
     "cron", hour=9, minute=0, id="gpu_price_daily",
 )
-_scheduler.add_job(                                                                         # every 168h from server start
+_scheduler.add_job(                                                                         # every 168h from a fixed anchor
     lambda: _run_openrouter_usage_fetch(),
     "interval", hours=168, id="openrouter_usage_weekly",
+    # Fixed anchor (not "now") so the schedule is stable across server restarts/deploys —
+    # APScheduler computes next-run as anchor + N*168h for whatever N is next in the future,
+    # rather than resetting the countdown to "restart time + 168h" every time this job is
+    # re-registered at process startup.
+    start_date="2026-06-29 09:30:00",
 )
 
 _scheduler.start()
