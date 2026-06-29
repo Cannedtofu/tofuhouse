@@ -54,27 +54,42 @@ def parse_chart_data(payload: dict) -> list[dict]:
     return records
 
 
+def _trailing_avg(values: list, window: int) -> list:
+    """Return a list the same length as `values`, where index i holds the
+    average of values[i-window+1 : i+1], or None if fewer than `window`
+    values exist yet (i.e. for the first window-1 entries)."""
+    n = len(values)
+    out = [None] * n
+    for i in range(n):
+        if i >= window - 1:
+            out[i] = sum(values[i - window + 1:i + 1]) / window
+    return out
+
+
 def compute_deltas(records: list[dict]) -> list[dict]:
     """Given records sorted by date ascending (each with 'date' and 'total'),
-    return rows annotated with wow_delta_avg4 and total_wow_pct_change.
+    return rows annotated with several derived metrics:
 
-    total_wow_pct_change is the week-over-week growth rate of the raw total:
-    (this week's total / last week's total) - 1. None for the first row
-    (no prior week) or if the prior total is exactly zero.
-
-    wow_delta_avg4 is the week-over-week change of the 4-week trailing
-    average of total tokens (avg4[i] - avg4[i-1]) — smooths out single-week
-    noise compared to diffing the raw weekly totals directly. None until
-    there are at least 5 weeks of history (avg4 itself needs 4 trailing
-    weeks, and this diffs two consecutive avg4 values).
+    - total_wow_pct_change: week-over-week growth rate of the raw total —
+      (this week's total / last week's total) - 1. None for the first row
+      (no prior week) or if the prior total is exactly zero.
+    - wow_delta_avg4: week-over-week change of the 4-week trailing average
+      of total tokens (avg4[i] - avg4[i-1]) — smooths out single-week noise
+      compared to diffing the raw weekly totals directly. None until there
+      are at least 5 weeks of history.
+    - avg3: 3-week trailing average of total tokens. None until there are
+      at least 3 weeks of history.
+    - avg3_wow_pct_change: week-over-week growth rate of avg3 — smooths out
+      single-week noise compared to diffing the raw totals' pct change
+      directly. None until there are at least 4 weeks of history (avg3
+      itself needs 3 trailing weeks, and this diffs two consecutive avg3
+      values), or if the prior avg3 is exactly zero.
     """
     totals = [r["total"] for r in records]
     n = len(totals)
 
-    avg4 = [None] * n
-    for i in range(n):
-        if i >= 3:
-            avg4[i] = sum(totals[i - 3:i + 1]) / 4
+    avg3 = _trailing_avg(totals, 3)
+    avg4 = _trailing_avg(totals, 4)
 
     rows = []
     for i, r in enumerate(records):
@@ -88,11 +103,18 @@ def compute_deltas(records: list[dict]) -> list[dict]:
         if avg4[i] is not None and i >= 1 and avg4[i - 1] is not None:
             wow_delta_avg4 = avg4[i] - avg4[i - 1]
 
+        avg3_wow_pct_change = None
+        if (avg3[i] is not None and i >= 1 and avg3[i - 1] is not None
+                and avg3[i - 1] != 0):
+            avg3_wow_pct_change = (avg3[i] / avg3[i - 1]) - 1
+
         rows.append({
             "date": r["date"],
             "total": total,
+            "avg3": avg3[i],
             "wow_delta_avg4": wow_delta_avg4,
             "total_wow_pct_change": pct_change,
+            "avg3_wow_pct_change": avg3_wow_pct_change,
         })
     return rows
 
@@ -115,7 +137,20 @@ def build_panels(rows: list[dict]) -> list[dict]:
             {
                 "label": "Total Tokens",
                 "data": [{"x": r["date"], "y": r["total"]} for r in rows],
-            }
+            },
+            {
+                "label": "3周均值 (3-Week Avg)",
+                "axis": "left",
+                "data": [{"x": r["date"], "y": r["avg3"]} for r in rows],
+            },
+            {
+                # Independent right axis — a percentage shares no useful scale
+                # with absolute token counts.
+                "label": "3周均值环比变化率 (3-Week Avg WoW % Change)",
+                "axis": "right",
+                "format": "percent",
+                "data": [{"x": r["date"], "y": r["avg3_wow_pct_change"]} for r in rows],
+            },
         ],
     }
     delta_panel = {
@@ -143,7 +178,10 @@ def build_panels(rows: list[dict]) -> list[dict]:
     return [total_panel, delta_panel]
 
 
-_WEEKLY_TOTAL_HEADERS = ["Date", "Total Tokens", "4-Week Avg WoW Δ", "Total WoW % Change"]
+_WEEKLY_TOTAL_HEADERS = [
+    "Date", "Total Tokens", "4-Week Avg WoW Δ", "Total WoW % Change",
+    "3-Week Avg", "3-Week Avg WoW % Change",
+]
 
 
 def upsert_weekly_total_sheet(wb, rows: list[dict]) -> None:
@@ -171,7 +209,7 @@ def upsert_weekly_total_sheet(wb, rows: list[dict]) -> None:
 
     existing: dict[str, list] = {}
     for row_idx in range(2, ws.max_row + 1):
-        vals = [ws.cell(row=row_idx, column=c).value for c in range(1, 5)]
+        vals = [ws.cell(row=row_idx, column=c).value for c in range(1, 7)]
         if vals[0]:
             existing[str(vals[0])] = vals
 
@@ -182,7 +220,10 @@ def upsert_weekly_total_sheet(wb, rows: list[dict]) -> None:
                 "OpenRouter usage: %s total revised by source — %s -> %s",
                 r["date"], prior[1], r["total"],
             )
-        existing[r["date"]] = [r["date"], r["total"], r["wow_delta_avg4"], r["total_wow_pct_change"]]
+        existing[r["date"]] = [
+            r["date"], r["total"], r["wow_delta_avg4"], r["total_wow_pct_change"],
+            r["avg3"], r["avg3_wow_pct_change"],
+        ]
 
     if ws.max_row > 0:
         ws.delete_rows(1, ws.max_row)
