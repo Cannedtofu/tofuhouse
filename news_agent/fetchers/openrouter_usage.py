@@ -150,6 +150,12 @@ def upsert_weekly_total_sheet(wb, rows: list[dict]) -> None:
     rather than in-place row updates/inserts, since keeping a growing
     sheet sorted and free of duplicate dates via targeted insert/update
     is more error-prone than rebuilding from a dict each time.
+
+    Every date in `rows` always overwrites the stored row regardless of
+    whether the value changed — but a mismatch against the *raw* Total
+    Tokens figure (not the derived WoW columns, which legitimately cascade
+    whenever any upstream week is corrected) is logged, since that's the
+    signal that OpenRouter itself revised a historical number.
     """
     if "Weekly Total" not in wb.sheetnames:
         ws = wb.create_sheet("Weekly Total")
@@ -163,6 +169,12 @@ def upsert_weekly_total_sheet(wb, rows: list[dict]) -> None:
             existing[str(vals[0])] = vals
 
     for r in rows:
+        prior = existing.get(r["date"])
+        if prior is not None and prior[1] != r["total"]:
+            log.info(
+                "OpenRouter usage: %s total revised by source — %s -> %s",
+                r["date"], prior[1], r["total"],
+            )
         existing[r["date"]] = [r["date"], r["total"], r["wow_delta"], r["wow_delta_pct_change"]]
 
     if ws.max_row > 0:
@@ -187,6 +199,12 @@ def upsert_model_detail_sheet(wb, records: list[dict]) -> None:
     model), and the set of models for a given week can grow or shrink between
     runs, so matching/updating individual rows would leave stale model rows
     behind. Replacing the whole block for a date sidesteps that.
+
+    Every (date, model) pair in `records` always overwrites the stored row
+    regardless of whether the value changed — but a token-count mismatch
+    against what was already stored is logged, since that's the signal
+    that OpenRouter revised a historical number rather than this just
+    being the model's first appearance for that week.
     """
     if "Per-Model Detail" not in wb.sheetnames:
         ws = wb.create_sheet("Per-Model Detail")
@@ -195,11 +213,24 @@ def upsert_model_detail_sheet(wb, records: list[dict]) -> None:
 
     incoming_dates = {r["date"] for r in records}
 
+    existing_tokens: dict[tuple, int] = {}
     kept_rows = []
     for row_idx in range(2, ws.max_row + 1):
         vals = [ws.cell(row=row_idx, column=c).value for c in range(1, 4)]
-        if vals[0] and str(vals[0]) not in incoming_dates:
+        if not vals[0]:
+            continue
+        existing_tokens[(str(vals[0]), vals[1])] = vals[2]
+        if str(vals[0]) not in incoming_dates:
             kept_rows.append(vals)
+
+    for r in records:
+        for model, tokens in r["models"].items():
+            prior_tokens = existing_tokens.get((r["date"], model))
+            if prior_tokens is not None and prior_tokens != tokens:
+                log.info(
+                    "OpenRouter usage: %s / %s tokens revised by source — %s -> %s",
+                    r["date"], model, prior_tokens, tokens,
+                )
 
     new_rows = [
         [r["date"], model, tokens]
