@@ -56,11 +56,18 @@ def parse_chart_data(payload: dict) -> list[dict]:
 
 def compute_deltas(records: list[dict]) -> list[dict]:
     """Given records sorted by date ascending (each with 'date' and 'total'),
-    return rows annotated with wow_delta and wow_delta_of_delta.
+    return rows annotated with wow_delta and wow_delta_pct_change.
+
+    wow_delta_pct_change is the rate of change of the delta itself:
+    (this week's delta / last week's delta) - 1. E.g. delta going from
+    +100 to +150 is a +50% pct_change (the rate of growth accelerated);
+    delta going from +100 to +50 is a -50% pct_change (decelerated).
 
     First row: both None (no prior week to diff against).
-    Second row: wow_delta set, wow_delta_of_delta still None (no prior delta).
-    From the third row on, both are set.
+    Second row: wow_delta set, wow_delta_pct_change still None (no prior delta).
+    From the third row on, both are set — except when the prior delta is
+    exactly zero, where pct_change is undefined (division by zero) and
+    stays None.
     """
     rows = []
     prev_total = None
@@ -68,12 +75,15 @@ def compute_deltas(records: list[dict]) -> list[dict]:
     for r in records:
         total = r["total"]
         delta = None if prev_total is None else total - prev_total
-        delta_of_delta = None if (delta is None or prev_delta is None) else delta - prev_delta
+        if delta is None or prev_delta is None or prev_delta == 0:
+            pct_change = None
+        else:
+            pct_change = (delta / prev_delta) - 1
         rows.append({
             "date": r["date"],
             "total": total,
             "wow_delta": delta,
-            "wow_delta_of_delta": delta_of_delta,
+            "wow_delta_pct_change": pct_change,
         })
         prev_total = total
         prev_delta = delta
@@ -109,18 +119,24 @@ def build_panels(rows: list[dict]) -> list[dict]:
         "datasets": [
             {
                 "label": "周环比变化 (WoW Δ)",
+                "axis": "left",
                 "data": [{"x": r["date"], "y": r["wow_delta"]} for r in rows],
             },
             {
-                "label": "环比变化的环比变化 (WoW Δ-of-Δ)",
-                "data": [{"x": r["date"], "y": r["wow_delta_of_delta"]} for r in rows],
+                # On its own (right) axis as a percentage — absolute token
+                # counts and a ratio live on wildly different scales, so
+                # sharing one axis would flatten one of the two lines.
+                "label": "环比变化率 (WoW Δ % Change)",
+                "axis": "right",
+                "format": "percent",
+                "data": [{"x": r["date"], "y": r["wow_delta_pct_change"]} for r in rows],
             },
         ],
     }
     return [total_panel, delta_panel]
 
 
-_WEEKLY_TOTAL_HEADERS = ["Date", "Total Tokens", "WoW Δ", "WoW Δ-of-Δ"]
+_WEEKLY_TOTAL_HEADERS = ["Date", "Total Tokens", "WoW Δ", "WoW Δ % Change"]
 
 
 def upsert_weekly_total_sheet(wb, rows: list[dict]) -> None:
@@ -147,7 +163,7 @@ def upsert_weekly_total_sheet(wb, rows: list[dict]) -> None:
             existing[str(vals[0])] = vals
 
     for r in rows:
-        existing[r["date"]] = [r["date"], r["total"], r["wow_delta"], r["wow_delta_of_delta"]]
+        existing[r["date"]] = [r["date"], r["total"], r["wow_delta"], r["wow_delta_pct_change"]]
 
     if ws.max_row > 0:
         ws.delete_rows(1, ws.max_row)

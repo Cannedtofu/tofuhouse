@@ -71,7 +71,11 @@ Each item in `panels` is one chart or table card rendered inside the script's pa
 | `span_gaps` | bool | Connect missing data points with a line |
 | `datasets` | array | One entry per series/line |
 | `datasets[].label` | string | Legend label |
-| `datasets[].data` | array of `{x, y}` | x is a string, y is a number |
+| `datasets[].data` | array of `{x, y}` | x is a string, y is a number (or `null` to leave a gap) |
+| `datasets[].axis` | `"left"` (default) \| `"right"` | Put this dataset on a secondary y-axis — use when one dataset's scale would otherwise flatten another (e.g. an absolute count next to a percentage) |
+| `datasets[].format` | `"number"` (default) \| `"percent"` | Axis ticks and tooltip values on this dataset's axis render as `×100%` when set to `"percent"` |
+
+When at least one dataset uses `"axis": "right"`, the dashboard also shows a small "右轴范围" (right-axis range) control under the chart, letting the viewer type in a custom min/max (in %) to keep an outlier from compressing the rest of the line — this is a user-facing UI control, not something you set from the push payload.
 
 #### `x_type: "date"` — time series
 - `x` values are ISO date strings: `"2025-06-08"` or `"2025-06-08T14:30:00"`

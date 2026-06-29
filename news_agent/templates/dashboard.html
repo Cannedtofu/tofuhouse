@@ -203,9 +203,20 @@
                data-key="{{ s.script_name }}-{{ loop.index0 }}"
                title="双击编辑标题" ondblclick="startEditTitle(event, this)">{{ panel.title }}</div>
           {% if panel.type in ('line', 'bar') %}
+            {% set chart_id = "chart-" ~ (s.script_name | replace(' ', '-')) ~ "-" ~ loop.index %}
             <div style="position:relative;height:320px">
-              <canvas id="chart-{{ s.script_name | replace(' ', '-') }}-{{ loop.index }}"></canvas>
+              <canvas id="{{ chart_id }}"></canvas>
             </div>
+            {% if panel.datasets and (panel.datasets | selectattr('axis', 'eq', 'right') | list | length) > 0 %}
+            <div class="d-flex align-items-center gap-2 mt-2 small text-muted" data-axis-range-control data-canvas-id="{{ chart_id }}">
+              <span>右轴范围:</span>
+              <input type="number" class="form-control form-control-sm" style="width:80px" placeholder="自动" data-axis-min>
+              <span>% ~</span>
+              <input type="number" class="form-control form-control-sm" style="width:80px" placeholder="自动" data-axis-max>
+              <span>%</span>
+              <button type="button" class="btn btn-sm btn-link p-0" data-axis-reset>重置为自动</button>
+            </div>
+            {% endif %}
           {% elif panel.type == 'table' %}
             <div class="table-responsive">
               <table class="table table-sm table-hover mb-0">
@@ -491,6 +502,63 @@ const MONTH_STARTS = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const PANEL_COLORS = ['#0d6efd','#fd7e14','#198754','#dc3545','#6f42c1','#20c997'];
 
+// ---------------------------------------------------------------------------
+// Adjustable secondary (right) y-axis range — localStorage, per chart
+// ---------------------------------------------------------------------------
+const SCRIPT_CHARTS = {};   // canvasId -> Chart instance
+const AXIS_RANGE_KEY = 'dashboardAxisRange';
+
+function getAxisRange(canvasId) {
+  const all = JSON.parse(localStorage.getItem(AXIS_RANGE_KEY) || '{}');
+  return all[canvasId] || null;
+}
+
+function setAxisRange(canvasId, min, max) {
+  const all = JSON.parse(localStorage.getItem(AXIS_RANGE_KEY) || '{}');
+  if (min === null && max === null) delete all[canvasId];
+  else all[canvasId] = { min, max };
+  localStorage.setItem(AXIS_RANGE_KEY, JSON.stringify(all));
+}
+
+function applyAxisRange(canvasId, min, max) {
+  const chart = SCRIPT_CHARTS[canvasId];
+  if (!chart || !chart.options.scales.y1) return;
+  // Stored/typed as percentages (e.g. -300); Chart.js scale uses the raw fraction (-3.0).
+  chart.options.scales.y1.min = min === null || min === undefined ? undefined : min / 100;
+  chart.options.scales.y1.max = max === null || max === undefined ? undefined : max / 100;
+  chart.update();
+}
+
+function initAxisRangeControls() {
+  document.querySelectorAll('[data-axis-range-control]').forEach(ctrl => {
+    const canvasId = ctrl.dataset.canvasId;
+    const minInput = ctrl.querySelector('[data-axis-min]');
+    const maxInput = ctrl.querySelector('[data-axis-max]');
+    const resetBtn = ctrl.querySelector('[data-axis-reset]');
+
+    const saved = getAxisRange(canvasId);
+    if (saved) {
+      minInput.value = saved.min ?? '';
+      maxInput.value = saved.max ?? '';
+    }
+
+    const onChange = () => {
+      const min = minInput.value === '' ? null : Number(minInput.value);
+      const max = maxInput.value === '' ? null : Number(maxInput.value);
+      setAxisRange(canvasId, min, max);
+      applyAxisRange(canvasId, min, max);
+    };
+    minInput.addEventListener('change', onChange);
+    maxInput.addEventListener('change', onChange);
+    resetBtn.addEventListener('click', () => {
+      minInput.value = '';
+      maxInput.value = '';
+      setAxisRange(canvasId, null, null);
+      applyAxisRange(canvasId, null, null);
+    });
+  });
+}
+
 function renderScriptCharts() {
   SCRIPT_PANELS.forEach(script => {
     (script.panels || []).forEach((panel, idx) => {
@@ -498,6 +566,15 @@ function renderScriptCharts() {
       const canvasId = `chart-${script.script_name.replace(/ /g, '-')}-${idx + 1}`;
       const canvas = document.getElementById(canvasId);
       if (!canvas) return;
+
+      // Datasets may opt into a secondary y-axis (e.g. a % metric sharing a chart
+      // with an absolute-value metric) via ds.axis === 'right'. ds.format === 'percent'
+      // controls tick/tooltip formatting on whichever axis that dataset lands on.
+      const usesRightAxis = (panel.datasets || []).some(ds => ds.axis === 'right');
+      const percentFormats = {};
+      (panel.datasets || []).forEach(ds => {
+        if (ds.format === 'percent') percentFormats[ds.axis === 'right' ? 'y1' : 'y'] = true;
+      });
 
       let datasets;
       if (panel.x_type === 'day_of_year') {
@@ -511,6 +588,7 @@ function renderScriptCharts() {
           pointHoverRadius: 4,
           tension: 0.2,
           spanGaps: !!panel.span_gaps,
+          yAxisID: ds.axis === 'right' ? 'y1' : 'y',
         }));
       } else {
         datasets = (panel.datasets || []).map((ds, i) => ({
@@ -523,11 +601,22 @@ function renderScriptCharts() {
           pointHoverRadius: 5,
           tension: 0.3,
           spanGaps: !!panel.span_gaps,
+          yAxisID: ds.axis === 'right' ? 'y1' : 'y',
         }));
       }
 
       const isDoy = panel.x_type === 'day_of_year';
-      new Chart(canvas.getContext('2d'), {
+      const formatAxisValue = (axisId, v) => percentFormats[axisId] ? (v * 100).toFixed(0) + '%' : v;
+      const savedAxisRange = usesRightAxis ? getAxisRange(canvasId) : null;
+      const y1Scale = usesRightAxis ? {
+        position: 'right',
+        min: savedAxisRange && savedAxisRange.min !== null ? savedAxisRange.min / 100 : undefined,
+        max: savedAxisRange && savedAxisRange.max !== null ? savedAxisRange.max / 100 : undefined,
+        grid: { drawOnChartArea: false },
+        ticks: { font: { size: 11 }, callback: v => formatAxisValue('y1', v) },
+      } : undefined;
+
+      const chart = new Chart(canvas.getContext('2d'), {
         type: panel.type === 'bar' ? 'bar' : 'line',
         data: { datasets },
         options: {
@@ -550,6 +639,11 @@ function renderScriptCharts() {
                   const day = doy - MONTH_STARTS[m] + 1;
                   return `${m + 1}月${day}日`;
                 },
+                label: ctx => {
+                  if (ctx.parsed.y === null) return undefined;
+                  const val = formatAxisValue(ctx.dataset.yAxisID, ctx.parsed.y);
+                  return ` ${ctx.dataset.label}: ${typeof val === 'number' ? val.toLocaleString() : val}`;
+                },
               },
             },
           },
@@ -571,6 +665,7 @@ function renderScriptCharts() {
               grid: { color: 'rgba(0,0,0,0.04)' },
             },
             y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+            ...(y1Scale ? { y1: y1Scale } : {}),
           } : {
             x: {
               type: 'time',
@@ -585,9 +680,11 @@ function renderScriptCharts() {
               ticks: { font: { size: 11 } },
             },
             y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+            ...(y1Scale ? { y1: y1Scale } : {}),
           },
         },
       });
+      SCRIPT_CHARTS[canvasId] = chart;
     });
   });
 }
@@ -806,12 +903,13 @@ function refreshStatusStrip() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  applyPanelOrder();      // reorder cards before rendering
-  renderScriptCharts();   // render while all panels visible — must come before hiding
-  applyPanelPrefs();      // hide unchecked panels
-  initFoldState();        // fold collapsed panels
-  applyTitleOverrides();  // apply saved title renames
-  initModalDrag();        // wire drag handles in 自定义 modal
+  applyPanelOrder();        // reorder cards before rendering
+  renderScriptCharts();     // render while all panels visible — must come before hiding
+  initAxisRangeControls();  // wire right-axis range inputs (after charts exist)
+  applyPanelPrefs();        // hide unchecked panels
+  initFoldState();          // fold collapsed panels
+  applyTitleOverrides();    // apply saved title renames
+  initModalDrag();          // wire drag handles in 自定义 modal
   setInterval(refreshStatusStrip, 60000);
 });
 </script>

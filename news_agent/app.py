@@ -250,9 +250,9 @@ _scheduler.add_job(                                                             
     lambda: _run_gpu_price_fetch(),
     "cron", hour=9, minute=0, id="gpu_price_daily",
 )
-_scheduler.add_job(                                                                         # Mondays 09:30 SGT
+_scheduler.add_job(                                                                         # every 168h from server start
     lambda: _run_openrouter_usage_fetch(),
-    "cron", day_of_week="mon", hour=9, minute=30, id="openrouter_usage_weekly",
+    "interval", hours=168, id="openrouter_usage_weekly",
 )
 
 _scheduler.start()
@@ -1604,6 +1604,31 @@ def api_report_push():
     import json as _json
     data_json = _json.dumps(panels) if panels else None
     db.upsert_script_report(script_name, status, error_message, data_json, expected_interval_hours)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/report/<script_name>/reset", methods=["POST"])
+def api_report_reset(script_name):
+    """Delete a script's stored report + Excel file, for a clean-slate reset.
+
+    API-key gated (same auth as the other /api/report routes) rather than
+    session-gated, so it can be triggered non-interactively without a login.
+    """
+    denied = _api_key_required()
+    if denied:
+        return denied
+    db.delete_script_data(script_name)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/openrouter-usage/refresh", methods=["POST"])
+def api_openrouter_usage_refresh():
+    """Trigger an immediate OpenRouter usage fetch (normally runs on the
+    weekly APScheduler job). API-key gated for non-interactive triggering."""
+    denied = _api_key_required()
+    if denied:
+        return denied
+    _run_openrouter_usage_fetch()
     return jsonify({"ok": True})
 
 

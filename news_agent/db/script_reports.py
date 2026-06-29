@@ -91,6 +91,13 @@ def get_scripts_with_files() -> set[str]:
     return {r["script_name"] for r in rows}
 
 
+def delete_script_data(script_name: str) -> None:
+    """Delete a script's report and uploaded file, for a clean reset."""
+    with get_conn() as conn:
+        conn.execute("DELETE FROM script_reports WHERE script_name = ?", (script_name,))
+        conn.execute("DELETE FROM script_files WHERE script_name = ?", (script_name,))
+
+
 # ---------------------------------------------------------------------------
 # Panel access control (admin toggles per-panel visibility for non-admins)
 # ---------------------------------------------------------------------------
