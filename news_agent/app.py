@@ -219,14 +219,19 @@ def _run_gpu_price_fetch():
         _gpu_fetch_lock.release()
 
 
-def _run_openrouter_usage_fetch():
+def _run_openrouter_usage_fetch() -> dict:
     """Fetch weekly OpenRouter token-usage data and push panels + Excel to the dashboard.
 
     Runs in-process (no HTTP round-trip to our own /api/report — this server
     IS the dashboard), writing directly to the same script_reports/script_files
     tables that the external-script API route writes to.
+
+    Returns {"ok": True, "panels": N} or {"ok": False, "error": "..."} so
+    callers (the manual-refresh API route) can report the actual result
+    instead of always claiming success.
     """
     import json as _json
+    import traceback as _traceback
     try:
         from fetchers.openrouter_usage import run_openrouter_usage_fetch
         logger_dashboard.info("OpenRouter usage fetch starting…")
@@ -236,9 +241,11 @@ def _run_openrouter_usage_fetch():
         )
         db.upsert_script_file("openrouter_usage", "openrouter_usage.xlsx", excel_bytes)
         logger_dashboard.info("OpenRouter usage fetch done: %d panels", len(panels))
+        return {"ok": True, "panels": len(panels)}
     except Exception as exc:
-        logger_dashboard.error("OpenRouter usage fetch error: %s", exc)
+        logger_dashboard.error("OpenRouter usage fetch error: %s", _traceback.format_exc())
         db.upsert_script_report("openrouter_usage", "error", str(exc), None, 168)
+        return {"ok": False, "error": str(exc)}
 
 
 # Explicit SGT timezone so all cron hours are unambiguous regardless of server clock.
@@ -1633,8 +1640,7 @@ def api_openrouter_usage_refresh():
     denied = _api_key_required()
     if denied:
         return denied
-    _run_openrouter_usage_fetch()
-    return jsonify({"ok": True})
+    return jsonify(_run_openrouter_usage_fetch())
 
 
 @app.route("/api/report/<script_name>/excel", methods=["POST"])
