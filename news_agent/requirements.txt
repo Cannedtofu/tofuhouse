@@ -8,6 +8,7 @@ flask==3.1.0
 lxml==5.3.0
 openai>=1.30.0
 APScheduler>=3.10
+openpyxl>=3.1.0                 # Excel read/write for the openrouter_usage dashboard fetcher
 
 # Browser automation for full-content fetching (requires Python 3.11+)
 playwright>=1.40.0
