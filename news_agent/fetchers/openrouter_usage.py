@@ -56,37 +56,44 @@ def parse_chart_data(payload: dict) -> list[dict]:
 
 def compute_deltas(records: list[dict]) -> list[dict]:
     """Given records sorted by date ascending (each with 'date' and 'total'),
-    return rows annotated with wow_delta and wow_delta_pct_change.
+    return rows annotated with wow_delta_avg4 and total_wow_pct_change.
 
-    wow_delta_pct_change is the rate of change of the delta itself:
-    (this week's delta / last week's delta) - 1. E.g. delta going from
-    +100 to +150 is a +50% pct_change (the rate of growth accelerated);
-    delta going from +100 to +50 is a -50% pct_change (decelerated).
+    total_wow_pct_change is the week-over-week growth rate of the raw total:
+    (this week's total / last week's total) - 1. None for the first row
+    (no prior week) or if the prior total is exactly zero.
 
-    First row: both None (no prior week to diff against).
-    Second row: wow_delta set, wow_delta_pct_change still None (no prior delta).
-    From the third row on, both are set — except when the prior delta is
-    exactly zero, where pct_change is undefined (division by zero) and
-    stays None.
+    wow_delta_avg4 is the week-over-week change of the 4-week trailing
+    average of total tokens (avg4[i] - avg4[i-1]) — smooths out single-week
+    noise compared to diffing the raw weekly totals directly. None until
+    there are at least 5 weeks of history (avg4 itself needs 4 trailing
+    weeks, and this diffs two consecutive avg4 values).
     """
+    totals = [r["total"] for r in records]
+    n = len(totals)
+
+    avg4 = [None] * n
+    for i in range(n):
+        if i >= 3:
+            avg4[i] = sum(totals[i - 3:i + 1]) / 4
+
     rows = []
-    prev_total = None
-    prev_delta = None
-    for r in records:
+    for i, r in enumerate(records):
         total = r["total"]
-        delta = None if prev_total is None else total - prev_total
-        if delta is None or prev_delta is None or prev_delta == 0:
-            pct_change = None
-        else:
-            pct_change = (delta / prev_delta) - 1
+
+        pct_change = None
+        if i >= 1 and totals[i - 1] != 0:
+            pct_change = (total / totals[i - 1]) - 1
+
+        wow_delta_avg4 = None
+        if avg4[i] is not None and i >= 1 and avg4[i - 1] is not None:
+            wow_delta_avg4 = avg4[i] - avg4[i - 1]
+
         rows.append({
             "date": r["date"],
             "total": total,
-            "wow_delta": delta,
-            "wow_delta_pct_change": pct_change,
+            "wow_delta_avg4": wow_delta_avg4,
+            "total_wow_pct_change": pct_change,
         })
-        prev_total = total
-        prev_delta = delta
     return rows
 
 
@@ -118,25 +125,25 @@ def build_panels(rows: list[dict]) -> list[dict]:
         "span_gaps": False,
         "datasets": [
             {
-                "label": "周环比变化 (WoW Δ)",
+                "label": "4周均值环比变化 (4-Week Avg WoW Δ)",
                 "axis": "left",
-                "data": [{"x": r["date"], "y": r["wow_delta"]} for r in rows],
+                "data": [{"x": r["date"], "y": r["wow_delta_avg4"]} for r in rows],
             },
             {
                 # On its own (right) axis as a percentage — absolute token
                 # counts and a ratio live on wildly different scales, so
                 # sharing one axis would flatten one of the two lines.
-                "label": "环比变化率 (WoW Δ % Change)",
+                "label": "总量环比变化率 (Total Token WoW % Change)",
                 "axis": "right",
                 "format": "percent",
-                "data": [{"x": r["date"], "y": r["wow_delta_pct_change"]} for r in rows],
+                "data": [{"x": r["date"], "y": r["total_wow_pct_change"]} for r in rows],
             },
         ],
     }
     return [total_panel, delta_panel]
 
 
-_WEEKLY_TOTAL_HEADERS = ["Date", "Total Tokens", "WoW Δ", "WoW Δ % Change"]
+_WEEKLY_TOTAL_HEADERS = ["Date", "Total Tokens", "4-Week Avg WoW Δ", "Total WoW % Change"]
 
 
 def upsert_weekly_total_sheet(wb, rows: list[dict]) -> None:
@@ -175,7 +182,7 @@ def upsert_weekly_total_sheet(wb, rows: list[dict]) -> None:
                 "OpenRouter usage: %s total revised by source — %s -> %s",
                 r["date"], prior[1], r["total"],
             )
-        existing[r["date"]] = [r["date"], r["total"], r["wow_delta"], r["wow_delta_pct_change"]]
+        existing[r["date"]] = [r["date"], r["total"], r["wow_delta_avg4"], r["total_wow_pct_change"]]
 
     if ws.max_row > 0:
         ws.delete_rows(1, ws.max_row)
