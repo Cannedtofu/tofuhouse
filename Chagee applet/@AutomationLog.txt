@@ -1,11 +1,11 @@
 ---------------------------------------- 
-[周六 2026/06/27 14:00:01.99] Starting Daily Automation 
-[周六 2026/06/27 14:00:01.99] Running main.py (Reorganized)... 
+[周二 2026/06/30 14:00:02.02] Starting Daily Automation 
+[周二 2026/06/30 14:00:02.03] Running main.py (Reorganized)... 
 INFO: Could not find files for the given pattern(s).
 C:\Users\Jason\AppData\Roaming\Python\Python39\site-packages\paddle\utils\cpp_extension\extension_utils.py:718: UserWarning: No ccache found. Please be aware that recompiling all source files may be required. You can download and install ccache from: https://github.com/ccache/ccache/blob/master/doc/INSTALL.md
   warnings.warn(warning_message)
 WARNING: Logging before InitGoogleLogging() is written to STDERR
-I0627 14:01:11.315977 61372 onednn_context.cc:81] oneDNN v3.6.2
+I0630 14:01:04.695030 30536 onednn_context.cc:81] oneDNN v3.6.2
 Looking for WeChat main window...
 Clicking search bar...
 UI-based search bar not found. Attempting keyboard shortcut (Ctrl+F)...
@@ -41,12 +41,12 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 上海: 上海博荟广场店
   [+] 上海: 上海黄浦浙江中路店
   [+] 上海: 上海黄浦区世茂店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海第一百货商业中心店
-  [+] 上海: 上海玖时活力中心1L店
+  [+] 上海: 上海玖时活力中心1儿店
 Detected 3 boxes in temp_scrape.png
 Detected 5 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 上海: 上海玖时活力中心1L店
   [+] 上海: 上海恒基名人店
   [+] 上海: 茶票票活动门店
 Detected 2 boxes in temp_scrape.png
@@ -54,29 +54,29 @@ Detected 5 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 上海: 上海正大广场店
   [+] 上海: 上海金鹰国际购物广场店
 Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
+Detected 5 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 上海: 上海苏河湾万象天地店
-  [+] 上海: 上海金茂大厦店
-Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海东方明珠店
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海环球金融中心店
   [+] 上海: 上海静安大悦城店
-Detected 2 boxes in temp_scrape.png
-Detected 5 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海百联临沂店
   [+] 上海: 上海华润时代广场店
-Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海浦建路巴黎春天店
+Detected 2 boxes in temp_scrape.png
+Detected 6 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 上海: 上海静安晶品店
-  [+] 上海: 上海陆家嘴中心店
 Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海陆家嘴中心店
   [+] 上海: 上海凯德星贸店
   [+] 上海: 上海静安1788广场店
-Detected 2 boxes in temp_scrape.png
-Detected 5 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海世博源店
   [+] 上海: 上海徐汇正大乐城无声门店
+  [+] 上海: 上海乐荟天地店
 Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
+Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 上海: 上海今潮8弄店
   [+] 上海: 上海白玉兰广场店
 Detected 3 boxes in temp_scrape.png
@@ -117,9 +117,9 @@ Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 上海: 上海瑞虹天地月亮湾店
 Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海科技馆店
-Detected 2 boxes in temp_scrape.png
-Detected 5 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海高科西路山姆店
+  [+] 上海: 上海海粟文化广场店
   [+] 上海: 上海长宁国际店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
@@ -130,16 +130,15 @@ Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海光启城时尚购物中心店
   [+] 上海: 上海中山公园龙之梦店
 Detected 3 boxes in temp_scrape.png
-  [+] 上海: 上海万芊荟店
   [+] 上海: 上海传媒港花园里B1层店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 上海: 上海万芊荟店
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海长宁凯德来福士店
-  [+] 上海: 上海普陀区融创香溢天地店
+  [+] 上海: 上海晋陀区融创香溢天地店
   [+] 上海: 上海丁香国际商业中心店
 Detected 3 boxes in temp_scrape.png
 Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
-  [+] 上海: 上海参宸里购物中心店
+  [+] 上海: 上海叁宸里购物中心店
   [+] 上海: 上海徐汇日月光店
   [+] 上海: 上海前滩公园巷店
 Detected 3 boxes in temp_scrape.png
@@ -148,9 +147,9 @@ Detected 3 boxes in temp_scrape.png
 Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海环球港店B1层店
   [+] 上海: 上海田尚坊店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海虹桥南丰城店
+  [+] 上海: 上海大宁国际茶姬现萃店
   [+] 上海: 上海紫荆广场店
 Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海龙阳广场店
@@ -171,11 +170,11 @@ Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海中星城店
   [+] 上海: 上海虹口区曲阳百联店
 Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 上海: 上海合乐里店
   [+] 上海: 上海鑫耀光环店
-Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海大宁音乐广场店
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海虹口今雨荟店
   [+] 上海: 上海长风大悦城宠物友好店
 Detected 2 boxes in temp_scrape.png
@@ -206,18 +205,17 @@ Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海近铁城市广场店
   [+] 上海: 上海徐汇区漕河泾印象城店
 Detected 3 boxes in temp_scrape.png
+Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 上海: 上海星邻生活荟店
   [+] 上海: 上海市同济大学附属肺科医院店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 上海: 上海复地活力城店
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海中环百联店
   [+] 上海: 上海品域凌云里店
-Detected 3 boxes in temp_scrape.png
+Detected 2 boxes in temp_scrape.png
+Detected 5 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 上海: 上海百联又一城店
-  [+] 上海: 上海杨浦区大学路店
 Detected 3 boxes in temp_scrape.png
-  [+] 上海: 上海金桥国际店
   [+] 上海: 上海漕河泾科技绿洲四期店
   [+] 上海: 上海太平洋森活天地店
 Detected 3 boxes in temp_scrape.png
@@ -236,14 +234,13 @@ Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海闵行区爱琴海购物公园店
   [+] 上海: 上海汇智商业中心店
 Detected 3 boxes in temp_scrape.png
-  [+] 上海: 上海长泰广场店
   [+] 上海: 上海韩国街店
+  [+] 上海: 上海长泰广场店
 Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海宝山新业坊店
   [+] 上海: 上海长宁大融城店
   [+] 上海: 上海中原城市广场店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海文峰广场店
   [+] 上海: 上海宏慧新汇园店
   [+] 上海: 上海长宁尚品都汇店
@@ -267,11 +264,10 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 上海: 上海康桥新田360店
   [+] 上海: 上海浦东新区新嘉中心店
   [+] 上海: 上海浦东新区澜庭里店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
-  [+] 上海: 上海悠方购物中心店
-  [+] 上海: 上海张江陆悦天地店
 Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海悠方购物中心店
+Detected 3 boxes in temp_scrape.png
+  [+] 上海: 上海张江陆悦天地店
   [+] 上海: 上海金桥太茂店
   [+] 上海: 上海浦江欢乐颂店
 Detected 3 boxes in temp_scrape.png
@@ -290,8 +286,7 @@ Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
 Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海环桥路店
   [+] 上海: 上海莘庄维璟印象城店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海经纬汇店
   [+] 上海: 上海新邻天地店
   [+] 上海: 上海宝山聚丰园路山姆店
@@ -323,21 +318,20 @@ Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 1 stores in temp_scrape.png (New Method)
   [!] No new stores found (1/4).
-  [Box 0] Method2 OCR: name='上海天物有所店' status='前方7杯制作中' count=7 valid=True
-  [Box 0] Method1 OCR: name='上海天物有所店' status='现在下单，立即制作' count=0 valid=True
-  [Box 0] Using Method2: '上海天物有所店' | '前方7杯制作中' | 7 cups
-  [Box 1] Method2 OCR: name='' status='前方8杯制作中' count=8 valid=False
-  [Box 1] Method1 OCR: name='上海曹路宝龙广场' status='前方8杯制作中' count=8 valid=False
+  [Box 0] Method2 OCR: name='上海天物有所店' status='前方17杯制作中' count=17 valid=True
+  [Box 0] Method1 OCR: name='上海天物有所店' status='前方17杯制作中' count=17 valid=True
+  [Box 0] Using Method2: '上海天物有所店' | '前方17杯制作中' | 17 cups
+  [Box 1] Method2 OCR: name='' status='现在下单，立即制作' count=0 valid=False
+  [Box 1] Method1 OCR: name='上海曹路宝龙广场' status='现在下单，立即制作' count=0 valid=False
   [Box 1] Skipped — both methods invalid
   [!] Old method yielded few/no results. Falling back to New Method (Full-Page OCR)...
   [!] New method did not find more stores. Sticking with old method.
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海浦东绿地乐和城店
   [+] 上海: 上海宝山花园城店
   [+] 上海: 上海北上海广场店
 Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 上海: 上海九亭贝尚坊店
   [+] 上海: 上海颛桥万达1F店
   [+] 上海: 上海曹路花园城店
@@ -346,54 +340,54 @@ Detected 3 boxes in temp_scrape.png
   [+] 上海: 上海九亭金地广场店
 Detected 3 boxes in temp_scrape.png
   [!] No new stores found (1/4).
-  [Box 0] Method2 OCR: name='上海额桥万达1F店' status='前方10杯制作中' count=10 valid=True
-  [Box 0] Method1 OCR: name='上海颛桥万达1F店' status='前方10杯制作中' count=10 valid=True
-  [Box 0] Using Method2: '上海额桥万达1F店' | '前方10杯制作中' | 10 cups
-  [Box 1] Method2 OCR: name='上海曹路花园城店' status='前方33杯制作中' count=33 valid=True
-  [Box 1] Method1 OCR: name='上海曹路花园城店' status='前方33杯制作中' count=33 valid=True
-  [Box 1] Using Method2: '上海曹路花园城店' | '前方33杯制作中' | 33 cups
-  [Box 2] Method2 OCR: name='上海九亭金地广场店' status='前方10杯制作中' count=10 valid=True
-  [Box 2] Method1 OCR: name='上海九亭金地广场店' status='前方10杯制作中' count=10 valid=True
-  [Box 2] Using Method2: '上海九亭金地广场店' | '前方10杯制作中' | 10 cups
+  [Box 0] Method2 OCR: name='上海额桥万达1F店' status='前方26杯制作中' count=26 valid=True
+  [Box 0] Method1 OCR: name='上海颛桥万达1F店' status='前方26杯制作中' count=26 valid=True
+  [Box 0] Using Method2: '上海额桥万达1F店' | '前方26杯制作中' | 26 cups
+  [Box 1] Method2 OCR: name='上海曹路花园城店' status='前方2杯制作中' count=2 valid=True
+  [Box 1] Method1 OCR: name='上海曹路花园城店' status='前方2杯制作中' count=2 valid=True
+  [Box 1] Using Method2: '上海曹路花园城店' | '前方2杯制作中' | 2 cups
+  [Box 2] Method2 OCR: name='上海九亭金地广场店' status='前方25杯制作中' count=25 valid=True
+  [Box 2] Method1 OCR: name='上海九亭金地广场店' status='前方25杯制作中' count=25 valid=True
+  [Box 2] Using Method2: '上海九亭金地广场店' | '前方25杯制作中' | 25 cups
 Detected 3 boxes in temp_scrape.png
   [!] No new stores found (2/4).
-  [Box 0] Method2 OCR: name='上海额桥万达1F店' status='前方10杯制作中' count=10 valid=True
-  [Box 0] Method1 OCR: name='上海颛桥万达1F店' status='前方10杯制作中' count=10 valid=True
-  [Box 0] Using Method2: '上海额桥万达1F店' | '前方10杯制作中' | 10 cups
-  [Box 1] Method2 OCR: name='上海曹路花园城店' status='前方33杯制作中' count=33 valid=True
-  [Box 1] Method1 OCR: name='上海曹路花园城店' status='前方33杯制作中' count=33 valid=True
-  [Box 1] Using Method2: '上海曹路花园城店' | '前方33杯制作中' | 33 cups
-  [Box 2] Method2 OCR: name='上海九亭金地广场店' status='前方10杯制作中' count=10 valid=True
-  [Box 2] Method1 OCR: name='上海九亭金地广场店' status='前方10杯制作中' count=10 valid=True
-  [Box 2] Using Method2: '上海九亭金地广场店' | '前方10杯制作中' | 10 cups
+  [Box 0] Method2 OCR: name='上海额桥万达1F店' status='前方26杯制作中' count=26 valid=True
+  [Box 0] Method1 OCR: name='上海颛桥万达1F店' status='前方26杯制作中' count=26 valid=True
+  [Box 0] Using Method2: '上海额桥万达1F店' | '前方26杯制作中' | 26 cups
+  [Box 1] Method2 OCR: name='上海曹路花园城店' status='前方2杯制作中' count=2 valid=True
+  [Box 1] Method1 OCR: name='上海曹路花园城店' status='前方2杯制作中' count=2 valid=True
+  [Box 1] Using Method2: '上海曹路花园城店' | '前方2杯制作中' | 2 cups
+  [Box 2] Method2 OCR: name='上海九亭金地广场店' status='前方25杯制作中' count=25 valid=True
+  [Box 2] Method1 OCR: name='上海九亭金地广场店' status='前方25杯制作中' count=25 valid=True
+  [Box 2] Using Method2: '上海九亭金地广场店' | '前方25杯制作中' | 25 cups
 Detected 3 boxes in temp_scrape.png
   [!] No new stores found (3/4).
-  [Box 0] Method2 OCR: name='上海额桥万达1F店' status='前方10杯制作中' count=10 valid=True
-  [Box 0] Method1 OCR: name='上海颛桥万达1F店' status='前方10杯制作中' count=10 valid=True
-  [Box 0] Using Method2: '上海额桥万达1F店' | '前方10杯制作中' | 10 cups
-  [Box 1] Method2 OCR: name='上海曹路花园城店' status='前方33杯制作中' count=33 valid=True
-  [Box 1] Method1 OCR: name='上海曹路花园城店' status='前方33杯制作中' count=33 valid=True
-  [Box 1] Using Method2: '上海曹路花园城店' | '前方33杯制作中' | 33 cups
-  [Box 2] Method2 OCR: name='上海九亭金地广场店' status='前方10杯制作中' count=10 valid=True
-  [Box 2] Method1 OCR: name='上海九亭金地广场店' status='前方10杯制作中' count=10 valid=True
-  [Box 2] Using Method2: '上海九亭金地广场店' | '前方10杯制作中' | 10 cups
+  [Box 0] Method2 OCR: name='上海额桥万达1F店' status='前方26杯制作中' count=26 valid=True
+  [Box 0] Method1 OCR: name='上海颛桥万达1F店' status='前方26杯制作中' count=26 valid=True
+  [Box 0] Using Method2: '上海额桥万达1F店' | '前方26杯制作中' | 26 cups
+  [Box 1] Method2 OCR: name='上海曹路花园城店' status='前方2杯制作中' count=2 valid=True
+  [Box 1] Method1 OCR: name='上海曹路花园城店' status='前方2杯制作中' count=2 valid=True
+  [Box 1] Using Method2: '上海曹路花园城店' | '前方2杯制作中' | 2 cups
+  [Box 2] Method2 OCR: name='上海九亭金地广场店' status='前方25杯制作中' count=25 valid=True
+  [Box 2] Method1 OCR: name='上海九亭金地广场店' status='前方25杯制作中' count=25 valid=True
+  [Box 2] Using Method2: '上海九亭金地广场店' | '前方25杯制作中' | 25 cups
 Detected 3 boxes in temp_scrape.png
   [!] No new stores found (4/4).
-  [Box 0] Method2 OCR: name='上海额桥万达1F店' status='前方10杯制作中' count=10 valid=True
-  [Box 0] Method1 OCR: name='上海颛桥万达1F店' status='前方10杯制作中' count=10 valid=True
-  [Box 0] Using Method2: '上海额桥万达1F店' | '前方10杯制作中' | 10 cups
-  [Box 1] Method2 OCR: name='上海曹路花园城店' status='前方33杯制作中' count=33 valid=True
-  [Box 1] Method1 OCR: name='上海曹路花园城店' status='前方33杯制作中' count=33 valid=True
-  [Box 1] Using Method2: '上海曹路花园城店' | '前方33杯制作中' | 33 cups
-  [Box 2] Method2 OCR: name='上海九亭金地广场店' status='前方10杯制作中' count=10 valid=True
-  [Box 2] Method1 OCR: name='上海九亭金地广场店' status='前方10杯制作中' count=10 valid=True
-  [Box 2] Using Method2: '上海九亭金地广场店' | '前方10杯制作中' | 10 cups
+  [Box 0] Method2 OCR: name='上海额桥万达1F店' status='前方26杯制作中' count=26 valid=True
+  [Box 0] Method1 OCR: name='上海颛桥万达1F店' status='前方26杯制作中' count=26 valid=True
+  [Box 0] Using Method2: '上海额桥万达1F店' | '前方26杯制作中' | 26 cups
+  [Box 1] Method2 OCR: name='上海曹路花园城店' status='前方2杯制作中' count=2 valid=True
+  [Box 1] Method1 OCR: name='上海曹路花园城店' status='前方2杯制作中' count=2 valid=True
+  [Box 1] Using Method2: '上海曹路花园城店' | '前方2杯制作中' | 2 cups
+  [Box 2] Method2 OCR: name='上海九亭金地广场店' status='前方25杯制作中' count=25 valid=True
+  [Box 2] Method1 OCR: name='上海九亭金地广场店' status='前方25杯制作中' count=25 valid=True
+  [Box 2] Using Method2: '上海九亭金地广场店' | '前方25杯制作中' | 25 cups
   [!] BUG: Aborted 上海: Reached limit of 4 scrolls without new data.
-  [!] Saved bug debugging screenshot: D:\代码项目\Chagee applet\data\BUG_scroll_limit_上海_20260627_140925.png
-Scraped 190 stores in 上海.
+  [!] Saved bug debugging screenshot: D:\代码项目\Chagee applet\data\BUG_scroll_limit_上海_20260630_141000.png
+Scraped 192 stores in 上海.
 
 --- Initiating Switch to 杭州 ---
-OCR found '搜索门店' at relative (140.5, 126.5). Trigger global coordinate: (796, 248)
+OCR found '搜索门店' at relative (140.0, 126.5). Trigger global coordinate: (796, 248)
 Navigating to index 'H' for city '杭州'...
 OCR found initial 'H' in sidebar box. Clicking absolute: (1141, 478)
 Searching for city '杭州' inside view...
@@ -421,7 +415,7 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
 Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州临平塘栖古镇店
   [+] 杭州: 浙江杭州下沙吾角龙湖天街店
-Detected 2 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
 Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州下沙金隅金座店
   [+] 杭州: 浙江杭州金沙龙湖天街店
@@ -464,12 +458,12 @@ Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州余杭仁和启航城店
   [+] 杭州: 浙江杭州中大银泰店
 Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州萧山明彩城店
   [+] 杭州: 浙江杭州拱墅新天地店
-  [+] 杭州: 浙江杭州东站西广场负一楼店
 Detected 2 boxes in temp_scrape.png
 Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州东站西广场负一楼店
   [+] 杭州: 浙江杭州浙数文化科技园店
 Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
@@ -478,8 +472,8 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
 Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州萧山农业大厦店
   [+] 杭州: 浙江杭州余杭良渚勾庄上亿店
-Detected 2 boxes in temp_scrape.png
-Detected 5 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州世纪公园店
   [+] 杭州: 浙江杭州上城江河时代店
   [+] 杭州: 浙江杭州拱墅香积寺路店
 Detected 3 boxes in temp_scrape.png
@@ -504,32 +498,30 @@ Detected 3 boxes in temp_scrape.png
 Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州拱墅滨河广场店
   [+] 杭州: 浙江杭州上城四季青佳宝店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山万象汇金街店
+Detected 2 boxes in temp_scrape.png
+Detected 5 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州上城尊宝大厦店
   [+] 杭州: 浙江杭州拱墅万达店
 Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州乐堤港店
   [+] 杭州: 浙江杭州萧山宝龙店
+Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州萧山无忧传媒店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州上城四季青常青店
   [+] 杭州: 浙江杭州西湖文化广场店
-  [+] 杭州: 浙江杭州萧山汇宇大厦店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
-  [+] 杭州: 浙江杭州霸王茶姬江雪号快闪店
-  [+] 杭州: 浙江杭州拱墅红石中央大厦店
 Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州萧山汇宇大厦店
+  [+] 杭州: 浙江杭州霸王茶姬江雪号快闪店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州拱墅红石中央大厦店
   [+] 杭州: 浙江杭州星澜里店
   [+] 杭州: 浙江杭州店春路店
 Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州萧山众安广场店
   [+] 杭州: 浙江杭州国大城市广场店
-Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州萧山银隆百货B座店
+Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州西田城店
   [+] 杭州: 浙江杭州萧山加州阳光店
 Detected 3 boxes in temp_scrape.png
@@ -543,8 +535,8 @@ Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州滨江银泰店
   [+] 杭州: 浙江杭州拱墅武林夜市D11店
   [+] 杭州: 浙江杭州万泰城店
-Detected 2 boxes in temp_scrape.png
-Detected 6 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州三墩丰店印悦里店
   [+] 杭州: 浙江杭州萧山银泰店
 Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州上城工联CC店
@@ -555,11 +547,11 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州上城in77C区店
   [+] 杭州: 浙江杭州余杭金地广场店
 Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州上城河坊街三店
   [+] 杭州: 浙江杭州上城江城路店
-Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州西湖EAC欧美中心店
+Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州文一汇和城店
   [+] 杭州: 浙江杭州上城河坊街二店
 Detected 3 boxes in temp_scrape.png
@@ -574,90 +566,86 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州城西银泰城店
   [+] 杭州: 浙江杭州西湖黄龙万科店
   [+] 杭州: 浙江杭州滨江龙湖天街店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山湘湖都会艺境店
-  [+] 杭州: 浙江杭州西湖星光城店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州西湖柳浪闻莺店
-  [+] 杭州: 浙江杭州西湖浙大望月店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 杭州: 浙江杭州古墩印象城店
-  [+] 杭州: 浙江杭州萧山开元广场店
-  [+] 杭州: 浙江杭州滨江中南乐游城店
-Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
-  [+] 杭州: 浙江杭州滨江保利天汇店
-  [+] 杭州: 浙江杭州萧山韵动城乐巷店
 Detected 2 boxes in temp_scrape.png
 Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 杭州: 浙江杭州西溪西港店
-  [+] 杭州: 浙江杭州滨江博邑商业中心店
-  [+] 杭州: 浙江杭州西溪银泰城店
+  [+] 杭州: 浙江杭州西湖星光城店
 Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
-  [+] 杭州: 浙江杭州滨江英冠滨悦广场店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
-  [+] 杭州: 浙江杭州西溪龙湖店
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州西湖柳浪闻莺店
+  [+] 杭州: 浙江杭州西湖浙大望月店
 Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州滨江宝龙一楼店
-  [+] 杭州: 浙江杭州西溪壹号店
-  [+] 杭州: 浙江杭州西湖阿里云谷园区店
+  [+] 杭州: 浙江杭州古墩印象城店
+  [+] 杭州: 浙江杭州萧山开元广场店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州滨江中南乐游城店
+  [+] 杭州: 浙江杭州滨江保利天汇店
+  [+] 杭州: 浙江杭州萧山韵动城乐巷店
 Detected 3 boxes in temp_scrape.png
 Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州西溪西港店
+  [+] 杭州: 浙江杭州滨江博邑商业中心店
+  [+] 杭州: 浙江杭州西湖紫创店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州西溪银泰城店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州西湖蚂蚁A空间店
+  [+] 杭州: 浙江杭州滨江英冠滨悦广场店
+  [+] 杭州: 浙江杭州西溪龙湖店
+Detected 2 boxes in temp_scrape.png
+Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州滨江宝龙一楼店
+  [+] 杭州: 浙江杭州西溪壹号店
+Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州西湖阿里云谷园区店
   [+] 杭州: 浙江杭州西湖灵隐商业街店
   [+] 杭州: 浙江杭州滨江海威领界店
 Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
+Detected 5 names and paired 5 stores in temp_scrape.png (New Method)
   [+] 杭州: 浙江杭州余杭瓶窑嘉凯城店
-  [+] 杭州: 浙江杭州滨江啦喜街店
 Detected 3 boxes in temp_scrape.png
+  [+] 杭州: 浙江杭州滨江啦喜街店
   [+] 杭州: 浙江杭州亲橙里店
-  [+] 杭州: 浙江杭州滨江开元广场店
 Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
+Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州滨江开元广场店
   [+] 杭州: 浙江杭州余杭阿里巴巴西溪A区店
   [+] 杭州: 浙江杭州萧山闻堰物美店
 Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州阿里西溪C区店
   [+] 杭州: 浙江杭州余杭西溪印象城店
+Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州华夏之心店
   [+] 杭州: 浙江杭州西站出发层店
 Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州铂悦城店
-Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州余杭仓南里MEET636店
   [+] 杭州: 浙江杭州萧山临浦潮人汇店
-  [+] 杭州: 浙江杭州余杭西溪天虹店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州余杭西溪天虹店
   [+] 杭州: 浙江杭州西湖宋城店
   [+] 杭州: 浙江杭州余杭浙大校友企业店
-  [+] 杭州: 浙江杭州萧山义桥镇店
 Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州萧山艾桥镇店
+Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州萧山义桥镇店
   [+] 杭州: 浙江杭州未来科技城宝龙店
   [+] 杭州: 浙江杭州西投银泰店
 Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州西湖小和山店
-  [+] 杭州: 浙江杭州西湖杭荟城店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州西湖杭荟城店
   [+] 杭州: 浙江杭州金街美地店
   [+] 杭州: 浙江杭州余杭菜鸟智谷店
+Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州闲林七彩汇店
-Detected 3 boxes in temp_scrape.png
   [+] 杭州: 浙江杭州西湖云栖小镇店
-  [+] 杭州: 浙江杭州余杭江南时代店
 Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
+Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
+  [+] 杭州: 浙江杭州余杭江南时代店
   [+] 杭州: 浙江杭州富阳东洲江色星座店
-  [+] 杭州: 浙江杭州富春硅谷店
-Detected 3 boxes in temp_scrape.png
-  [+] 杭州: 浙江杭州青山湖宝龙广场店
-  [+] 杭州: 浙江杭州富阳万达店
-Scraped 151 stores in 杭州.
+Scraped 150 stores in 杭州.
 
 --- Initiating Switch to 深圳 ---
 OCR found '搜索门店' at relative (140.5, 126.5). Trigger global coordinate: (796, 248)
@@ -681,41 +669,28 @@ Detected 5 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳融湖广场店
   [+] 深圳: 广东省深圳市龙岗区平吉大道与平龙路店
 Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳龙岗万达广场店
-Detected 3 boxes in temp_scrape.png
+Detected 2 boxes in temp_scrape.png
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳平湖华南城店
   [+] 深圳: 广东深圳盐田鹏广达店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳龙岗深铁汇里店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳观澜百佳华店
   [+] 深圳: 广东深圳龙华观澜富士康店
-Detected 3 boxes in temp_scrape.png
-Detected 2 names and paired 1 stores in temp_scrape.png (New Method)
-  [!] No new stores found (1/4).
-  [Box 0] Method2 OCR: name='广东深圳龙华观澜富士康店' status='前方26杯制作中' count=26 valid=True
-  [Box 0] Method1 OCR: name='广东深圳龙华观澜富士康店' status='前方26杯制作中' count=26 valid=True
-  [Box 0] Using Method2: '广东深圳龙华观澜富士康店' | '前方26杯制作中' | 26 cups
-  [Box 1] Method2 OCR: name='' status='前方27杯制作中' count=27 valid=False
-  [Box 1] Method1 OCR: name='广东深圳龙华观澜丰盛大地购' status='前方27杯制作中' count=27 valid=False
-  [Box 1] Skipped — both methods invalid
-  [Box 2] Method2 OCR: name='' status='前方15杯制作中' count=15 valid=False
-  [Box 2] Method1 OCR: name='广东深圳龙华观澜先施购物中' status='前方15杯制作中' count=15 valid=False
-  [Box 2] Skipped — both methods invalid
-  [!] Old method yielded few/no results. Falling back to New Method (Full-Page OCR)...
-  [!] New method did not find more stores. Sticking with old method.
-Detected 3 boxes in temp_scrape.png
-Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
+Detected 2 boxes in temp_scrape.png
+Detected 1 names and paired 1 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳龙华观澜天虹店
-  [+] 深圳: 广东深圳福城天虹店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 深圳: 广东深圳福城天虹店
   [+] 深圳: 广东深圳龙岗甘坑古镇店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳龙岗星悦天地永旺店
   [+] 深圳: 广东深圳光明COCOcity店
-Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 2 boxes in temp_scrape.png
+Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳盐田广富里店
   [+] 深圳: 广东深圳公明百佳华店
 Detected 3 boxes in temp_scrape.png
@@ -789,72 +764,61 @@ Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳罗湖深业东岭店
   [+] 深圳: 广东深圳民治天虹店
 Detected 3 boxes in temp_scrape.png
+Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳龙华天虹购物中心店
   [+] 深圳: 广东深圳龙华民治壹方里店
+  [+] 深圳: 广东深圳罗湖万象食家店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 深圳: 广东深圳罗湖万象食家店
-  [+] 深圳: 广东深圳龙华cocOCity店
+  [+] 深圳: 广东深圳龙华CocOCity店
   [+] 深圳: 广东深圳北站缤果空间店
 Detected 3 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳旧站缤果空间店
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳罗湖华润湖贝里店
   [+] 深圳: 广东深圳罗湖HALO广场店
+  [+] 深圳: 广东深圳福田八卦岭安吉尔店
 Detected 2 boxes in temp_scrape.png
 Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
-  [+] 深圳: 广东深圳福田八卦岭安吉尔店
   [+] 深圳: 广东深圳罗湖深南广场翎汇店
 Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
+Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳罗湖东门茂业店
   [+] 深圳: 广东深圳宝安石岩宏发大世界店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳罗湖春风路萬家店
+Detected 2 boxes in temp_scrape.png
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳罗湖鸿翔时尚广场店
   [+] 深圳: 广东深圳太阳广场店
 Detected 3 boxes in temp_scrape.png
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳金光华广场店
   [+] 深圳: 广东深圳罗湖地王星荟店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳沙井百佳华店
-  [+] 深圳: 广东深圳福田卓悦汇一楼旗舰店
-  [+] 深圳: 广东深圳福田卓悦汇负二层店
 Detected 2 boxes in temp_scrape.png
 Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 深圳: 广东深圳福田卓悦汇一楼旗舰店
+  [+] 深圳: 广东深圳福田卓悦汇负二层店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳沙井卓悦时光店
   [+] 深圳: 广东深圳福田华强北宝树台店
-Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
-  [!] No new stores found (1/4).
-  [Box 0] Method2 OCR: name='' status='前方126杯制作中' count=126 valid=False
-  [Box 0] Method1 OCR: name='X17本店承接会议团建校园婚店店' status='下午茶等多场景团单业务合作方式灵活多' count=0 valid=False
-  [Box 0] Skipped — both methods invalid
-  [Box 1] Method2 OCR: name='广东深圳沙井卓悦时光店' status='前方3杯制作中' count=3 valid=True
-  [Box 1] Method1 OCR: name='广东深圳沙井卓悦时光店' status='现在下单，立即制作' count=0 valid=True
-  [Box 1] Using Method2: '广东深圳沙井卓悦时光店' | '前方3杯制作中' | 3 cups
-  [Box 2] Method2 OCR: name='广东深圳福田华强北宝树台店' status='前方16杯制作中' count=16 valid=True
-  [Box 2] Method1 OCR: name='广东深圳福田华强北宝树台店' status='前方16杯制作中' count=16 valid=True
-  [Box 2] Using Method2: '广东深圳福田华强北宝树台店' | '前方16杯制作中' | 16 cups
-  [!] Old method yielded few/no results. Falling back to New Method (Full-Page OCR)...
-  [!] New method did not find more stores. Sticking with old method.
-Detected 3 boxes in temp_scrape.png
-Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
-  [+] 深圳: 广东深圳宝安沙井天虹店
-  [+] 深圳: 广东深圳梅林新世界汇店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 深圳: 广东深圳福出罕强玉树台店
+  [+] 深圳: 广东深圳宝安沙井天虹店
+  [+] 深圳: 广东深圳梅林新世界汇店
+Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳中航城君尚旗舰店
   [+] 深圳: 广东深圳沙井京基百纳店
+Detected 2 boxes in temp_scrape.png
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳新沙天虹购物中心店
-Detected 3 boxes in temp_scrape.png
   [+] 深圳: 广东深圳石岩创维创新谷广场店
   [+] 深圳: 广东深圳宝安沙井万丰海岸城店
-Detected 3 boxes in temp_scrape.png
-  [+] 深圳: 广东深圳西丽宝能环球汇店
-  [+] 深圳: 广东深圳福田佐险虹湾店
 Detected 2 boxes in temp_scrape.png
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 深圳: 广东深圳西丽宝能环球汇店
+  [+] 深圳: 广东深圳福田佐玲虹湾店
+Detected 3 boxes in temp_scrape.png
 Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 深圳: 广东深圳中心书城店
   [+] 深圳: 广东深圳卓悦INTOWN店
@@ -887,8 +851,7 @@ OCR found city '成都市'. Clicking absolute: (783, 847).
 --- Scraping City: 成都 (Target: 150) ---
 Skipping entry click (120, 600) as requested.
 Resetting scroll to top of list...
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都东方华大广场店
   [+] 成都: 四川成都龙湖东安天街店
   [+] 成都: 四川成都龙泉吾悦广场店
@@ -896,20 +859,18 @@ Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都龙泉驿都汇店
   [+] 成都: 四川成都龙泉驿杉杉奥特莱斯店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都新都苏宁广场店
   [+] 成都: 四川成都新都旭辉广场店
 Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都新都七一广场店
   [+] 成都: 四川成都新都超线公园店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 成都: 四川成都川师成龙店
+Detected 3 boxes in temp_scrape.png
+Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都十陵成都大学店
   [+] 成都: 四川成都新都懿润百货店
-Detected 3 boxes in temp_scrape.png
+Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都新都海乐荟店
   [+] 成都: 四川成都龙泉驿世茂广场店
@@ -918,8 +879,7 @@ Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都华宇旭辉锦绣广场店
   [+] 成都: 四川成都新都拾光里店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都锦江大融城店
   [+] 成都: 四川成都凯德魅力城店
 Detected 3 boxes in temp_scrape.png
@@ -927,7 +887,7 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都铁建广场店
   [+] 成都: 四川成都龙腾广场店
   [+] 成都: 四川成都大熊猫研究基地店
-Detected 2 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都东站候车层店
 Detected 3 boxes in temp_scrape.png
@@ -948,6 +908,7 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都青龙广场店
   [+] 成都: 四川成都COSMO天廊店
 Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川I成都COSMO天廊店
   [+] 成都: 四川成都万象城店
   [+] 成都: 四川成都SM广场成华店
 Detected 2 boxes in temp_scrape.png
@@ -958,10 +919,9 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
 Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都成华建设路第五大道店
   [+] 成都: 四川成都泛悦广场店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都文华广场店
-  [+] 成都: 四川成都王府井Discovery店
+  [+] 成都: 四川l成都王府井Discovery店
   [+] 成都: 四川成都金牛招商花园城店
 Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都东立国际店
@@ -975,24 +935,22 @@ Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都新希望D10天府店
   [+] 成都: 四川成都339店
 Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都锦华万达店
   [+] 成都: 四川成都曹家巷恒大广场店
+  [+] 成都: 四川成都望平街店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 成都: 四川成都望平街店
   [+] 成都: 四川成都保利大都汇店
   [+] 成都: 四川成都龙湖锦宸天街店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都高新合生广场店
 Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都翡翠天地店
   [+] 成都: 四川成都兰桂坊店
   [+] 成都: 四川成都晶融汇店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都新希望中鼎国际店
   [+] 成都: 四川成都春熙时代百盛店
 Detected 3 boxes in temp_scrape.png
@@ -1000,8 +958,7 @@ Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都金牛万达店
   [+] 成都: 四川成都春熙店
 Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 成都: 四川川成郁甘熙店
+Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都春熙REX春台店
   [+] 成都: 四川成都春熙中山广场teabar店
 Detected 2 boxes in temp_scrape.png
@@ -1012,11 +969,11 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
 Detected 3 boxes in temp_scrape.png
 Detected 2 names and paired 1 stores in temp_scrape.png (New Method)
   [!] No new stores found (1/4).
-  [Box 0] Method2 OCR: name='四川成都龙湖上城天街店' status='前方2杯制作中' count=2 valid=True
-  [Box 0] Method1 OCR: name='四川成都龙湖上城天街店' status='前方2杯制作中' count=2 valid=True
-  [Box 0] Using Method2: '四川成都龙湖上城天街店' | '前方2杯制作中' | 2 cups
-  [Box 1] Method2 OCR: name='' status='前方21杯制作中' count=21 valid=False
-  [Box 1] Method1 OCR: name='四川成都龙湖北城天街购物中' status='前方21杯制作中' count=21 valid=False
+  [Box 0] Method2 OCR: name='四川成都龙湖上城天街店' status='前方8杯制作中' count=8 valid=True
+  [Box 0] Method1 OCR: name='四川成都龙湖上城天街店' status='前方8杯制作中' count=8 valid=True
+  [Box 0] Using Method2: '四川成都龙湖上城天街店' | '前方8杯制作中' | 8 cups
+  [Box 1] Method2 OCR: name='' status='前方4杯制作中' count=4 valid=False
+  [Box 1] Method1 OCR: name='四川成都龙湖北城天街购物中' status='前方4杯制作中' count=4 valid=False
   [Box 1] Skipped — both methods invalid
   [Box 2] Method2 OCR: name='四川成都武侯优悦奥莱广场店' status='已休息' count=0 valid=False
   [Box 2] Method1 OCR: name='四川成都武侯优悦奥莱广场店' status='长荣路66号优悦广场1层1F43室步行街' count=0 valid=False
@@ -1028,8 +985,7 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都KBC潮玩广场店
   [+] 成都: 四川成都川大望江校区店
   [+] 成都: 四川成都富力店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都王府井科华路店
   [+] 成都: 四川成都东原中心店
 Detected 3 boxes in temp_scrape.png
@@ -1040,8 +996,7 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都天府公馆店
   [+] 成都: 四川成都保利中心店
   [+] 成都: 四川成都天府红购物中心店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都天府广场店
   [+] 成都: 四川成都金牛沐府汇店
 Detected 3 boxes in temp_scrape.png
@@ -1052,8 +1007,7 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
 Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都明日巴适店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都银泰in99店
   [+] 成都: 四川成都新城市广场店
 Detected 3 boxes in temp_scrape.png
@@ -1073,8 +1027,8 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都远大购物中心店
   [+] 成都: 四川成都环球中心店
   [+] 成都: 四川成都宽窄巷子国宾teabar店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
+  [+] 成都: 四川l成都宽窄巷子国宾teabar店
   [+] 成都: 四川成都环球购物中心B馆店
   [+] 成都: 四川成都甲高工坊店
 Detected 3 boxes in temp_scrape.png
@@ -1089,8 +1043,7 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都保利时光里店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都沙湾印象汇店
   [+] 成都: 四川成都秦皇帝锦锦街店
 Detected 3 boxes in temp_scrape.png
@@ -1101,30 +1054,27 @@ Detected 2 boxes in temp_scrape.png
 Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都三利爱琴海店
   [+] 成都: 四川成都欢乐谷店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都吉泰壹号店
   [+] 成都: 四川成都高新银泰城店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都仁和新城购物中心店
-Detected 2 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都青羊宫店
   [+] 成都: 四川成都兴隆湖方圆荟店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都锦绣映画中心店
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都复城国际店
   [+] 成都: 四川成都国际城市设计中心店
-Detected 2 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都圣沅益州国际店
   [+] 成都: 四川成都铁像寺水街店
+  [+] 成都: 四川成都首开龙湖西宸天街店
 Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 成都: 四川成铁像寸小倒店
-  [+] 成都: 四川成都首开龙湖西宸天街店
+  [+] 成都: 四川川成旬达像寸小倒店
   [+] 成都: 四川成都麓坊中心生态城店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
@@ -1139,8 +1089,7 @@ Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都合景臻林天地店
   [+] 成都: 四川成都红牌楼广场店
   [+] 成都: 四川成都双楠锦街店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都西源集店
   [+] 成都: 四川成都国宾上林栖店
 Detected 3 boxes in temp_scrape.png
@@ -1152,20 +1101,19 @@ Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都中海右岸环宇坊店
   [+] 成都: 四川成都城西优品道广场店
   [+] 成都: 四川成都武侯大悦城店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 成都: 四川成都蜀道云上城店
   [+] 成都: 四川成都彭州万达广场店
 Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 成都: 四川成都西村大院店
   [+] 成都: 四川成都传媒大学店
-  [+] 成都: 四川成都爱琴海店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 成都: 四川成都爱琴海店
   [+] 成都: 四川成都西单百货店
 Detected 3 boxes in temp_scrape.png
-  [+] 成都: 四川成都州置信广场店
+  [+] 成都: 四川成都彭州置信广场店
   [+] 成都: 四川成都韩国城店
 Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
@@ -1222,7 +1170,7 @@ Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
 Detected 3 boxes in temp_scrape.png
   [+] 重庆: 重店焙陵长江师范学院店
   [+] 重庆: 重店长寿新城重百商场店
-  [+] 重庆: 重店长寿金科美邻防汇店
+  [+] 重庆: 重店长寿金科美邻汇店
 Detected 3 boxes in temp_scrape.png
 Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 重庆: 重店南川万达店
@@ -1254,15 +1202,15 @@ Detected 3 boxes in temp_scrape.png
   [+] 重庆: 重店渝北大悦城店
   [+] 重庆: 重店南岸国际社区店
   [+] 重庆: 重店南岸邮电大学店
-Detected 3 boxes in temp_scrape.png
+Detected 4 boxes in temp_scrape.png
 Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 重庆: 重店南岸弹子石长嘉汇店
 Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 重庆: 重店渝中来福士朝天门中庭店
   [+] 重庆: 重店东原1891店
 Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
+Detected 4 names and paired 1 stores in temp_scrape.png (New Method)
   [+] 重庆: 重店渝北N37月光之城店
 Detected 3 boxes in temp_scrape.png
 Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
@@ -1300,7 +1248,7 @@ Detected 4 boxes in temp_scrape.png
   [+] 重庆: 重店渝北金科中心店
 Detected 3 boxes in temp_scrape.png
   [+] 重庆: 重店基江红星步行街店
-  [+] 重庆: 重店基江爱琴海店
+  [+] 重庆: 重店綦江爱琴海店
   [+] 重庆: 重店渝北黄泥磅紫荆广场店
 Detected 3 boxes in temp_scrape.png
   [+] 重庆: 重店渝中鹅岭二厂店
@@ -1364,8 +1312,7 @@ Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京通州万象汇店
   [+] 北京: 北京通州莲花荟店
   [+] 北京: 北京通州梨园贵友店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京住总万科广场店
   [+] 北京: 北京上德银泰城店
   [+] 北京: 北京通州领展广场店
@@ -1388,8 +1335,7 @@ Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京宋家庄首开福茂购物中心店
   [+] 北京: 北京双桥万达店
   [+] 北京: 北京十里河瑞安大厦店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京公益西桥华联店
   [+] 北京: 北京龙湖长楹天街购物中心店
   [+] 北京: 北京常营华联购物中心店
@@ -1411,18 +1357,16 @@ Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京南站2店
 Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京南站1店
-  [+] 北京: 北京房山北关美康美店
+  [+] 北京: 北京房山北关美廉美店
   [+] 北京: 北京西铁营万达购物中心店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 北京: 北京朝阳大悦城店
-  [+] 北京: 北京凯德汇新大厦店
 Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 北京: 北京朝阳大悦城店
+Detected 3 boxes in temp_scrape.png
+  [+] 北京: 北京凯德汇新大厦店
   [+] 北京: 北京大望路新世界店
   [+] 北京: 北京CBD银泰in01店
-  [+] 北京: 北京汇京双子座大厦店
 Detected 3 boxes in temp_scrape.png
+  [+] 北京: 北京汇京双子座大厦店
   [+] 北京: 北京中海广场店
   [+] 北京: 北京国瑞城店
 Detected 3 boxes in temp_scrape.png
@@ -1431,39 +1375,36 @@ Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京中海大吉巷店
 Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京平谷华联店
-  [+] 北京: 北京长辛店老镇店
 Detected 3 boxes in temp_scrape.png
+  [+] 北京: 北京长辛店老镇店
   [+] 北京: 北京中央公园广场店
   [+] 北京: 北京平谷万达店
+Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京东方新天地店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 北京: 北京云岗物美店
   [+] 北京: 北京丽泽天地购物中心店
-  [+] 北京: 北京王府井喜悦店
 Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 北京: 北京王府井喜悦店
   [+] 北京: 北京宣武庄胜百货店
   [+] 北京: 北京悠唐购物中心店
-  [+] 北京: 北京银河SOHO店
 Detected 3 boxes in temp_scrape.png
-Detected 5 names and paired 4 stores in temp_scrape.png (New Method)
+  [+] 北京: 北京银河SOHO店
   [+] 北京: 北京王府井APM店
+Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京TMALL店
   [+] 北京: 北京宣武天虹店
-Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京永利国际中心店
+Detected 2 boxes in temp_scrape.png
+Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 北京: 北京西单更新场店
-Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京SOLANA蓝色港湾店
   [+] 北京: 北京西单大悦城店
+Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京银座和谐广场店
-Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京亮马桥官舍店
-  [+] 北京: 北京来福士中心店
-Detected 3 boxes in temp_scrape.png
+Detected 4 boxes in temp_scrape.png
   [+] 北京: 北京光耀东方广场店
-  [+] 北京: 北京北新桥算街店
+  [+] 北京: 北京北新桥街店
   [+] 北京: 北京北锣鼓巷店
 Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京市后海银锭桥店
@@ -1475,47 +1416,48 @@ Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京翠微印象城店
 Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京凯德mall太阳宫店
-  [+] 北京: 北京甘家口大厦店
 Detected 3 boxes in temp_scrape.png
+  [+] 北京: 北京甘家口大厦店
   [+] 北京: 北京望京新世界店
   [+] 北京: 北京五棵松华熙店
-  [+] 北京: 北京新华百货店
 Detected 3 boxes in temp_scrape.png
+  [+] 北京: 北京新华百货店
   [+] 北京: 北京西直门凯德店
   [+] 北京: 北京沁山水物美店
+Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京凯德MALL望京店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 北京: 北京霸王茶姬高德总部店
   [+] 北京: 北京国图文化大厦店
-  [+] 北京: 北京枫蓝国际购物中心店
 Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
+  [+] 北京: 北京枫蓝国际购物中心店
+Detected 2 boxes in temp_scrape.png
+Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 北京: 北京顺义国泰生活广场店
   [+] 北京: 北京首都机场T3航站楼到达层店
-Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京石景山万达广场店
+Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京华堂新辰汇店
   [+] 北京: 北京望京万象汇无声店
 Detected 3 boxes in temp_scrape.png
+Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 北京: 北京鼎成中心店
   [+] 北京: 北京魏公村芳华里店
   [+] 北京: 北京新辰里购物中心店
-Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京1733商业中心店
 Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京阿里巴巴朝阳科技园店
-  [+] 北京: 北京翠微百货牡丹园店
-  [+] 北京: 北京华宇时尚购物中心店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 北京: 北京翠微百货牡丹园店
+  [+] 北京: 北京华宇时尚购物中心店
   [+] 北京: 北京奥园City街店
+Detected 3 boxes in temp_scrape.png
   [+] 北京: 北京王府井奥莱香江小镇店
   [+] 北京: 北京新奥购物中心店
-Scraped 102 stores in 北京.
+Scraped 101 stores in 北京.
 
 --- Initiating Switch to 广州 ---
-OCR found '搜索门店' at relative (140.0, 126.5). Trigger global coordinate: (796, 248)
+OCR found '搜索门店' at relative (140.5, 126.5). Trigger global coordinate: (796, 248)
 Navigating to index 'G' for city '广州'...
 OCR found initial 'G' in sidebar box. Clicking absolute: (1142, 458)
 Searching for city '广州' inside view...
@@ -1528,8 +1470,7 @@ Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州新塘永旺梦乐城店
   [+] 广州: 广东广州花都融创茂店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州增城新塘大润发店
   [+] 广州: 广东广州增城新塘广场店
   [+] 广州: 广东广州花都丽莎广场店
@@ -1560,8 +1501,7 @@ Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州黄埔时代城店
   [+] 广州: 广东广州黄埔萝岗万达店
   [+] 广州: 广东广州黄埔佳纷天地店
-Detected 2 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州白云悦和方店
   [+] 广州: 广东广州白云大源时代广场店
   [+] 广州: 广东广州白云龙归万民店
@@ -1573,13 +1513,11 @@ Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州白云龙归金铂店
   [+] 广州: 广东广州白云粤宝中心店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 广州: 广东广州白云方圆荟店
+Detected 3 boxes in temp_scrape.png
+  [+] 广州: 广东广州日云方圆荟店
   [+] 广州: 广东广州智慧城广百店
   [+] 广州: 广东广州天河海悦城店
-Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
+Detected 4 boxes in temp_scrape.png
   [+] 广州: 广东广州黄埔东园邻里店
   [+] 广州: 广东广州黄埔沃尔玛店
   [+] 广州: 广东广州白云清湖金铂店
@@ -1594,8 +1532,7 @@ Detected 5 names and paired 3 stores in temp_scrape.png (New Method)
 Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州奥体优托邦店
   [+] 广州: 广东广州雄资购物城店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州白云同和金铂店
   [+] 广州: 广东广州安华汇店
   [+] 广州: 广东广州设计之都时光汇店
@@ -1615,89 +1552,79 @@ Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州白云江夏新天地店
   [+] 广州: 广东广州白云湖金铂天地店
 Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 4 names and paired 4 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州美林天地店
   [+] 广州: 广东广州五山广场店
-Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州天河信达金茂店
+Detected 2 boxes in temp_scrape.png
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州东方新世界广场店
+  [+] 广州: 广东广州白云汇广场店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
-  [+] 广州: 广东广州白云汇广场店
   [+] 广州: 广东广州天河曜一城广场店
-Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州东方宝泰永旺店
+Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州天娱广场店
   [+] 广州: 广东广州海珠琶洲保利店
-Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州日云万象汇店
 Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州保利中辰广场店
+Detected 3 boxes in temp_scrape.png
+Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州天河中信广场店
-Detected 3 boxes in temp_scrape.png
-Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州海珠万胜广场店
-  [+] 广州: 广东广州凯德云尚店
 Detected 3 boxes in temp_scrape.png
 Detected 4 names and paired 2 stores in temp_scrape.png (New Method)
+  [+] 广州: 广东广州凯德云尚店
   [+] 广州: 广东广州白云石井万民店
+Detected 2 boxes in temp_scrape.png
+Detected 3 names and paired 1 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州正佳广场店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 1 stores in temp_scrape.png (New Method)
-  [!] No new stores found (1/4).
-  [Box 0] Method2 OCR: name='广东广州正佳广场店' status='前方30杯制作中' count=30 valid=True
-  [Box 0] Method1 OCR: name='广东广州正佳广场店' status='前方30杯制作中' count=30 valid=True
-  [Box 0] Using Method2: '广东广州正佳广场店' | '前方30杯制作中' | 30 cups
-  [Box 1] Method2 OCR: name='广东广州维多利广场店' status='已休息' count=0 valid=False
-  [Box 1] Method1 OCR: name='广东广州维多利广场店' status='广东省广州市天河区体育西路101号VT101' count=0 valid=False
-  [Box 1] Skipped — both methods invalid
-  [!] Old method yielded few/no results. Falling back to New Method (Full-Page OCR)...
-  [!] New method did not find more stores. Sticking with old method.
-Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州白云万达广场店
+Detected 3 boxes in temp_scrape.png
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州南丰汇店
-Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州海珠国美智慧城店
+Detected 3 boxes in temp_scrape.png
+Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州天德广场店
-Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州高德置地春广场店
-  [+] 广州: 广东广州天河花城汇店
 Detected 3 boxes in temp_scrape.png
+  [+] 广州: 广东广州天河花城汇店
   [+] 广州: 广东广州越秀外商新天地店
+Detected 3 boxes in temp_scrape.png
+Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
+  [+] 广州: 广东广州番禺gogo新天地店
 Detected 2 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
-  [+] 广州: 广东广州星辰大厦店
-  [+] 广州: 广东广州番禺gogo新天地店
   [+] 广州: 广东广州聚龙慧谷店
-Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州海珠财大创谷店
+Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州白云三元里中心店
   [+] 广州: 广东广州越秀东山口广百店
 Detected 3 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
+Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州塔广场店
   [+] 广州: 广东广州越秀保利时光里店
 Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州白云龙骏广场店
+  [+] 广州: 广东广州海珠丽影广场店
 Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
-  [+] 广州: 广东广州海珠丽影广场店
   [+] 广州: 广东广州中华广场店
-Detected 2 boxes in temp_scrape.png
-Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州学山同德里店
+Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州番禺石楼万佳汇店
   [+] 广州: 广东广州悦汇城店
-Detected 3 boxes in temp_scrape.png
-Detected 2 names and paired 2 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州海珠新港路店
-  [+] 广州: 广东广州西村店
-Detected 2 boxes in temp_scrape.png
+Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 2 stores in temp_scrape.png (New Method)
+  [+] 广州: 广东广州西村店
+Detected 1 boxes in temp_scrape.png
+Detected 3 names and paired 1 stores in temp_scrape.png (New Method)
   [+] 广州: 广东广州海珠万达广场店
 Detected 3 boxes in temp_scrape.png
 Detected 3 names and paired 3 stores in temp_scrape.png (New Method)
@@ -1716,23 +1643,23 @@ Detected 4 names and paired 3 stores in temp_scrape.png (New Method)
 Detected 3 boxes in temp_scrape.png
   [+] 广州: 广东广州上下九步行街店
   [+] 广州: 广东广州荔湾恒宝广场店
-Scraped 101 stores in 广州.
+Scraped 100 stores in 广州.
 
-Appended 897 new results to existing 64589 records.
-Total records in historical file: 65486. Saved to D:\代码项目\Chagee applet\multi_city_stores.xlsx
+Appended 896 new results to existing 66747 records.
+Total records in historical file: 67643. Saved to D:\代码项目\Chagee applet\multi_city_stores.xlsx
 Starting cleanup: Closing applet and search windows...
-Attempt 1: Found Applet Window: '霸王茶姬' (PID: 24348)
+Attempt 1: Found Applet Window: '霸王茶姬' (PID: 6360)
   - Standard button '关闭' found but has no size. Skipping Method 1.
   - Attempting capsule coordinate click at (1135, 152)...
   - Window successfully closed via coordinate click.
   - All target applet windows closed.
-Closing specific Search Result Window (Handle: 13698988) used during init...
+Closing specific Search Result Window (Handle: 4785866) used during init...
 Search Result Window closed precisely.
 Email report sent successfully!
 Starting cleanup: Closing applet and search windows...
   - No more applet windows matching '霸王茶姬' found.
 No saved search window handle found. Skipping generic search window cleanup to protect your other WeChat windows.
-[周六 2026/06/27 14:43:48.82] Success: Process completed with exit code 0. 
-[周六 2026/06/27 14:43:48.83] Daily Automation Finished. 
+[周二 2026/06/30 14:46:41.74] Success: Process completed with exit code 0. 
+[周二 2026/06/30 14:46:41.75] Daily Automation Finished. 
 ---------------------------------------- 
  

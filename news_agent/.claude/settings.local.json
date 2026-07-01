@@ -26,7 +26,8 @@
       "WebFetch(domain:semianalysis.com)",
       "WebFetch(domain:newsletter.semianalysis.com)",
       "Bash(.venv/Scripts/python.exe -c ' *)",
-      "Bash(.venv\\\\Scripts\\\\python.exe -c \"import app; print\\('OK'\\)\")"
+      "Bash(.venv\\\\Scripts\\\\python.exe -c \"import app; print\\('OK'\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \"import ast; ast.parse\\(open\\('transcript_worker.py', encoding='utf-8'\\).read\\(\\)\\)\")"
     ]
   }
 }
