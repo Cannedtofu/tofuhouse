@@ -10,10 +10,10 @@
 </div>
 
 <!-- Status strip -->
-{% if script_panels %}
+{% if status_panels %}
 <div class="d-flex flex-wrap gap-2 mb-2" id="status-strip">
-  {% for s in script_panels %}
-  <a href="#panel-{{ s.script_name | replace(' ', '-') }}"
+  {% for s in status_panels %}
+  <a href="#{{ s.anchor_id }}"
      class="badge text-decoration-none
             {% if s.status == 'error' or s.is_overdue %}bg-danger{% else %}bg-success{% endif %}"
      style="font-size:.8rem;font-weight:500">
@@ -38,7 +38,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for s in script_panels %}
+        {% for s in status_panels %}
         <tr>
           <td class="small fw-medium">{{ s.script_name }}</td>
           <td class="small text-muted">{{ s.pushed_at[:16] | replace('T',' ') }} UTC</td>

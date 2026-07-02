@@ -196,6 +196,13 @@ logger_dashboard = logging.getLogger("dashboard")
 
 _gpu_fetch_lock = threading.Lock()
 _gpu_fetch_running = False
+_GPU_STATUS_SCRIPT_NAME = "GPU算力价格指数"
+_GPU_STATUS_PANEL_ID = "panel-gpu-prices"
+_GPU_STATUS_INTERVAL_HOURS = 24
+_llm_token_index_fetch_lock = threading.Lock()
+_llm_token_index_fetch_running = False
+_LLM_TOKEN_INDEX_SCRIPT_NAME = "LLM Token Expenditure Index"
+_LLM_TOKEN_INDEX_INTERVAL_HOURS = 24
 
 
 def _run_gpu_price_fetch():
@@ -211,12 +218,54 @@ def _run_gpu_price_fetch():
         results = fetch_all_gpu_prices()
         for gpu_type, data in results.items():
             db.upsert_gpu_price_data(gpu_type, data)
+        db.upsert_script_report(
+            _GPU_STATUS_SCRIPT_NAME,
+            "ok",
+            None,
+            None,
+            _GPU_STATUS_INTERVAL_HOURS,
+        )
         logger_dashboard.info("GPU price fetch done: %d GPU type(s) updated", len(results))
     except Exception as exc:
         logger_dashboard.error("GPU price fetch error: %s", exc)
+        db.upsert_script_report(
+            _GPU_STATUS_SCRIPT_NAME,
+            "error",
+            str(exc),
+            None,
+            _GPU_STATUS_INTERVAL_HOURS,
+        )
     finally:
         _gpu_fetch_running = False
         _gpu_fetch_lock.release()
+
+
+def _with_dashboard_anchor(panel: dict) -> dict:
+    panel = dict(panel)
+    if panel["script_name"] == _GPU_STATUS_SCRIPT_NAME:
+        panel["anchor_id"] = _GPU_STATUS_PANEL_ID
+    else:
+        panel["anchor_id"] = f"panel-{panel['script_name'].replace(' ', '-')}"
+    return panel
+
+
+def _build_gpu_status_panel_fallback() -> dict | None:
+    last_updated = db.get_gpu_price_last_updated()
+    if not last_updated:
+        return None
+    pushed_at = datetime.fromisoformat(last_updated)
+    if pushed_at.tzinfo is None:
+        pushed_at = pushed_at.replace(tzinfo=timezone.utc)
+    hours_since = (datetime.now(timezone.utc) - pushed_at).total_seconds() / 3600
+    return {
+        "script_name": _GPU_STATUS_SCRIPT_NAME,
+        "status": "ok",
+        "error_message": None,
+        "panels": [],
+        "pushed_at": last_updated,
+        "expected_interval_hours": _GPU_STATUS_INTERVAL_HOURS,
+        "is_overdue": hours_since > _GPU_STATUS_INTERVAL_HOURS,
+    }
 
 
 def _run_openrouter_usage_fetch() -> dict:
@@ -248,6 +297,70 @@ def _run_openrouter_usage_fetch() -> dict:
         return {"ok": False, "error": str(exc)}
 
 
+def _run_vercel_labs_fetch() -> dict:
+    """Fetch daily Vercel AI Gateway Labs data and push panels + Excel."""
+    import json as _json
+    import traceback as _traceback
+    try:
+        from fetchers.vercel_labs import run_vercel_labs_fetch
+        logger_dashboard.info("Vercel labs fetch starting...")
+        panels, excel_bytes = run_vercel_labs_fetch()
+        db.upsert_script_report(
+            "vercel_labs", "ok", None, _json.dumps(panels), 24,
+        )
+        db.upsert_script_file("vercel_labs", "vercel_labs.xlsx", excel_bytes)
+        logger_dashboard.info("Vercel labs fetch done: %d panels", len(panels))
+        return {"ok": True, "panels": len(panels)}
+    except Exception as exc:
+        logger_dashboard.error("Vercel labs fetch error: %s", _traceback.format_exc())
+        db.upsert_script_report("vercel_labs", "error", str(exc), None, 24)
+        return {"ok": False, "error": str(exc)}
+
+
+def _run_llm_token_expenditure_index_fetch() -> dict:
+    """Fetch the latest Silicon Data token index snapshot and extend local history."""
+    import json as _json
+    import traceback as _traceback
+    global _llm_token_index_fetch_running
+    if not _llm_token_index_fetch_lock.acquire(blocking=False):
+        logger_dashboard.info("LLM token expenditure index fetch already running - skipped")
+        return {"ok": False, "error": "already_running"}
+
+    _llm_token_index_fetch_running = True
+    try:
+        from fetchers.llm_token_expenditure_index import run_llm_token_expenditure_index_fetch
+
+        logger_dashboard.info("LLM token expenditure index fetch starting...")
+        panels, excel_bytes = run_llm_token_expenditure_index_fetch()
+        db.upsert_script_report(
+            _LLM_TOKEN_INDEX_SCRIPT_NAME,
+            "ok",
+            None,
+            _json.dumps(panels),
+            _LLM_TOKEN_INDEX_INTERVAL_HOURS,
+        )
+        db.upsert_script_file(
+            _LLM_TOKEN_INDEX_SCRIPT_NAME,
+            "llm_token_expenditure_index.xlsx",
+            excel_bytes,
+        )
+        logger_dashboard.info("LLM token expenditure index fetch done: %d panels", len(panels))
+        return {"ok": True, "panels": len(panels)}
+    except Exception as exc:
+        logger_dashboard.error("LLM token expenditure index fetch error: %s", _traceback.format_exc())
+        db.upsert_script_report(
+            _LLM_TOKEN_INDEX_SCRIPT_NAME,
+            "error",
+            str(exc),
+            None,
+            _LLM_TOKEN_INDEX_INTERVAL_HOURS,
+        )
+        return {"ok": False, "error": str(exc)}
+    finally:
+        _llm_token_index_fetch_running = False
+        _llm_token_index_fetch_lock.release()
+
+
 # Explicit SGT timezone so all cron hours are unambiguous regardless of server clock.
 _scheduler = BackgroundScheduler(daemon=True, timezone="Asia/Singapore")
 
@@ -265,6 +378,14 @@ _scheduler.add_job(                                                             
     # rather than resetting the countdown to "restart time + 168h" every time this job is
     # re-registered at process startup.
     start_date="2026-06-29 09:30:00",
+)
+_scheduler.add_job(
+    lambda: _run_vercel_labs_fetch(),
+    "cron", hour=9, minute=35, id="vercel_labs_daily",
+)
+_scheduler.add_job(
+    lambda: _run_llm_token_expenditure_index_fetch(),
+    "cron", hour=9, minute=40, id="llm_token_expenditure_index_daily",
 )
 
 _scheduler.start()
@@ -1643,6 +1764,24 @@ def api_openrouter_usage_refresh():
     return jsonify(_run_openrouter_usage_fetch())
 
 
+@app.route("/api/vercel-labs/refresh", methods=["POST"])
+def api_vercel_labs_refresh():
+    """Trigger an immediate Vercel Labs fetch. API-key gated for automation."""
+    denied = _api_key_required()
+    if denied:
+        return denied
+    return jsonify(_run_vercel_labs_fetch())
+
+
+@app.route("/api/llm-token-expenditure-index/refresh", methods=["POST"])
+def api_llm_token_expenditure_index_refresh():
+    """Trigger an immediate Silicon Data token index fetch. API-key gated for automation."""
+    denied = _api_key_required()
+    if denied:
+        return denied
+    return jsonify(_run_llm_token_expenditure_index_fetch())
+
+
 @app.route("/api/report/<script_name>/excel", methods=["POST"])
 def api_report_excel_upload(script_name):
     denied = _api_key_required()
@@ -1676,6 +1815,10 @@ def api_report_excel_download(script_name):
 @login_required
 def dashboard_status():
     reports = db.get_all_script_reports()
+    if not any(report["script_name"] == _GPU_STATUS_SCRIPT_NAME for report in reports):
+        gpu_fallback_panel = _build_gpu_status_panel_fallback()
+        if gpu_fallback_panel:
+            reports.append(gpu_fallback_panel)
     return jsonify([
         {
             "script_name":  r["script_name"],
@@ -1696,15 +1839,26 @@ def dashboard_status():
 def dashboard():
     is_admin = g.current_user["email"] == ADMIN_EMAIL
     all_panels = db.get_all_script_reports()
+    if not any(panel["script_name"] == _GPU_STATUS_SCRIPT_NAME for panel in all_panels):
+        gpu_fallback_panel = _build_gpu_status_panel_fallback()
+        if gpu_fallback_panel:
+            all_panels.append(gpu_fallback_panel)
     panel_access = db.get_panel_access()
-    # Non-admins only see panels where public=True (default when not in table)
-    if is_admin:
-        script_panels = all_panels
-    else:
-        script_panels = [p for p in all_panels if panel_access.get(p["script_name"], True)]
+    status_panels = []
+    script_panels = []
+    for panel in all_panels:
+        is_gpu_status_panel = panel["script_name"] == _GPU_STATUS_SCRIPT_NAME
+        access_key = "gpu-prices" if is_gpu_status_panel else panel["script_name"]
+        if not is_admin and not panel_access.get(access_key, True):
+            continue
+        anchored_panel = _with_dashboard_anchor(panel)
+        status_panels.append(anchored_panel)
+        if not is_gpu_status_panel:
+            script_panels.append(anchored_panel)
     scripts_with_files = db.get_scripts_with_files()
     return render_template(
         "dashboard.html",
+        status_panels=status_panels,
         script_panels=script_panels,
         scripts_with_files=scripts_with_files,
         is_admin=is_admin,

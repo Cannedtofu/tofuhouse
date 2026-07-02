@@ -1,0 +1,376 @@
+2026-06-28 19:15:11 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:15:11 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:15:11 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:15:11 [INFO] apscheduler.scheduler: Added job "_scheduled_daily_fetch" to job store "default"
+2026-06-28 19:15:11 [INFO] apscheduler.scheduler: Added job "_scheduled_digest_send" to job store "default"
+2026-06-28 19:15:11 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-28 19:15:11 [INFO] apscheduler.scheduler: Scheduler started
+2026-06-28 19:15:11 [INFO] werkzeug: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-06-28 19:15:11 [INFO] werkzeug: [33mPress CTRL+C to quit[0m
+2026-06-28 19:15:11 [INFO] werkzeug:  * Restarting with stat
+2026-06-28 19:15:13 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:15:13 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:15:13 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:15:13 [INFO] apscheduler.scheduler: Added job "_scheduled_daily_fetch" to job store "default"
+2026-06-28 19:15:13 [INFO] apscheduler.scheduler: Added job "_scheduled_digest_send" to job store "default"
+2026-06-28 19:15:13 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-28 19:15:13 [INFO] apscheduler.scheduler: Scheduler started
+2026-06-28 19:15:13 [WARNING] werkzeug:  * Debugger is active!
+2026-06-28 19:15:13 [INFO] werkzeug:  * Debugger PIN: 263-580-194
+2026-06-28 19:15:13 [INFO] werkzeug: 127.0.0.1 - - [28/Jun/2026 19:15:13] "[32mGET /dashboard HTTP/1.1[0m" 302 -
+2026-06-28 19:15:13 [INFO] werkzeug: 127.0.0.1 - - [28/Jun/2026 19:15:13] "[32mGET / HTTP/1.1[0m" 302 -
+2026-06-28 19:15:19 [INFO] werkzeug: 127.0.0.1 - - [28/Jun/2026 19:15:19] "[32mGET /dashboard HTTP/1.1[0m" 302 -
+2026-06-28 19:15:42 [INFO] werkzeug: 127.0.0.1 - - [28/Jun/2026 19:15:42] "GET /identify HTTP/1.1" 200 -
+2026-06-28 19:15:42 [INFO] werkzeug: 127.0.0.1 - - [28/Jun/2026 19:15:42] "[32mPOST /identify HTTP/1.1[0m" 302 -
+2026-06-28 19:15:43 [INFO] werkzeug: 127.0.0.1 - - [28/Jun/2026 19:15:43] "GET /dashboard HTTP/1.1" 200 -
+2026-06-28 19:38:41 [INFO] werkzeug:  * Detected change in 'D:\\代码项目\\news_agent\\app.py', reloading
+2026-06-28 19:39:33 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:39:33 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:39:33 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:39:33 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-28 19:39:33 [INFO] apscheduler.scheduler: Added job "_scheduled_daily_fetch" to job store "default"
+2026-06-28 19:39:33 [INFO] apscheduler.scheduler: Added job "_scheduled_digest_send" to job store "default"
+2026-06-28 19:39:33 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-28 19:39:33 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-28 19:39:33 [INFO] apscheduler.scheduler: Scheduler started
+2026-06-28 19:39:34 [INFO] dashboard: OpenRouter usage fetch starting…
+2026-06-28 19:39:34 [INFO] fetchers.openrouter_usage: OpenRouter usage: fetched 52 weeks from API
+2026-06-28 19:39:34 [INFO] dashboard: OpenRouter usage fetch done: 2 panels
+2026-06-29 10:14:59 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 10:14:59 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 10:14:59 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 10:14:59 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 10:14:59 [INFO] apscheduler.scheduler: Added job "_scheduled_daily_fetch" to job store "default"
+2026-06-29 10:14:59 [INFO] apscheduler.scheduler: Added job "_scheduled_digest_send" to job store "default"
+2026-06-29 10:14:59 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-29 10:14:59 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-29 10:14:59 [INFO] apscheduler.scheduler: Scheduler started
+2026-06-29 10:14:59 [INFO] werkzeug: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-06-29 10:14:59 [INFO] werkzeug: [33mPress CTRL+C to quit[0m
+2026-06-29 10:14:59 [INFO] werkzeug:  * Restarting with stat
+2026-06-29 10:15:01 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 10:15:01 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 10:15:01 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 10:15:01 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 10:15:01 [INFO] apscheduler.scheduler: Added job "_scheduled_daily_fetch" to job store "default"
+2026-06-29 10:15:01 [INFO] apscheduler.scheduler: Added job "_scheduled_digest_send" to job store "default"
+2026-06-29 10:15:01 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-29 10:15:01 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-29 10:15:01 [INFO] apscheduler.scheduler: Scheduler started
+2026-06-29 10:15:01 [WARNING] werkzeug:  * Debugger is active!
+2026-06-29 10:15:01 [INFO] werkzeug:  * Debugger PIN: 263-580-194
+2026-06-29 10:15:01 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:01] "[32mGET / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:01 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:01] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:01 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:01] "GET /identify?next=/ HTTP/1.1" 200 -
+2026-06-29 10:15:01 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:01] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:02 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:02] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:02 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:02] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:03 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:03] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:03 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:03] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:03 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:03] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:04 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:04] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:04 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:04] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:05 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:05] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:05 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:05] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:06 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:06] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:06 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:06] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:07 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:07] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:07 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:07] "GET /identify HTTP/1.1" 200 -
+2026-06-29 10:15:07 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:07] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:08 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:08] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:08 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:08] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:09 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:09] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:09 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:09] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:09 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:09] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:10 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:10] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:10 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:10] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:11 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:11] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:11 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:11] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:12 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:12] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:12 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:12] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:13 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:13] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:13 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:13] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:13 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:13] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:14 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:14] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:14 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:14] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:15 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:15] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:15 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:15] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:16 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:16] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:16 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:16] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:17 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:17] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:17 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:17] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:18 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:18] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:18 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:18] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:19 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:19] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:19 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:19] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:19 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:19] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:20 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:20] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:20 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:20] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:21 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:21] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:21 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:21] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:22 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:22] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:22 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:22] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:23 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:23] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:23 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:23] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:23 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:23] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:24 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:24] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:24 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:24] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:25 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:25] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:25 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:25] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:26 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:26] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:26 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:26] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:27 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:27] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:27 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:27] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:28 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:28] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:28 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:28] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:29 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:29] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:29 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:29] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:29 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:29] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:30 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:30] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:30 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:30] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:31 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:31] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:31 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:31] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:32 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:32] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:32 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:32] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:33 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:33] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:33 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:33] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:34 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:34] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:34 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:34] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:35 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:35] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:35 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:35] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:36 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:36] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:36 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:36] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:36 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:36] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:37 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:37] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:37 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:37] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:38 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:38] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:38 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:38] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:39 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:39] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:39 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:39] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:39 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:39] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:40 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:40] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:40 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:40] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:41 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:41] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:41 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:41] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:42 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:42] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:42 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:42] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:43 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:43] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:43 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:43] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:44 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:44] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:44 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:44] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:45 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:45] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:45 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:45] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:46 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:46] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:46 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:46] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:46 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:46] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:47 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:47] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:47 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:47] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:48 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:48] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:48 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:48] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:49 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:49] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:49 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:49] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:49 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:49] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:50 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:50] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:50 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:50] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:51 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:51] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:51 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:51] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:52 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:52] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:52 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:52] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:53 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:53] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:53 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:53] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:54 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:54] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:54 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:54] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:55 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:55] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:55 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:55] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:56] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:56] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:56] "[32mPOST /identify HTTP/1.1[0m" 302 -
+2026-06-29 10:15:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:56] "GET / HTTP/1.1" 200 -
+2026-06-29 10:15:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:56] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:57 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:57] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:57 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:57] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:58 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:58] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:58 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:58] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:59 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:59] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:59 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:59] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:15:59 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:15:59] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:16:00 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:16:00] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 10:16:00 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:16:00] "GET / HTTP/1.1" 200 -
+2026-06-29 10:17:15 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:17:15] "GET /dashboard HTTP/1.1" 200 -
+2026-06-29 10:17:15 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:17:15] "GET /dashboard/api/gpu-prices HTTP/1.1" 200 -
+2026-06-29 10:18:16 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:18:16] "GET /dashboard/status HTTP/1.1" 200 -
+2026-06-29 10:19:16 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:19:16] "GET /dashboard/status HTTP/1.1" 200 -
+2026-06-29 10:19:55 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:19:55] "GET /dashboard HTTP/1.1" 200 -
+2026-06-29 10:19:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:19:56] "GET /dashboard/api/gpu-prices HTTP/1.1" 200 -
+2026-06-29 10:20:57 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:20:57] "GET /dashboard/status HTTP/1.1" 200 -
+2026-06-29 10:21:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:21:56] "GET /dashboard/status HTTP/1.1" 200 -
+2026-06-29 10:22:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:22:56] "GET /dashboard/status HTTP/1.1" 200 -
+2026-06-29 10:23:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:23:56] "GET /dashboard/status HTTP/1.1" 200 -
+2026-06-29 10:24:01 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:24:01] "GET /dashboard HTTP/1.1" 200 -
+2026-06-29 10:24:01 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 10:24:01] "GET /dashboard/api/gpu-prices HTTP/1.1" 200 -
+2026-06-29 16:22:11 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 16:22:11 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 16:22:11 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 16:22:11 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 16:22:11 [INFO] apscheduler.scheduler: Added job "_scheduled_daily_fetch" to job store "default"
+2026-06-29 16:22:11 [INFO] apscheduler.scheduler: Added job "_scheduled_digest_send" to job store "default"
+2026-06-29 16:22:11 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-29 16:22:11 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-29 16:22:11 [INFO] apscheduler.scheduler: Scheduler started
+2026-06-29 16:22:11 [INFO] werkzeug: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2026-06-29 16:22:11 [INFO] werkzeug: [33mPress CTRL+C to quit[0m
+2026-06-29 16:22:11 [INFO] werkzeug:  * Restarting with stat
+2026-06-29 16:22:13 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 16:22:13 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 16:22:13 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 16:22:13 [INFO] apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-06-29 16:22:13 [INFO] apscheduler.scheduler: Added job "_scheduled_daily_fetch" to job store "default"
+2026-06-29 16:22:13 [INFO] apscheduler.scheduler: Added job "_scheduled_digest_send" to job store "default"
+2026-06-29 16:22:13 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-29 16:22:13 [INFO] apscheduler.scheduler: Added job "<lambda>" to job store "default"
+2026-06-29 16:22:13 [INFO] apscheduler.scheduler: Scheduler started
+2026-06-29 16:22:13 [WARNING] werkzeug:  * Debugger is active!
+2026-06-29 16:22:13 [INFO] werkzeug:  * Debugger PIN: 628-634-657
+2026-06-29 16:22:13 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:13] "[32mGET / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:13 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:13] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:13 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:13] "GET /identify?next=/ HTTP/1.1" 200 -
+2026-06-29 16:22:13 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:13] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:14 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:14] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:14 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:14] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:15 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:15] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:15 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:15] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:16 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:16] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:16 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:16] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:17 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:17] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:17 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:17] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:17 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:17] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:18 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:18] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:18 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:18] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:19 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:19] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:19 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:19] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:20 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:20] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:20 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:20] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:20 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:20] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:20 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:20] "GET /identify HTTP/1.1" 200 -
+2026-06-29 16:22:21 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:21] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:21 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:21] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:22 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:22] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:22 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:22] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:23 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:23] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:23 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:23] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:24 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:24] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:24 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:24] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:25 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:25] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:25 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:25] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:26 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:26] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:26 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:26] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:27 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:27] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:27 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:27] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:28 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:28] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:28 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:28] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:28 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:28] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:29 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:29] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:29 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:29] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:30 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:30] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:30 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:30] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:31 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:31] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:31 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:31] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:31 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:31] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:32 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:32] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:32 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:32] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:33 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:33] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:33 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:33] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:34 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:34] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:34 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:34] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:35 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:35] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:35 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:35] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:36 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:36] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:36 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:36] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:37 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:37] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:37 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:37] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:38 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:38] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:38 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:38] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:39 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:39] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:39 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:39] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:39 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:39] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:40 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:40] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:40 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:40] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:41 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:41] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:41 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:41] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:42 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:42] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:42 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:42] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:43 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:43] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:43 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:43] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:44 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:44] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:44 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:44] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:45 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:45] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:45 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:45] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:46 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:46] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:46 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:46] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:47 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:47] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:47 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:47] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:47 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:47] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:48 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:48] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:48 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:48] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:49 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:49] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:49 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:49] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:50 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:50] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:50 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:50] "[32mPOST /identify HTTP/1.1[0m" 302 -
+2026-06-29 16:22:50 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:50] "GET / HTTP/1.1" 200 -
+2026-06-29 16:22:50 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:50] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:51 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:51] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:51 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:51] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:51 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:51] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:52 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:52] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:52 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:52] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:53 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:53] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:53 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:53] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:54 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:54] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:54 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:54] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:55 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:55] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:55 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:55] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:56] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:56 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:56] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:57 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:57] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:57 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:57] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:58 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:58] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:58 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:58] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:58 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:58] "GET /dashboard HTTP/1.1" 200 -
+2026-06-29 16:22:58 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:58] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:59 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:59] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:22:59 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:59] "GET /dashboard/api/gpu-prices HTTP/1.1" 200 -
+2026-06-29 16:22:59 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:22:59] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:00 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:00] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:00 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:00] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:01 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:01] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:01 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:01] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:02 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:02] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:02 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:02] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:02 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:02] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:03 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:03] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:03 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:03] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:04 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:04] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:04 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:04] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:05 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:05] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:05 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:05] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:06 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:06] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:06 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:06] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:07 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:07] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:07 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:07] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:08 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:08] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:08 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:08] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:09 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:09] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:09 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:09] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:09 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:09] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:10 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:10] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:10 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:10] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:11 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:11] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:11 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:11] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:12 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:12] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:12 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:12] "[32mHEAD / HTTP/1.1[0m" 302 -
+2026-06-29 16:23:13 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:13] "GET / HTTP/1.1" 200 -
+2026-06-29 16:23:43 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:43] "GET /dashboard HTTP/1.1" 200 -
+2026-06-29 16:23:43 [INFO] werkzeug: 127.0.0.1 - - [29/Jun/2026 16:23:43] "GET /dashboard/api/gpu-prices HTTP/1.1" 200 -
