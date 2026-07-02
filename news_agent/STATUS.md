@@ -30,7 +30,7 @@ _Last updated: —_
 - Fast path: yt-dlp subtitle download only (no audio) — English, Chinese, then all languages
 - Audio fallback with explicit user approval gate before download
 - No-diarization mode: paraformer-v2 ASR, single `Recognition.call()` (no chunking, up to 12h)
-- Diarization mode: `diarization_enabled=True`, consistent `[Speaker A]` IDs across full video
+- Diarization mode: `diarization_enabled=True`, consistent `[01:23] [Speaker A]` IDs across full video
 - AI summary: single Qwen call ≤ 12k chars; chunk-then-synthesize for longer transcripts
 - Job persistence in `transcript_jobs` SQLite table — survives app restarts
 - Frontend polls `/transcript/status/<job_id>` every 3s; `.txt` download available

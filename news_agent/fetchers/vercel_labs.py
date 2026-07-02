@@ -26,6 +26,21 @@ _VERCEL_API_URL = "https://vercel.com/api/ai/leaderboard-export?dataset=labs"
 _SCRIPT_NAME = "vercel_labs"
 _RAW_HEADERS = ["Date", "Metric", "Lab", "Share Percent", "Modality"]
 _TARGET_METRICS = ("tokens", "spend")
+_PINNED_BOTTOM_LABS = ("anthropic", "openai", "google")
+_LAB_COLORS = {
+    "anthropic": "#d97706",
+    "openai": "#16a34a",
+    "google": "#2563eb",
+    "xai": "#dc2626",
+    "deepseek": "#7c3aed",
+    "meta": "#0f766e",
+    "mistral": "#ea580c",
+    "moonshotai": "#0891b2",
+    "minimax": "#9333ea",
+    "amazon": "#4f46e5",
+    "alibaba": "#f59e0b",
+    "others": "#6b7280",
+}
 
 
 def fetch_chart_data() -> dict:
@@ -117,6 +132,13 @@ def _top_labs(records: list[dict], top_n: int = 8) -> list[str]:
     ]
 
 
+def _ordered_labs(top_labs: list[str]) -> list[str]:
+    remaining = [lab for lab in top_labs if lab not in _PINNED_BOTTOM_LABS]
+    remaining.sort()
+    ordered = remaining + [lab for lab in _PINNED_BOTTOM_LABS if lab in top_labs]
+    return ordered
+
+
 def _metric_title(metric: str) -> str:
     return "Token Volume" if metric == "tokens" else "Spend"
 
@@ -130,12 +152,13 @@ def build_panels(rows: list[dict]) -> list[dict]:
         if not records:
             continue
 
-        top_labs = _top_labs(records)
+        top_labs = _ordered_labs(_top_labs(records))
         datasets = []
         for lab in top_labs:
             datasets.append({
                 "label": lab,
                 "format": "percent",
+                "color": _LAB_COLORS.get(lab),
                 "data": [
                     {"x": record["date"], "y": record["labs"].get(lab, 0.0) / 100.0}
                     for record in records
@@ -146,6 +169,7 @@ def build_panels(rows: list[dict]) -> list[dict]:
             datasets.append({
                 "label": "others",
                 "format": "percent",
+                "color": _LAB_COLORS["others"],
                 "data": [
                     {
                         "x": record["date"],
@@ -159,10 +183,10 @@ def build_panels(rows: list[dict]) -> list[dict]:
             })
 
         panels.append({
-            "type": "line",
+            "type": "bar",
             "title": f"Vercel Labs {_metric_title(metric)}",
             "x_type": "date",
-            "span_gaps": True,
+            "stacked": True,
             "datasets": datasets,
         })
 

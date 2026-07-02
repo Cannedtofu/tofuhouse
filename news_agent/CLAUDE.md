@@ -92,7 +92,7 @@ Mode: 区分发言人 (diarization)
     Always starts audio download immediately (user chose this mode knowingly)
         ├── yt-dlp: download full audio to /tmp
         └── DashScope Recognition.call(diarization_enabled=True)
-              → sentence_info with speaker_id → formatted as [Speaker A] paragraphs
+              → sentence_info with speaker_id → formatted as [01:23] [Speaker A] paragraphs
               (consistent speaker IDs throughout the full video — no chunking)
 
 Step 3 (user-activated): AI summary via transcript_worker.generate_transcript_summary()

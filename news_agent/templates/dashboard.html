@@ -581,27 +581,33 @@ function renderScriptCharts() {
         datasets = (panel.datasets || []).map((ds, i) => ({
           label: ds.label,
           data: ds.data.map(pt => ({ x: mmddToDoy(pt.x), y: pt.y })),
-          borderColor: PANEL_COLORS[i % PANEL_COLORS.length],
-          backgroundColor: 'transparent',
+          borderColor: ds.color || PANEL_COLORS[i % PANEL_COLORS.length],
+          backgroundColor: panel.type === 'bar'
+            ? (ds.color || PANEL_COLORS[i % PANEL_COLORS.length])
+            : 'transparent',
           borderWidth: 2,
-          pointRadius: 1,
-          pointHoverRadius: 4,
+          pointRadius: panel.type === 'bar' ? 0 : 1,
+          pointHoverRadius: panel.type === 'bar' ? 0 : 4,
           tension: 0.2,
           spanGaps: !!panel.span_gaps,
           yAxisID: ds.axis === 'right' ? 'y1' : 'y',
+          stack: panel.stacked ? 'stack-0' : undefined,
         }));
       } else {
         datasets = (panel.datasets || []).map((ds, i) => ({
           label: ds.label,
           data: ds.data.map(pt => ({ x: pt.x, y: pt.y })),
-          borderColor: PANEL_COLORS[i % PANEL_COLORS.length],
-          backgroundColor: 'transparent',
+          borderColor: ds.color || PANEL_COLORS[i % PANEL_COLORS.length],
+          backgroundColor: panel.type === 'bar'
+            ? (ds.color || PANEL_COLORS[i % PANEL_COLORS.length])
+            : 'transparent',
           borderWidth: 2,
-          pointRadius: 2,
-          pointHoverRadius: 5,
+          pointRadius: panel.type === 'bar' ? 0 : 2,
+          pointHoverRadius: panel.type === 'bar' ? 0 : 5,
           tension: 0.3,
           spanGaps: !!panel.span_gaps,
           yAxisID: ds.axis === 'right' ? 'y1' : 'y',
+          stack: panel.stacked ? 'stack-0' : undefined,
         }));
       }
 
@@ -651,6 +657,7 @@ function renderScriptCharts() {
             x: {
               type: 'linear',
               min: 1, max: 365,
+              stacked: !!panel.stacked,
               // Force ticks to land exactly on month-start values so all 12 labels render.
               afterBuildTicks(axis) {
                 axis.ticks = MONTH_STARTS.map(v => ({ value: v }));
@@ -664,11 +671,12 @@ function renderScriptCharts() {
               },
               grid: { color: 'rgba(0,0,0,0.04)' },
             },
-            y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+            y: { stacked: !!panel.stacked, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
             ...(y1Scale ? { y1: y1Scale } : {}),
           } : {
             x: {
               type: 'time',
+              stacked: !!panel.stacked,
               // displayFormats covers day through year — Chart.js auto-picks the tick unit
               // based on chart width and date range, not the data's sampling interval, so a
               // ~1-year-spanning weekly series can resolve to 'month' rather than 'week'.
@@ -679,7 +687,7 @@ function renderScriptCharts() {
               grid: { color: 'rgba(0,0,0,0.04)' },
               ticks: { font: { size: 11 } },
             },
-            y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
+            y: { stacked: !!panel.stacked, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 11 } } },
             ...(y1Scale ? { y1: y1Scale } : {}),
           },
         },

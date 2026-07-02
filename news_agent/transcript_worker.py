@@ -13,7 +13,7 @@ Workflow per mode:
 ASR: paraformer-v2 via DashScope Recognition API
   - Full audio file sent in one call (supports ≤2 GB / ≤12 h; diarization recommended ≤2 h)
   - Without diarization: plain text output
-  - With diarization:    sentence_info with speaker_id, formatted as [Speaker A HH:MM:SS] lines
+  - With diarization:    sentence_info with speaker_id, formatted as [HH:MM:SS] [Speaker A] lines
                          (timestamp = start of that speaker turn); consistent speaker IDs
                          throughout the entire video
 
@@ -410,7 +410,7 @@ def _speaker_label(speaker_id) -> str:
 
 def _format_diarized_sentences(sentences: list) -> str:
     """Group consecutive sentences by speaker_id and format as labeled paragraphs,
-    each prefixed with the speaker turn's start time: [Speaker A 01:23]."""
+    each prefixed with the speaker turn's start time: [01:23] [Speaker A]."""
     lines: list[str] = []
     current_speaker = None
     current_parts: list[str] = []
@@ -419,8 +419,8 @@ def _format_diarized_sentences(sentences: list) -> str:
     def _flush():
         if not current_parts:
             return
-        ts = f" {_format_timestamp(turn_start_ms / 1000)}" if turn_start_ms is not None else ""
-        lines.append(f"[{_speaker_label(current_speaker)}{ts}] {' '.join(current_parts)}")
+        ts = f"[{_format_timestamp(turn_start_ms / 1000)}] " if turn_start_ms is not None else ""
+        lines.append(f"{ts}[{_speaker_label(current_speaker)}] {' '.join(current_parts)}")
 
     for s in sentences:
         spk  = s.get("speaker_id")

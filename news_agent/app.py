@@ -361,6 +361,38 @@ def _run_llm_token_expenditure_index_fetch() -> dict:
         _llm_token_index_fetch_lock.release()
 
 
+def _bootstrap_dashboard_datasets() -> None:
+    """Seed dashboard datasets that should exist even on a fresh deployment.
+
+    Runs in a background thread so startup stays responsive. Each dataset is
+    fetched only when it has no stored report yet, preserving the normal
+    cumulative history/update behavior for subsequent runs.
+    """
+    try:
+        existing = {row["script_name"] for row in db.get_all_script_reports()}
+        if _LLM_TOKEN_INDEX_SCRIPT_NAME not in existing:
+            logger_dashboard.info("Bootstrapping missing dashboard dataset: %s", _LLM_TOKEN_INDEX_SCRIPT_NAME)
+            _run_llm_token_expenditure_index_fetch()
+    except Exception:
+        logger_dashboard.exception("Dashboard bootstrap failed")
+
+
+def _ensure_llm_token_index_report() -> None:
+    """Guarantee the LLM token index dashboard exists, regardless of restarts.
+
+    This is intentionally request-safe and DB-backed: if the report already
+    exists we do nothing, and if it does not, we fetch it immediately so the
+    dashboard can render without depending on a prior startup hook.
+    """
+    try:
+        existing = {row["script_name"] for row in db.get_all_script_reports()}
+        if _LLM_TOKEN_INDEX_SCRIPT_NAME not in existing:
+            logger_dashboard.info("On-demand initializing dashboard dataset: %s", _LLM_TOKEN_INDEX_SCRIPT_NAME)
+            _run_llm_token_expenditure_index_fetch()
+    except Exception:
+        logger_dashboard.exception("Failed to ensure LLM token expenditure index report")
+
+
 # Explicit SGT timezone so all cron hours are unambiguous regardless of server clock.
 _scheduler = BackgroundScheduler(daemon=True, timezone="Asia/Singapore")
 
@@ -389,6 +421,7 @@ _scheduler.add_job(
 )
 
 _scheduler.start()
+threading.Thread(target=_bootstrap_dashboard_datasets, daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
@@ -1814,6 +1847,7 @@ def api_report_excel_download(script_name):
 @app.route("/dashboard/status")
 @login_required
 def dashboard_status():
+    _ensure_llm_token_index_report()
     reports = db.get_all_script_reports()
     if not any(report["script_name"] == _GPU_STATUS_SCRIPT_NAME for report in reports):
         gpu_fallback_panel = _build_gpu_status_panel_fallback()
@@ -1837,6 +1871,7 @@ def dashboard_status():
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    _ensure_llm_token_index_report()
     is_admin = g.current_user["email"] == ADMIN_EMAIL
     all_panels = db.get_all_script_reports()
     if not any(panel["script_name"] == _GPU_STATUS_SCRIPT_NAME for panel in all_panels):
