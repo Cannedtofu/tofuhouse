@@ -12,6 +12,7 @@ DB-backed Excel file and rebuilds a cumulative local history on every run.
 from __future__ import annotations
 
 import io
+import json
 import logging
 import re
 from datetime import datetime
@@ -28,35 +29,36 @@ _SCRIPT_NAME = "LLM Token Expenditure Index"
 _RAW_HEADERS = ["As Of Date", "Index Value USD / 1M Tokens", "Fetched At UTC", "Source URL"]
 
 
-def fetch_snapshot() -> dict:
+def fetch_snapshot_series() -> list[dict]:
     resp = requests.get(
         _EMBED_URL,
         headers={"User-Agent": "Mozilla/5.0"},
         timeout=30,
     )
     resp.raise_for_status()
-    return parse_snapshot(resp.text)
+    return parse_snapshot_series(resp.text)
 
 
-def parse_snapshot(html: str) -> dict:
-    date_match = re.search(r"As of\s*(?:<!-- -->)?([A-Z][a-z]{2} \d{1,2}, \d{4})", html)
-    value_match = re.search(
-        r'([0-9]+(?:\.[0-9]+)?)</span><span[^>]*>\s*USD per million tokens',
+def parse_snapshot_series(html: str) -> list[dict]:
+    series_match = re.search(
+        r'\\"indexes\\":\{([^{}]+)\}',
         html,
-        re.IGNORECASE,
     )
-    if not date_match or not value_match:
-        raise ValueError("Could not parse current Silicon Data token index snapshot")
+    if not series_match:
+        raise ValueError("Could not parse Silicon Data token index series")
 
-    as_of = datetime.strptime(date_match.group(1), "%b %d, %Y").date().isoformat()
-    value = float(value_match.group(1))
     fetched_at = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
-    return {
-        "as_of_date": as_of,
-        "index_value": value,
-        "fetched_at": fetched_at,
-        "source_url": _EMBED_URL,
-    }
+    series_json = "{" + series_match.group(1).replace('\\"', '"') + "}"
+    indexes = json.loads(series_json)
+    rows = []
+    for as_of_date, value in sorted(indexes.items()):
+        rows.append({
+            "as_of_date": as_of_date,
+            "index_value": float(value),
+            "fetched_at": fetched_at,
+            "source_url": _EMBED_URL,
+        })
+    return rows
 
 
 def _load_existing_rows(wb) -> dict[str, dict]:
@@ -81,17 +83,18 @@ def _load_existing_rows(wb) -> dict[str, dict]:
     return existing
 
 
-def merge_rows(wb, snapshot: dict) -> list[dict]:
+def merge_rows(wb, snapshots: list[dict]) -> list[dict]:
     merged = _load_existing_rows(wb)
-    prior = merged.get(snapshot["as_of_date"])
-    if prior is not None and prior["index_value"] != snapshot["index_value"]:
-        log.info(
-            "LLM token expenditure index: %s revised by source - %s -> %s",
-            snapshot["as_of_date"],
-            prior["index_value"],
-            snapshot["index_value"],
-        )
-    merged[snapshot["as_of_date"]] = snapshot
+    for snapshot in snapshots:
+        prior = merged.get(snapshot["as_of_date"])
+        if prior is not None and prior["index_value"] != snapshot["index_value"]:
+            log.info(
+                "LLM token expenditure index: %s revised by source - %s -> %s",
+                snapshot["as_of_date"],
+                prior["index_value"],
+                snapshot["index_value"],
+            )
+        merged[snapshot["as_of_date"]] = snapshot
     return [merged[key] for key in sorted(merged.keys())]
 
 
@@ -114,6 +117,10 @@ def _upsert_raw_sheet(wb, rows: list[dict]) -> None:
 
 
 def build_panels(rows: list[dict]) -> list[dict]:
+    history_rows = [
+        [row["as_of_date"], f'{row["index_value"]:.4f}']
+        for row in reversed(rows)
+    ]
     return [
         {
             "type": "line",
@@ -129,16 +136,25 @@ def build_panels(rows: list[dict]) -> list[dict]:
                     ],
                 }
             ],
-        }
+        },
+        {
+            "type": "table",
+            "title": "Published History",
+            "headers": ["Date", "USD / 1M Tokens"],
+            "rows": history_rows,
+        },
     ]
 
 
 def run_llm_token_expenditure_index_fetch() -> tuple[list[dict], bytes]:
-    snapshot = fetch_snapshot()
+    snapshots = fetch_snapshot_series()
+    if not snapshots:
+        raise ValueError("Silicon Data token index returned no rows")
     log.info(
-        "LLM token expenditure index: fetched %s = %.4f",
-        snapshot["as_of_date"],
-        snapshot["index_value"],
+        "LLM token expenditure index: fetched %d row(s) from %s to %s",
+        len(snapshots),
+        snapshots[0]["as_of_date"],
+        snapshots[-1]["as_of_date"],
     )
 
     existing_file = db.get_script_file(_SCRIPT_NAME)
@@ -147,7 +163,7 @@ def run_llm_token_expenditure_index_fetch() -> tuple[list[dict], bytes]:
     else:
         wb = openpyxl.Workbook()
 
-    merged_rows = merge_rows(wb, snapshot)
+    merged_rows = merge_rows(wb, snapshots)
     _upsert_raw_sheet(wb, merged_rows)
 
     if "Sheet" in wb.sheetnames and len(wb.sheetnames) > 1:
