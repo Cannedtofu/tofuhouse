@@ -2,6 +2,11 @@
 
 **Purpose:** Cross-reference map for Claude Code. Read this before editing any file. Update this after any change that affects public function signatures, shared state, or cross-module dependencies.
 
+**Latest notable additions:**
+- Topic tracking workflow via `topic_graph.py` (LangGraph-based Web + YouTube + X search/enrichment/dedupe).
+- Topic persistence in new DB tables: `topics`, `topic_items`, `topic_item_sources`, `user_topic_follows`.
+- New UI/routes for `/topics` plus mixed source/topic rendering in `/`.
+
 ---
 
 ## 1. Module Registry

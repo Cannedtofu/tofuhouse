@@ -44,6 +44,12 @@ MAX_ARTICLES_PER_SOURCE = 50            # cap per source per run to avoid runawa
 CONTENT_LENGTH_THRESHOLD = 500           # fetch full content if RSS body is shorter
 MIN_CONTENT_WORDS = 200                  # re-fetch existing articles whose stored content is shorter than this
 
+# --- Topic tracking ---
+TOPIC_FETCH_HOUR_SGT = int(os.getenv("TOPIC_FETCH_HOUR_SGT", "6"))
+TOPIC_MAX_RESULTS_PER_QUERY = int(os.getenv("TOPIC_MAX_RESULTS_PER_QUERY", "8"))
+TOPIC_MIN_CONFIDENCE = float(os.getenv("TOPIC_MIN_CONFIDENCE", "0.35"))
+TOPIC_DEFAULT_CHANNELS = ["web", "youtube", "x"]
+
 # --- Default sources (seeded into DB on first run if no sources exist) ---
 DEFAULT_SOURCES = [
     {

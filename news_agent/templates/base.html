@@ -16,7 +16,6 @@
     .summary-text { color: #495057; font-size: .92rem; }
     #fetch-btn { min-width: 130px; }
     #fetch-spinner { display: none; }
-    /* Article body rendered as Markdown */
     #detail-body img { max-width: 100%; height: auto; border-radius: 4px; margin: .75rem 0; }
     #detail-body h1, #detail-body h2, #detail-body h3 { margin-top: 1.25rem; font-size: 1.1rem; font-weight: 600; }
     #detail-body p { margin-bottom: .75rem; }
@@ -31,13 +30,14 @@
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container">
-      <a class="navbar-brand" href="/">📰 新闻助手</a>
+      <a class="navbar-brand" href="/">新闻助手</a>
       <div class="navbar-nav ms-auto d-flex align-items-center">
         {% if g.current_user %}
           <a class="nav-link {% if request.path == '/subscribe' %}active{% endif %}" href="/subscribe">订阅设置</a>
           <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">资讯</a>
           <a class="nav-link {% if request.path == '/digests' %}active{% endif %}" href="/digests">简报</a>
           <a class="nav-link {% if request.path == '/sources' %}active{% endif %}" href="/sources">来源</a>
+          <a class="nav-link {% if request.path == '/topics' %}active{% endif %}" href="/topics">话题</a>
           <a class="nav-link {% if request.path == '/transcript' %}active{% endif %}" href="/transcript">转录</a>
           <a class="nav-link {% if request.path.startswith('/dashboard') %}active{% endif %}" href="/dashboard">数据</a>
           <a class="nav-link {% if request.path == '/logs' %}active{% endif %}" href="/logs">日志</a>

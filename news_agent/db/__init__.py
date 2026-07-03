@@ -97,6 +97,24 @@ from db.script_reports import (
     set_panel_access,
     delete_script_data,
 )
+from db.topics import (
+    create_topic,
+    update_topic,
+    get_all_topics,
+    get_topic_by_id,
+    delete_topic,
+    update_topic_last_fetched,
+    get_followed_topic_ids,
+    follow_topic,
+    unfollow_topic,
+    get_all_topics_with_follow_status,
+    get_topic_item_by_id,
+    delete_topic_item,
+    upsert_topic_item,
+    get_topic_item_sources,
+    get_topic_item_sources_bulk,
+    get_topic_feed_items,
+)
 
 __all__ = [
     # core
@@ -126,6 +144,12 @@ __all__ = [
     "create_transcript_job", "get_done_transcript_job", "list_transcript_jobs",
     "update_transcript_job", "get_transcript_job", "set_transcript_metadata",
     "delete_transcript_job", "clear_transcript_summary",
+    # topics
+    "create_topic", "update_topic", "get_all_topics", "get_topic_by_id", "delete_topic",
+    "update_topic_last_fetched", "get_followed_topic_ids", "follow_topic", "unfollow_topic",
+    "get_all_topics_with_follow_status", "get_topic_item_by_id", "delete_topic_item",
+    "upsert_topic_item", "get_topic_item_sources", "get_topic_item_sources_bulk",
+    "get_topic_feed_items",
     # gpu prices
     "upsert_gpu_price_data", "get_gpu_price_data",
     "get_all_gpu_price_data", "get_gpu_price_last_updated",

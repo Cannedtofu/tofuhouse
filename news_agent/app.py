@@ -3,6 +3,7 @@
 import io
 import logging
 import os
+import re
 import threading
 import uuid
 from urllib.parse import quote as _url_quote
@@ -14,11 +15,12 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 import db
-from config import ADMIN_EMAIL, EMAIL_WHITELIST, REPORT_API_KEY, SECRET_KEY
+from config import ADMIN_EMAIL, EMAIL_WHITELIST, REPORT_API_KEY, SECRET_KEY, TOPIC_FETCH_HOUR_SGT
 from email_digest import build_email_digest
 from pipeline import run_fetch_and_summarize
 from ai_digest import generate_batch_digest
 from article_summarizer import summarize_single_article
+from topic_graph import run_topic_fetch
 
 # ---------------------------------------------------------------------------
 # Logging — console + rotating file
@@ -117,6 +119,7 @@ def _api_key_required():
 # Background fetch lock (prevent concurrent fetches from overlapping)
 _fetch_lock = threading.Lock()
 _fetch_status: dict = {"running": False, "last_result": None}
+_topic_fetch_status: dict = {"running": False, "last_result": None}
 
 # Digest jobs — keyed by UUID, each: {"status": "running"|"done"|"error", "result": str}
 _digest_jobs: dict[str, dict] = {}
@@ -145,6 +148,31 @@ def _scheduled_daily_fetch():
         logger_sched.error("Scheduled daily fetch error: %s", exc)
     finally:
         _fetch_status["running"] = False
+
+
+def _scheduled_topic_fetch():
+    """Topic fetch runs on its own schedule and does not reuse the source scheduler state."""
+    if _topic_fetch_status["running"]:
+        logger_sched.info("Skipping scheduled topic fetch - topic fetch already in progress")
+        return
+    _topic_fetch_status["running"] = True
+    logger_sched.info("Scheduled topic fetch starting")
+    log_id = db.log_fetch_start(trigger="scheduled-topics")
+    try:
+        result = run_topic_fetch()
+        db.log_fetch_finish(log_id, result)
+        _topic_fetch_status["last_result"] = {
+            "status": "ok",
+            "new_articles": result["total_new"],
+            "sources": result["sources"],
+        }
+        logger_sched.info("Scheduled topic fetch done: %d new item(s)", result["total_new"])
+    except Exception as exc:
+        db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
+        _topic_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
+        logger_sched.error("Scheduled topic fetch error: %s", exc)
+    finally:
+        _topic_fetch_status["running"] = False
 
 
 def _scheduled_digest_send():
@@ -397,6 +425,7 @@ def _ensure_llm_token_index_report() -> None:
 _scheduler = BackgroundScheduler(daemon=True, timezone="Asia/Singapore")
 
 _scheduler.add_job(_scheduled_daily_fetch, "cron", hour=5,  minute=0, id="daily_fetch")   # 05:00 SGT
+_scheduler.add_job(_scheduled_topic_fetch, "cron", hour=TOPIC_FETCH_HOUR_SGT, minute=0, id="topic_fetch")
 _scheduler.add_job(_scheduled_digest_send, "cron", hour=9,  minute=0, id="digest_send")   # 09:00 SGT
 _scheduler.add_job(                                                                         # 09:00 SGT
     lambda: _run_gpu_price_fetch(),
@@ -446,6 +475,9 @@ def identify():
             if not db.get_followed_source_ids(user["id"]):
                 for s in db.get_all_sources():
                     db.follow_source(user["id"], s["id"])
+            if not db.get_followed_topic_ids(user["id"]):
+                for topic in db.get_all_topics(active_only=True):
+                    db.follow_topic(user["id"], topic["id"])
             session["user_id"] = user["id"]
             next_url = request.args.get("next", "")
             if not next_url.startswith("/"):
@@ -464,6 +496,19 @@ def logout():
 # News feed
 # ---------------------------------------------------------------------------
 
+def _decorate_topic_items(rows: list[dict]) -> list[dict]:
+    source_map = db.get_topic_item_sources_bulk([row["id"] for row in rows])
+    decorated: list[dict] = []
+    for row in rows:
+        item = dict(row)
+        item["source_name"] = item.pop("topic_name")
+        item["source_type"] = "topic"
+        item["kind"] = "topic_item"
+        item["provenance"] = source_map.get(item["id"], [])
+        item["translated_content"] = None
+        decorated.append(item)
+    return decorated
+
 @app.route("/")
 @login_required
 def index():
@@ -473,23 +518,35 @@ def index():
     date_from = request.args.get("date_from", week_ago)
     date_to = request.args.get("date_to", today)
     selected_source_ids = request.args.getlist("source_ids", type=int)
+    selected_topic_ids = request.args.getlist("topic_ids", type=int)
 
     all_sources = db.get_all_sources()
+    all_topics = db.get_all_topics(active_only=True)
     followed_ids = db.get_followed_source_ids(g.current_user["id"])
+    followed_topic_ids = db.get_followed_topic_ids(g.current_user["id"])
+    if all_topics and not followed_topic_ids:
+        for topic in all_topics:
+            db.follow_topic(g.current_user["id"], topic["id"])
+        followed_topic_ids = db.get_followed_topic_ids(g.current_user["id"])
 
-    # Use explicitly selected sources (from filter form), else the user's followed list.
-    # followed_ids is always populated on sign-in, so this is always user-specific.
-    if selected_source_ids:
-        source_ids = selected_source_ids
-    else:
-        source_ids = followed_ids if followed_ids else None
+    source_ids = selected_source_ids if selected_source_ids else (followed_ids if followed_ids else None)
+    topic_ids = selected_topic_ids if selected_topic_ids else (followed_topic_ids if followed_topic_ids else None)
 
-    articles = db.get_articles(
+    source_articles = db.get_articles(
         date_from=date_from,
         date_to=date_to,
         source_ids=source_ids,
     )
-    articles_list = [dict(a) for a in articles]
+    topic_items = db.get_topic_feed_items(
+        date_from=date_from,
+        date_to=date_to,
+        topic_ids=topic_ids,
+    )
+    articles_list = sorted(
+        [*[dict(a) for a in source_articles], *_decorate_topic_items([dict(a) for a in topic_items])],
+        key=lambda item: item.get("published_at") or item.get("fetched_at") or "",
+        reverse=True,
+    )
 
     # Group articles by source, preserving first-appearance order
     source_order: dict[str, int] = {}
@@ -542,8 +599,11 @@ def index():
         non_nitter_groups=non_nitter_groups,
         nitter_groups=nitter_groups,
         all_sources=[dict(s) for s in all_sources],
+        all_topics=all_topics,
         selected_source_ids=selected_source_ids,
+        selected_topic_ids=selected_topic_ids,
         followed_source_ids=followed_ids,
+        followed_topic_ids=followed_topic_ids,
         date_from=date_from,
         date_to=date_to,
         fetch_status=_fetch_status,
@@ -629,6 +689,65 @@ def toggle_follow(source_id: int):
     return redirect(url_for("sources"))
 
 
+@app.route("/topics", methods=["GET", "POST"])
+@login_required
+def topics():
+    error = None
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        aliases_raw = request.form.get("aliases", "").strip()
+        aliases = [part.strip() for part in re.split(r"[\n,]+", aliases_raw) if part.strip()]
+        channels = request.form.getlist("channels") or ["web", "youtube", "x"]
+        backfill_date_from = request.form.get("backfill_date_from", "").strip() or None
+        backfill_date_to = request.form.get("backfill_date_to", "").strip() or None
+        if not name:
+            error = "Topic name is required."
+        else:
+            try:
+                topic = db.create_topic(
+                    name=name,
+                    aliases=aliases,
+                    channels=channels,
+                    backfill_date_from=backfill_date_from,
+                    backfill_date_to=backfill_date_to,
+                )
+                db.follow_topic(g.current_user["id"], topic["id"])
+                return redirect(url_for("topics"))
+            except Exception as exc:
+                error = f"Error saving topic: {exc}"
+
+    all_topics = db.get_all_topics()
+    followed_topic_ids = db.get_followed_topic_ids(g.current_user["id"])
+    return render_template(
+        "topics.html",
+        topics=all_topics,
+        error=error,
+        followed_topic_ids=followed_topic_ids,
+        topic_fetch_status=_topic_fetch_status,
+    )
+
+
+@app.route("/topics/<int:topic_id>/follow", methods=["POST"])
+@login_required
+def toggle_topic_follow(topic_id: int):
+    action = request.form.get("action", "follow")
+    uid = g.current_user["id"]
+    if action == "unfollow":
+        db.unfollow_topic(uid, topic_id)
+    else:
+        db.follow_topic(uid, topic_id)
+    return redirect(url_for("topics"))
+
+
+@app.route("/topics/<int:topic_id>/delete", methods=["POST"])
+@login_required
+def delete_topic(topic_id: int):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return redirect(url_for("topics"))
+    db.delete_topic(topic_id)
+    return redirect(url_for("topics"))
+
+
 @app.route("/sources/detect", methods=["POST"])
 def detect_source():
     from fetchers.detect import detect_source as _detect
@@ -672,17 +791,27 @@ def fetch():
     date_from = data.get("date_from") or None
     date_to = data.get("date_to") or None
     source_ids = data.get("source_ids") or None  # None = all sources
+    topic_ids = data.get("topic_ids") or None
 
     def _run():
         _fetch_status["running"] = True
         log_id = db.log_fetch_start(trigger="manual")
         try:
-            result = run_fetch_and_summarize(
+            source_result = run_fetch_and_summarize(
                 summarize=False,
                 date_from=date_from,
                 date_to=date_to,
                 source_ids=source_ids,
             )
+            topic_result = run_topic_fetch(
+                topic_ids=topic_ids,
+                date_from=date_from,
+                date_to=date_to,
+            )
+            result = {
+                "total_new": source_result["total_new"] + topic_result["total_new"],
+                "sources": [*source_result["sources"], *topic_result["sources"]],
+            }
             db.log_fetch_finish(log_id, result)
             _fetch_status["last_result"] = {"status": "ok", "new_articles": result["total_new"], "sources": result["sources"]}
         except Exception as exc:
@@ -700,6 +829,11 @@ def fetch():
 @app.route("/fetch/status")
 def fetch_status():
     return jsonify(_fetch_status)
+
+
+@app.route("/topics/fetch/status")
+def topic_fetch_status():
+    return jsonify(_topic_fetch_status)
 
 
 @app.route("/sources/<int:source_id>/fetch", methods=["POST"])
@@ -734,6 +868,43 @@ def fetch_nitter_source(source_id):
     return jsonify({"ok": True})
 
 
+@app.route("/topics/<int:topic_id>/fetch", methods=["POST"])
+@login_required
+def fetch_topic(topic_id: int):
+    if _topic_fetch_status["running"]:
+        return jsonify({"ok": False, "error": "A topic fetch is already running"}), 409
+
+    data = request.get_json(silent=True) or {}
+    date_from = data.get("date_from") or None
+    date_to = data.get("date_to") or None
+    topic = db.get_topic_by_id(topic_id)
+    if not topic:
+        return jsonify({"ok": False, "error": "Topic not found"}), 404
+    date_from = date_from or topic.get("backfill_date_from")
+    date_to = date_to or topic.get("backfill_date_to")
+
+    def _run():
+        _topic_fetch_status["running"] = True
+        log_id = db.log_fetch_start(trigger="manual-topic")
+        try:
+            result = run_topic_fetch(topic_ids=[topic_id], date_from=date_from, date_to=date_to)
+            db.log_fetch_finish(log_id, result)
+            _topic_fetch_status["last_result"] = {
+                "status": "ok",
+                "new_articles": result["total_new"],
+                "sources": result["sources"],
+            }
+        except Exception as exc:
+            logging.exception("Topic manual fetch error")
+            db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
+            _topic_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
+        finally:
+            _topic_fetch_status["running"] = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True})
+
+
 # ---------------------------------------------------------------------------
 # Article detail + on-demand summarization
 # ---------------------------------------------------------------------------
@@ -752,6 +923,15 @@ def delete_article(article_id: int):
     if g.current_user["email"] != ADMIN_EMAIL:
         return jsonify({"error": "Not authorised."}), 403
     db.delete_article(article_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/topic-items/<int:topic_item_id>/delete", methods=["POST"])
+@login_required
+def delete_topic_item(topic_item_id: int):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "Not authorised."}), 403
+    db.delete_topic_item(topic_item_id)
     return jsonify({"ok": True})
 
 

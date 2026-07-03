@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}话题{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-4 mb-4">
+    <div class="card p-4">
+      <h5 class="mb-3">新增话题</h5>
+      {% if error %}
+      <div class="alert alert-danger py-2">{{ error }}</div>
+      {% endif %}
+      <form method="post" action="/topics">
+        <div class="mb-3">
+          <label class="form-label">名称</label>
+          <input type="text" name="name" class="form-control" placeholder="例如 Jensen Huang" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">别名 / 查询词</label>
+          <textarea name="aliases" class="form-control" rows="4" placeholder="每行一个，或逗号分隔&#10;例如：黄仁勋&#10;NVIDIA CEO"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label d-block">渠道</label>
+          {% for ch, label in [('web', 'Web'), ('youtube', 'YouTube'), ('x', 'X')] %}
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" name="channels" value="{{ ch }}" checked>
+            <label class="form-check-label">{{ label }}</label>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label">回填开始</label>
+            <input type="date" name="backfill_date_from" class="form-control">
+          </div>
+          <div class="col">
+            <label class="form-label">回填结束</label>
+            <input type="date" name="backfill_date_to" class="form-control">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">保存话题</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">已配置话题 ({{ topics|length }})</h5>
+      <div id="topic-fetch-toast" class="small text-muted"></div>
+    </div>
+    {% if topics %}
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle bg-white rounded shadow-sm" style="font-size:.875rem">
+        <thead class="table-light">
+          <tr>
+            <th>名称</th>
+            <th>别名</th>
+            <th>渠道</th>
+            <th>回填范围</th>
+            <th>最近抓取</th>
+            <th>关注</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in topics %}
+          <tr>
+            <td class="fw-medium">{{ t.name }}</td>
+            <td class="text-muted small">{{ t.aliases | join(", ") if t.aliases else "—" }}</td>
+            <td class="text-muted small">{{ t.channels | join(", ") }}</td>
+            <td class="text-muted small">{{ t.backfill_date_from or "—" }}{% if t.backfill_date_to %} → {{ t.backfill_date_to }}{% endif %}</td>
+            <td class="text-muted small">{{ t.last_fetched | to_sgt if t.last_fetched else "—" }}</td>
+            <td>
+              {% if t.id in followed_topic_ids %}
+              <form method="post" action="/topics/{{ t.id }}/follow" class="d-inline">
+                <input type="hidden" name="action" value="unfollow">
+                <button class="btn btn-sm btn-success">已关注</button>
+              </form>
+              {% else %}
+              <form method="post" action="/topics/{{ t.id }}/follow" class="d-inline">
+                <input type="hidden" name="action" value="follow">
+                <button class="btn btn-sm btn-outline-secondary">关注</button>
+              </form>
+              {% endif %}
+            </td>
+            <td class="d-flex gap-1 flex-wrap">
+              <button class="btn btn-sm btn-outline-primary" onclick="fetchTopic({{ t.id }}, this)">抓取</button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="backfillTopic({{ t.id }}, this)">回填</button>
+              {% if is_admin %}
+              <form method="post" action="/topics/{{ t.id }}/delete" class="d-inline"
+                    onsubmit="return confirm('删除话题 {{ t.name }} 以及所有聚合条目？')">
+                <button class="btn btn-sm btn-outline-danger">删除</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">还没有话题。</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fetchTopic(id, btn, payload) {
+  btn.disabled = true;
+  const oldLabel = btn.textContent;
+  btn.textContent = '抓取中...';
+  fetch(`/topics/${id}/fetch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {})
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) throw new Error(data.error || '请求失败');
+      pollTopicFetch(btn, oldLabel);
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = oldLabel;
+      showTopicToast(err.message || '请求失败');
+    });
+}
+
+function backfillTopic(id, btn) {
+  const from = prompt('回填开始日期 YYYY-MM-DD');
+  if (!from) return;
+  const to = prompt('回填结束日期 YYYY-MM-DD');
+  if (!to) return;
+  fetchTopic(id, btn, { date_from: from, date_to: to });
+}
+
+function pollTopicFetch(btn, oldLabel) {
+  const timer = setInterval(() => {
+    fetch('/topics/fetch/status')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.running) {
+          clearInterval(timer);
+          btn.disabled = false;
+          btn.textContent = oldLabel;
+          const res = data.last_result;
+          if (res && res.status === 'ok') {
+            showTopicToast(`完成：新增 ${res.new_articles} 条话题条目`);
+            setTimeout(() => location.reload(), 1200);
+          } else if (res && res.message) {
+            showTopicToast(res.message);
+          }
+        }
+      })
+      .catch(() => {
+        clearInterval(timer);
+        btn.disabled = false;
+        btn.textContent = oldLabel;
+        showTopicToast('轮询失败');
+      });
+  }, 2000);
+}
+
+function showTopicToast(text) {
+  document.getElementById('topic-fetch-toast').textContent = text;
+}
+</script>
+{% endblock %}

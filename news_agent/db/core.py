@@ -73,6 +73,50 @@ def init_db():
                 PRIMARY KEY (user_id, source_id)
             );
 
+            CREATE TABLE IF NOT EXISTS topics (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                name               TEXT    NOT NULL UNIQUE,
+                aliases_json       TEXT    NOT NULL DEFAULT '[]',
+                channels_json      TEXT    NOT NULL DEFAULT '["web","youtube","x"]',
+                active             INTEGER NOT NULL DEFAULT 1,
+                backfill_date_from TEXT,
+                backfill_date_to   TEXT,
+                last_fetched       TEXT,
+                created_at         TEXT    NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS topic_items (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                topic_id           INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+                canonical_key      TEXT    NOT NULL UNIQUE,
+                title              TEXT    NOT NULL,
+                url                TEXT,
+                content            TEXT,
+                published_at       TEXT,
+                fetched_at         TEXT    NOT NULL,
+                primary_platform   TEXT    NOT NULL,
+                confidence         REAL    NOT NULL DEFAULT 0,
+                translated_content TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS topic_item_sources (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                topic_item_id   INTEGER NOT NULL REFERENCES topic_items(id) ON DELETE CASCADE,
+                platform        TEXT    NOT NULL,
+                source_label    TEXT,
+                url             TEXT    NOT NULL UNIQUE,
+                title           TEXT,
+                content_snippet TEXT,
+                published_at    TEXT,
+                is_primary      INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS user_topic_follows (
+                user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                topic_id INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+                PRIMARY KEY (user_id, topic_id)
+            );
+
             CREATE TABLE IF NOT EXISTS digests (
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,
                 article_ids_hash TEXT    NOT NULL UNIQUE,
@@ -96,6 +140,12 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_fetch_log_started ON fetch_log(started_at);
             CREATE INDEX IF NOT EXISTS idx_usf_user          ON user_source_follows(user_id);
             CREATE INDEX IF NOT EXISTS idx_token_usage_user  ON token_usage(user_id);
+            CREATE INDEX IF NOT EXISTS idx_topics_active     ON topics(active, name);
+            CREATE INDEX IF NOT EXISTS idx_topic_items_topic_date
+                ON topic_items(topic_id, published_at DESC, fetched_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_topic_item_sources_item
+                ON topic_item_sources(topic_item_id, is_primary DESC);
+            CREATE INDEX IF NOT EXISTS idx_utf_user          ON user_topic_follows(user_id);
 
             CREATE TABLE IF NOT EXISTS transcript_jobs (
                 job_id        TEXT    PRIMARY KEY,
@@ -252,6 +302,10 @@ def init_db():
             pass
         try:
             conn.execute("ALTER TABLE digest_presets ADD COLUMN digest_last_sent TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE topic_items ADD COLUMN translated_content TEXT")
         except Exception:
             pass
         # Widen sources.type CHECK to include 'youtube' and 'xiaoyuzhou'

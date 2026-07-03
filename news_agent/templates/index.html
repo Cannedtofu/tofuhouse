@@ -2,19 +2,13 @@
 {% block title %}资讯{% endblock %}
 
 {% block content %}
-{# Pass article data to JS as JSON #}
 <script id="articles-data" type="application/json">{{ articles | tojson }}</script>
 
-<!-- Two-panel layout — fills viewport below navbar -->
 <div class="row g-0" style="height: calc(100vh - 90px); min-height: 500px;">
-
-  <!-- LEFT: article list grouped by source -->
   <div class="col-4 border-end d-flex flex-column" style="height: 100%; overflow: hidden;">
     <div id="article-list" style="overflow-y: auto; flex: 1;">
       {% set has_articles = non_nitter_groups or nitter_groups %}
       {% if has_articles %}
-
-        {# --- Non-nitter sources (all collapsed by default) --- #}
         {% for group in non_nitter_groups %}
           {% set grp_id = "src-grp-" ~ loop.index %}
           <div class="source-group">
@@ -26,31 +20,31 @@
               <span class="badge rounded-pill ms-1
                 {% if group.type == 'rss' %}bg-warning text-dark
                 {% elif group.type == 'youtube' %}bg-danger
+                {% elif group.type == 'topic' %}bg-primary
                 {% else %}bg-success{% endif %}"
                 style="font-size:.65rem">{{ group.type }}</span>
               <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
-              <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
+              <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▼</span>
             </div>
             <div id="{{ grp_id }}" class="collapse">
               {% for a in group.articles %}
-                <div class="article-list-item px-3 py-2 border-bottom position-relative"
-                     data-id="{{ a.id }}" onclick="selectArticle({{ a.id }})" style="cursor:pointer">
-                  <div class="fw-medium lh-sm pe-3" style="font-size:.88rem">{{ a.title or a.url }}</div>
-                  <div class="text-muted" style="font-size:.75rem">
-                    {% set pub = a.published_at or a.fetched_at %}{% if pub %}{{ pub[:10] }}{% endif %}
-                  </div>
-                  {% if is_admin %}
-                  <button class="btn btn-link p-0 text-danger position-absolute top-50 end-0 translate-middle-y me-2"
-                          style="font-size:.8rem; opacity:0.35; line-height:1;"
-                          onclick="event.stopPropagation(); deleteArticle({{ a.id }})" title="删除">✕</button>
-                  {% endif %}
+              <div class="article-list-item px-3 py-2 border-bottom position-relative"
+                   data-id="{{ a.id }}" onclick="selectArticle({{ a.id }})" style="cursor:pointer">
+                <div class="fw-medium lh-sm pe-3" style="font-size:.88rem">{{ a.title or a.url }}</div>
+                <div class="text-muted" style="font-size:.75rem">
+                  {% set pub = a.published_at or a.fetched_at %}{% if pub %}{{ pub[:10] }}{% endif %}
                 </div>
+                {% if is_admin %}
+                <button class="btn btn-link p-0 text-danger position-absolute top-50 end-0 translate-middle-y me-2"
+                        style="font-size:.8rem; opacity:0.35; line-height:1;"
+                        onclick="event.stopPropagation(); deleteArticle({{ a.id }})" title="删除">✕</button>
+                {% endif %}
+              </div>
               {% endfor %}
             </div>
           </div>
         {% endfor %}
 
-        {# --- All nitter sources nested under a single "推特" super-group --- #}
         {% if nitter_groups %}
           {% set ns = namespace(total=0) %}
           {% for g in nitter_groups %}{% set ns.total = ns.total + g.articles|length %}{% endfor %}
@@ -62,68 +56,63 @@
               <span class="fw-semibold" style="font-size:.82rem">推特</span>
               <span class="badge bg-info text-dark rounded-pill ms-1" style="font-size:.65rem">nitter</span>
               <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ ns.total }}</span>
-              <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
+              <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▼</span>
             </div>
             <div class="collapse" id="twitter-super-group">
               {% for group in nitter_groups %}
-                {% set grp_id = "src-grp-nitter-" ~ loop.index %}
-                <div class="source-group">
-                  <div class="source-group-header px-3 ps-4 py-2 d-flex align-items-center gap-2 border-bottom"
-                       data-bs-toggle="collapse" data-bs-target="#{{ grp_id }}"
-                       aria-expanded="false"
-                       style="cursor:pointer; background:#f8f9fa; user-select:none;">
-                    <span class="fw-semibold" style="font-size:.82rem">{{ group.name }}</span>
-                    <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
-                    <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▾</span>
-                  </div>
-                  <div id="{{ grp_id }}" class="collapse">
-                    {% for a in group.articles %}
-                      <div class="article-list-item px-3 ps-4 py-2 border-bottom position-relative"
-                           data-id="{{ a.id }}" onclick="selectArticle({{ a.id }})" style="cursor:pointer">
-                        <div class="fw-medium lh-sm pe-3" style="font-size:.88rem">{{ a.title or a.url }}</div>
-                        <div class="text-muted" style="font-size:.75rem">
-                          {% set pub = a.published_at or a.fetched_at %}{% if pub %}{{ pub[:10] }}{% endif %}
-                        </div>
-                        {% if is_admin %}
-                        <button class="btn btn-link p-0 text-danger position-absolute top-50 end-0 translate-middle-y me-2"
-                                style="font-size:.8rem; opacity:0.35; line-height:1;"
-                                onclick="event.stopPropagation(); deleteArticle({{ a.id }})" title="删除">✕</button>
-                        {% endif %}
-                      </div>
-                    {% endfor %}
-                  </div>
+              {% set grp_id = "src-grp-nitter-" ~ loop.index %}
+              <div class="source-group">
+                <div class="source-group-header px-3 ps-4 py-2 d-flex align-items-center gap-2 border-bottom"
+                     data-bs-toggle="collapse" data-bs-target="#{{ grp_id }}"
+                     aria-expanded="false"
+                     style="cursor:pointer; background:#f8f9fa; user-select:none;">
+                  <span class="fw-semibold" style="font-size:.82rem">{{ group.name }}</span>
+                  <span class="badge bg-secondary rounded-pill ms-auto" style="font-size:.65rem">{{ group.articles|length }}</span>
+                  <span class="source-chevron text-muted" style="font-size:.7rem; transition:transform .2s">▼</span>
                 </div>
+                <div id="{{ grp_id }}" class="collapse">
+                  {% for a in group.articles %}
+                  <div class="article-list-item px-3 ps-4 py-2 border-bottom position-relative"
+                       data-id="{{ a.id }}" onclick="selectArticle({{ a.id }})" style="cursor:pointer">
+                    <div class="fw-medium lh-sm pe-3" style="font-size:.88rem">{{ a.title or a.url }}</div>
+                    <div class="text-muted" style="font-size:.75rem">
+                      {% set pub = a.published_at or a.fetched_at %}{% if pub %}{{ pub[:10] }}{% endif %}
+                    </div>
+                    {% if is_admin %}
+                    <button class="btn btn-link p-0 text-danger position-absolute top-50 end-0 translate-middle-y me-2"
+                            style="font-size:.8rem; opacity:0.35; line-height:1;"
+                            onclick="event.stopPropagation(); deleteArticle({{ a.id }})" title="删除">✕</button>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
               {% endfor %}
             </div>
           </div>
         {% endif %}
-
       {% else %}
-        <div class="text-center text-muted p-4">
-          <p>暂无文章。</p>
-          <p><a href="/sources">添加来源</a>后点击 <strong>抓取已选信息源</strong>。</p>
-        </div>
+      <div class="text-center text-muted p-4">
+        <p>暂无内容。</p>
+        <p><a href="/sources">添加来源</a> 或 <a href="/topics">添加话题</a> 后再抓取。</p>
+      </div>
       {% endif %}
     </div>
   </div>
 
-  <!-- RIGHT: controls + article detail -->
   <div class="col-8 d-flex flex-column" style="height: 100%; overflow: hidden;">
-
-    <!-- Fixed header: action buttons + filter form -->
     <div class="px-3 pt-3 pb-2 border-bottom bg-white flex-shrink-0">
-      <!-- Row 1: action buttons -->
       <div class="d-flex align-items-center gap-2 mb-2">
         <button id="digest-btn" type="button" class="btn btn-sm btn-outline-secondary" onclick="generateDigest()">
-          <span id="digest-label">✦ 生成一次性AI简报</span>
+          <span id="digest-label">生成一次性 AI 简报</span>
           <span id="digest-spinner" class="spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
-<button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
-          <span id="fetch-label">⬇ 抓取已选信息源</span>
+        <button id="fetch-btn" type="button" class="btn btn-sm btn-success" onclick="triggerFetch()">
+          <span id="fetch-label">抓取当前选择</span>
           <span id="fetch-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
         </button>
       </div>
-      <!-- Row 2: filter form -->
+
       <form method="get" action="/" class="d-flex flex-wrap gap-2 align-items-end" id="filter-form">
         <div>
           <label class="form-label mb-1 small fw-semibold">开始</label>
@@ -142,28 +131,40 @@
             </button>
             <ul class="dropdown-menu p-2" style="min-width:220px; max-height:340px; overflow-y:auto;">
               <li class="d-flex gap-1 mb-1 px-1">
-                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
-                        onclick="setAllSources(true)">全选</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1"
-                        onclick="setAllSources(false)">清空</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="setAllSources(true)">全选</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="setAllSources(false)">清空</button>
               </li>
-              {% set nitter_grp  = all_sources | selectattr('type', 'equalto', 'nitter')  | list %}
-              {% set rss_web_grp = (all_sources | selectattr('type', 'equalto', 'rss') | list) + (all_sources | selectattr('type', 'equalto', 'web') | list) %}
-              {% set youtube_grp = all_sources | selectattr('type', 'equalto', 'youtube') | list %}
-              {% for label, grp in [('推特', nitter_grp), ('RSS / 网站', rss_web_grp), ('YouTube', youtube_grp)] %}
-                {% if grp %}
-                <li><hr class="dropdown-divider my-1"></li>
-                <li><span class="dropdown-header" style="font-size:.72rem">{{ label }}</span></li>
-                {% for s in grp %}
-                <li>
-                  <label class="dropdown-item d-flex align-items-center gap-2 py-1">
-                    <input type="checkbox" name="source_ids" value="{{ s.id }}"
-                      {% if s.id in active_ids %}checked{% endif %}>
-                    <span>{{ s.name }}</span>
-                  </label>
-                </li>
-                {% endfor %}
-                {% endif %}
+              {% for s in all_sources %}
+              <li>
+                <label class="dropdown-item d-flex align-items-center gap-2 py-1">
+                  <input type="checkbox" name="source_ids" value="{{ s.id }}" {% if s.id in active_ids %}checked{% endif %}>
+                  <span>{{ s.name }}</span>
+                  <span class="text-muted small">({{ s.type }})</span>
+                </label>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        <div>
+          <label class="form-label mb-1 small fw-semibold">话题</label>
+          {% set active_topic_ids = selected_topic_ids if selected_topic_ids else followed_topic_ids %}
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+              {% if active_topic_ids %}已选 {{ active_topic_ids|length }} 个{% else %}全部话题{% endif %}
+            </button>
+            <ul class="dropdown-menu p-2" style="min-width:220px; max-height:340px; overflow-y:auto;">
+              <li class="d-flex gap-1 mb-1 px-1">
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="setAllTopics(true)">全选</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="setAllTopics(false)">清空</button>
+              </li>
+              {% for t in all_topics %}
+              <li>
+                <label class="dropdown-item d-flex align-items-center gap-2 py-1">
+                  <input type="checkbox" name="topic_ids" value="{{ t.id }}" {% if t.id in active_topic_ids %}checked{% endif %}>
+                  <span>{{ t.name }}</span>
+                </label>
+              </li>
               {% endfor %}
             </ul>
           </div>
@@ -173,56 +174,48 @@
           <a href="/" class="btn btn-sm btn-outline-secondary">重置</a>
         </div>
       </form>
-      <!-- Toast -->
       <div id="fetch-toast" class="alert mb-0 mt-2" style="display:none"></div>
     </div>
 
-<!-- AI Digest panel (collapsible, sits between header and detail) -->
     <div id="digest-panel" class="border-bottom flex-shrink-0" style="display:none">
       <div class="d-flex justify-content-between align-items-center px-3 py-2 bg-white border-bottom">
-        <span class="fw-semibold small">✦ AI Digest</span>
+        <span class="fw-semibold small">AI Digest</span>
         <button type="button" class="btn-close btn-sm" onclick="closeDigest()"></button>
       </div>
       <div class="px-4 py-3" style="max-height: 300px; overflow-y: auto; background:#fff;">
         <div id="digest-spinner-panel" class="text-muted small text-center py-3" style="display:none">
-          <span class="spinner-border spinner-border-sm me-1"></span>简报生成中，晚点再回来看看吧…
+          <span class="spinner-border spinner-border-sm me-1"></span>简报生成中...
         </div>
         <div id="digest-text" style="font-size:.9rem; line-height:1.7"></div>
       </div>
     </div>
 
-    <!-- Scrollable article detail -->
     <div class="flex-grow-1 overflow-auto p-4" id="detail-panel">
       <div class="text-center text-muted mt-5" id="detail-placeholder">
-        <p class="fs-5">← 点击左侧文章以阅读</p>
+        <p class="fs-5">点击左侧条目阅读</p>
       </div>
       <div id="detail-content" style="display:none">
         <div class="d-flex justify-content-between align-items-start mb-1">
           <h5 id="detail-title" class="mb-0 me-3"></h5>
           <div class="d-flex gap-2 flex-shrink-0 align-items-center">
-            <a id="detail-link" href="#" target="_blank" rel="noopener"
-               class="btn btn-sm btn-outline-secondary">打开 ↗</a>
-            <a id="transcript-link" href="#" target="_blank"
-               class="btn btn-sm btn-outline-danger" style="display:none">▶ 转录此视频</a>
-            <!-- Translate button -->
+            <a id="detail-link" href="#" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">打开原链接</a>
+            <a id="transcript-link" href="#" target="_blank" class="btn btn-sm btn-outline-danger" style="display:none">转录此视频</a>
             <button id="translate-btn" class="btn btn-sm btn-outline-primary" onclick="translateArticle()" style="display:none">
               <span id="translate-label">中文</span>
               <span id="translate-spinner" class="spinner-border spinner-border-sm" style="display:none"></span>
             </button>
-            <!-- PDF download split-button -->
             <div class="btn-group" id="pdf-download-group" style="display:none">
-              <a id="pdf-download-btn" href="#" class="btn btn-sm btn-outline-secondary">⬇ PDF</a>
+              <a id="pdf-download-btn" href="#" class="btn btn-sm btn-outline-secondary">PDF</a>
               <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
                 <span class="visually-hidden">更多</span>
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
-                <li><a id="pdf-original-btn" class="dropdown-item" href="#">⬇ 原文 PDF</a></li>
-                <li><a id="pdf-bilingual-btn" class="dropdown-item" href="#" style="display:none">⬇ 中英双语 PDF</a></li>
+                <li><a id="pdf-original-btn" class="dropdown-item" href="#">原文 PDF</a></li>
+                <li><a id="pdf-bilingual-btn" class="dropdown-item" href="#" style="display:none">双语 PDF</a></li>
               </ul>
             </div>
             {% if is_admin %}
-            <button id="detail-delete-btn" class="btn btn-sm btn-outline-danger"
-                    onclick="deleteArticle(currentId)">删除</button>
+            <button id="detail-delete-btn" class="btn btn-sm btn-outline-danger" onclick="deleteArticle(currentId)">删除</button>
             {% endif %}
           </div>
         </div>
@@ -230,15 +223,12 @@
         <div id="detail-body" style="font-size:.93rem; line-height:1.7; word-break:break-word;"></div>
       </div>
     </div>
-
   </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <style>
-/* Article body — images */
 #detail-body img {
   max-width: 100%;
   height: auto;
@@ -246,7 +236,6 @@
   margin: 8px 0;
   border-radius: 4px;
 }
-/* Article body — Chinese translation blockquotes */
 #detail-body blockquote {
   border-left: 3px solid #2563eb;
   margin: 3px 0 14px 0;
@@ -257,14 +246,16 @@
   border-radius: 0 4px 4px 0;
 }
 #detail-body blockquote p { margin: 0; color: inherit; }
-/* Ensure pre/code doesn't overflow */
 #detail-body pre { overflow-x: auto; background: #f8f9fa; padding: 10px; border-radius: 4px; }
 #detail-body code { font-size: .88em; }
 </style>
 <script>
-
 function setAllSources(checked) {
   document.querySelectorAll('input[name="source_ids"]').forEach(cb => cb.checked = checked);
+}
+
+function setAllTopics(checked) {
+  document.querySelectorAll('input[name="topic_ids"]').forEach(cb => cb.checked = checked);
 }
 
 const ARTICLES = JSON.parse(document.getElementById('articles-data').textContent);
@@ -272,7 +263,6 @@ const byId = {};
 ARTICLES.forEach(a => byId[a.id] = a);
 
 let currentId = null;
-// Per-article translation cache: id → bilingual markdown string
 const _translationCache = {};
 
 function _renderMarkdown(md) {
@@ -284,21 +274,22 @@ function _renderMarkdown(md) {
 
 function selectArticle(id) {
   currentId = id;
-
   document.querySelectorAll('.article-list-item').forEach(el => {
     el.classList.toggle('bg-primary-subtle', parseInt(el.dataset.id) === id);
   });
 
   const a = byId[id];
+  const isTopicItem = a.kind === 'topic_item';
+  const primaryUrl = a.url || (a.provenance && a.provenance.length ? a.provenance[0].url : '');
+
   document.getElementById('detail-placeholder').style.display = 'none';
   document.getElementById('detail-content').style.display = 'block';
-
-  document.getElementById('detail-title').textContent = a.title || a.url;
-  document.getElementById('detail-link').href = a.url;
+  document.getElementById('detail-title').textContent = a.title || primaryUrl;
+  document.getElementById('detail-link').href = primaryUrl || '#';
 
   const transcriptLink = document.getElementById('transcript-link');
-  if (a.url && a.url.includes('youtube.com/watch')) {
-    transcriptLink.href = '/transcript?url=' + encodeURIComponent(a.url);
+  if (primaryUrl && primaryUrl.includes('youtube.com/watch')) {
+    transcriptLink.href = '/transcript?url=' + encodeURIComponent(primaryUrl);
     transcriptLink.style.display = 'inline-block';
   } else {
     transcriptLink.style.display = 'none';
@@ -306,7 +297,7 @@ function selectArticle(id) {
 
   const pub = (a.published_at || a.fetched_at || '').slice(0, 10);
   document.getElementById('detail-meta').textContent =
-    [a.source_name, pub].filter(Boolean).join(' · ');
+    [a.source_name, pub, isTopicItem ? (a.primary_platform || 'topic') : null].filter(Boolean).join(' · ');
 
   const bodyEl = document.getElementById('detail-body');
   document.getElementById('detail-panel').scrollTop = 0;
@@ -320,19 +311,19 @@ function selectArticle(id) {
   const pdfBilingualBtn = document.getElementById('pdf-bilingual-btn');
 
   if (a.content) {
-    // Restore bilingual view from DB-persisted translation (survives page refresh)
-    if (a.translated_content && !_translationCache[id]) {
+    if (!isTopicItem && a.translated_content && !_translationCache[id]) {
       _translationCache[id] = a.translated_content;
     }
-
-    translateBtn.style.display = 'inline-block';
+    translateBtn.style.display = isTopicItem ? 'none' : 'inline-block';
     translateSpinner.style.display = 'none';
     translateBtn.disabled = false;
-    pdfGroup.style.display = 'inline-flex';
+    translateBtn.dataset.mode = 'original';
+    pdfGroup.style.display = isTopicItem ? 'none' : 'inline-flex';
     pdfOriginalBtn.href = `/articles/${id}/download/pdf?version=original`;
+    pdfBtn.href = `/articles/${id}/download/pdf?version=original`;
+    pdfBilingualBtn.style.display = 'none';
 
-    if (_translationCache[id]) {
-      // Already translated — show bilingual as the default view
+    if (!isTopicItem && _translationCache[id]) {
       bodyEl.innerHTML = _renderMarkdown(_translationCache[id]);
       translateLabel.textContent = '原文';
       translateBtn.dataset.mode = 'bilingual';
@@ -342,9 +333,12 @@ function selectArticle(id) {
     } else {
       bodyEl.innerHTML = _renderMarkdown(a.content || '（暂无内容）');
       translateLabel.textContent = '中文';
-      translateBtn.dataset.mode = 'original';
-      pdfBtn.href = `/articles/${id}/download/pdf?version=original`;
-      pdfBilingualBtn.style.display = 'none';
+      if (isTopicItem && a.provenance && a.provenance.length) {
+        const links = a.provenance.map(src =>
+          `<li><a href="${src.url}" target="_blank" rel="noopener">${src.title || src.url}</a> <span class="text-muted">(${src.platform})</span></li>`
+        ).join('');
+        bodyEl.innerHTML += `<hr><div class="small text-muted mb-2">Supporting sources</div><ul>${links}</ul>`;
+      }
     }
   } else {
     bodyEl.innerHTML = '（暂无内容）';
@@ -356,6 +350,8 @@ function selectArticle(id) {
 function translateArticle() {
   if (!currentId) return;
   const a = byId[currentId];
+  if (a.kind === 'topic_item') return;
+
   const id = currentId;
   const bodyEl = document.getElementById('detail-body');
   const translateBtn = document.getElementById('translate-btn');
@@ -363,7 +359,6 @@ function translateArticle() {
   const translateSpinner = document.getElementById('translate-spinner');
   const mode = translateBtn.dataset.mode;
 
-  // Toggle: if already showing bilingual, switch back to original
   if (mode === 'bilingual') {
     bodyEl.innerHTML = _renderMarkdown(a.content || '');
     translateLabel.textContent = '中文';
@@ -371,7 +366,6 @@ function translateArticle() {
     return;
   }
 
-  // If cached, show immediately
   if (_translationCache[id]) {
     bodyEl.innerHTML = _renderMarkdown(_translationCache[id]);
     translateLabel.textContent = '原文';
@@ -379,9 +373,8 @@ function translateArticle() {
     return;
   }
 
-  // Start translation
   translateBtn.disabled = true;
-  translateLabel.textContent = '翻译中…';
+  translateLabel.textContent = '翻译中...';
   translateSpinner.style.display = 'inline-block';
   translateBtn.dataset.mode = 'translating';
 
@@ -390,18 +383,15 @@ function translateArticle() {
     .then(data => {
       if (data.error) {
         _resetTranslateBtn(id);
-        alert('翻译失败：' + data.error);
+        alert('翻译失败: ' + data.error);
         return;
       }
       if (data.status === 'done') {
-        // Cached on server already
         _translationCache[id] = data.content;
         _showBilingual(id);
         return;
       }
-      if (data.job_id) {
-        _pollTranslation(id, data.job_id);
-      }
+      if (data.job_id) _pollTranslation(id, data.job_id);
     })
     .catch(() => { _resetTranslateBtn(id); alert('翻译请求失败。'); });
 }
@@ -419,9 +409,8 @@ function _pollTranslation(articleId, jobId) {
         } else if (data.status === 'error') {
           clearInterval(interval);
           _resetTranslateBtn(articleId);
-          alert('翻译失败：' + (data.error || '未知错误'));
+          alert('翻译失败: ' + (data.error || '未知错误'));
         }
-        // status === 'running': keep polling
       })
       .catch(() => { clearInterval(interval); _resetTranslateBtn(articleId); });
   }, 2000);
@@ -434,13 +423,14 @@ function _showBilingual(id) {
   const translateLabel = document.getElementById('translate-label');
   const translateSpinner = document.getElementById('translate-spinner');
   const pdfBilingualBtn = document.getElementById('pdf-bilingual-btn');
+  const pdfBtn = document.getElementById('pdf-download-btn');
 
   bodyEl.innerHTML = _renderMarkdown(_translationCache[id]);
   translateLabel.textContent = '原文';
   translateSpinner.style.display = 'none';
   translateBtn.disabled = false;
   translateBtn.dataset.mode = 'bilingual';
-
+  pdfBtn.href = `/articles/${id}/download/pdf?version=translated`;
   pdfBilingualBtn.href = `/articles/${id}/download/pdf?version=translated`;
   pdfBilingualBtn.style.display = 'block';
 }
@@ -456,13 +446,10 @@ function _resetTranslateBtn(id) {
   translateBtn.dataset.mode = 'original';
 }
 
-// ---- AI Digest ----
-
-
 function _startDigest(label) {
   const btn = document.getElementById('digest-btn');
   btn.disabled = true;
-  document.getElementById('digest-label').textContent = label || '生成中…';
+  document.getElementById('digest-label').textContent = label || '生成中...';
   document.getElementById('digest-spinner').style.display = 'inline-block';
   document.getElementById('digest-panel').style.display = 'block';
   document.getElementById('digest-spinner-panel').style.display = 'block';
@@ -484,15 +471,14 @@ function _submitDigest(body) {
 }
 
 function generateDigest() {
-  const ids = ARTICLES.map(a => a.id);
+  const ids = ARTICLES.filter(a => a.kind !== 'topic_item').map(a => a.id);
   if (ids.length === 0) {
-    alert('暂无文章可生成简报，请先应用筛选条件并获取文章。');
+    alert('当前列表里没有可生成简报的来源文章。');
     return;
   }
-  _startDigest('✦ 生成中…');
+  _startDigest('生成中...');
   _submitDigest({ article_ids: ids });
 }
-
 
 function pollDigestStatus(jobId) {
   const interval = setInterval(() => {
@@ -515,7 +501,7 @@ function pollDigestStatus(jobId) {
 
 function resetDigestBtn() {
   document.getElementById('digest-btn').disabled = false;
-  document.getElementById('digest-label').textContent = '✦ 生成一次性AI简报';
+  document.getElementById('digest-label').textContent = '生成一次性 AI 简报';
   document.getElementById('digest-spinner').style.display = 'none';
 }
 
@@ -525,12 +511,9 @@ function showDigestError(msg) {
   document.getElementById('digest-text').textContent = msg;
 }
 
-
 function renderDigest(md) {
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
   function renderLine(raw) {
-    // Extract markdown links before escaping so URLs are preserved verbatim
     const linkMap = {};
     let idx = 0;
     const withPlaceholders = raw.replace(/\[([^\]]*)\]\(([^)]*)\)/g, (_, text, url) => {
@@ -539,19 +522,15 @@ function renderDigest(md) {
       idx++;
       return key;
     });
-    // Escape remaining text (placeholders use \x00 which won't appear in normal text)
     let html = withPlaceholders.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-    // Restore links
     Object.entries(linkMap).forEach(([key, val]) => { html = html.replaceAll(key, val); });
-    // Bold
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     return html;
   }
-
   return md.split('\n').map(line => {
     if (/^---+$/.test(line.trim())) return '<hr class="my-3">';
     if (/^### /.test(line)) return `<div class="fw-bold mt-3 mb-1" style="font-size:1rem">${esc(line.slice(4))}</div>`;
-    if (/^## /.test(line))  return `<div class="fw-bold mt-2 mb-1" style="font-size:1.05rem;border-bottom:1px solid #dee2e6">${esc(line.slice(3))}</div>`;
+    if (/^## /.test(line)) return `<div class="fw-bold mt-2 mb-1" style="font-size:1.05rem;border-bottom:1px solid #dee2e6">${esc(line.slice(3))}</div>`;
     if (!line.trim()) return '<div class="mb-2"></div>';
     let html = renderLine(line);
     if (/^[\*\-]\s/.test(line)) {
@@ -566,34 +545,39 @@ function closeDigest() {
   document.getElementById('digest-panel').style.display = 'none';
 }
 
-// ---- Fetch Now ----
 function triggerFetch() {
   const btn = document.getElementById('fetch-btn');
   const label = document.getElementById('fetch-label');
   const spinner = document.getElementById('fetch-spinner');
   btn.disabled = true;
-  label.textContent = '获取中，晚点再回来看看吧…';
+  label.textContent = '抓取中...';
   spinner.style.display = 'inline-block';
 
   const dateFrom = document.querySelector('input[name="date_from"]').value;
   const dateTo = document.querySelector('input[name="date_to"]').value;
-  const sourceIds = Array.from(document.querySelectorAll('input[name="source_ids"]:checked'))
-                         .map(el => parseInt(el.value));
+  const sourceIds = Array.from(document.querySelectorAll('input[name="source_ids"]:checked')).map(el => parseInt(el.value));
+  const topicIds = Array.from(document.querySelectorAll('input[name="topic_ids"]:checked')).map(el => parseInt(el.value));
+
   fetch('/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date_from: dateFrom || null, date_to: dateTo || null, source_ids: sourceIds.length ? sourceIds : null })
+    body: JSON.stringify({
+      date_from: dateFrom || null,
+      date_to: dateTo || null,
+      source_ids: sourceIds.length ? sourceIds : null,
+      topic_ids: topicIds.length ? topicIds : null
+    })
   })
     .then(r => r.json())
     .then(data => {
       if (data.status === 'started') {
         pollFetchStatus();
       } else {
-        showToast('正在运行，请稍候。', 'warning');
+        showToast('抓取正在运行，请稍后。', 'warning');
         resetFetchBtn();
       }
     })
-    .catch(() => { showToast('获取请求失败。', 'danger'); resetFetchBtn(); });
+    .catch(() => { showToast('抓取请求失败。', 'danger'); resetFetchBtn(); });
 }
 
 function pollFetchStatus() {
@@ -618,7 +602,7 @@ function pollFetchStatus() {
 
 function resetFetchBtn() {
   document.getElementById('fetch-btn').disabled = false;
-  document.getElementById('fetch-label').textContent = '⬇ 抓取已选信息源';
+  document.getElementById('fetch-label').textContent = '抓取当前选择';
   document.getElementById('fetch-spinner').style.display = 'none';
 }
 
@@ -634,18 +618,17 @@ function showFetchResult(res) {
   const anyError = res.sources && res.sources.some(s => s.error);
   el.className = `alert ${anyError ? 'alert-warning' : 'alert-success'} mb-0 mt-2`;
 
-  let html = `<strong>Fetch complete — ${res.new_articles} new article(s)</strong>`;
+  let html = `<strong>抓取完成 - ${res.new_articles} 条新增</strong>`;
   if (res.sources && res.sources.length) {
     html += '<ul class="mb-0 mt-1" style="font-size:.85rem">';
     res.sources.forEach(s => {
       if (s.error) {
-        html += `<li><strong>${s.name}</strong>: <span class="text-danger">Error — ${s.error}</span></li>`;
+        html += `<li><strong>${s.name}</strong>: <span class="text-danger">Error - ${s.error}</span></li>`;
       } else {
         html += `<li><strong>${s.name}</strong>: ${s.fetched} fetched, ${s.new} new</li>`;
       }
     });
     html += '</ul>';
-    if (res.new_articles > 0) html += '<div class="mt-1 small">Reloading…</div>';
   }
   el.innerHTML = html;
   el.style.display = 'block';
@@ -656,25 +639,24 @@ function deleteArticle(id) {
   if (!id) return;
   const a = byId[id];
   const label = a ? (a.title || a.url || '该条目') : '该条目';
-  if (!confirm(`删除「${label}」？`)) return;
-  if (!confirm(`再次确认：永久删除「${label}」，此操作不可撤销。`)) return;
-  fetch(`/articles/${id}/delete`, { method: 'POST' })
+  if (!confirm(`删除“${label}”？`)) return;
+
+  const endpoint = a && a.kind === 'topic_item'
+    ? `/topic-items/${id}/delete`
+    : `/articles/${id}/delete`;
+
+  fetch(endpoint, { method: 'POST' })
     .then(r => r.json())
     .then(data => {
-      if (data.error) { alert(data.error); return; }
-      const idx = ARTICLES.findIndex(a => a.id === id);
-      if (idx !== -1) ARTICLES.splice(idx, 1);
-      delete byId[id];
-      const el = document.querySelector(`.article-list-item[data-id="${id}"]`);
-      if (el) el.remove();
-      if (currentId === id) {
-        currentId = null;
-        document.getElementById('detail-content').style.display = 'none';
-        document.getElementById('detail-placeholder').style.display = 'block';
-      }
+      if (!data.ok) throw new Error(data.error || '删除失败');
+      location.reload();
     })
-    .catch(() => alert('删除失败，请重试。'));
+    .catch(err => alert(err.message || '删除失败'));
 }
 {% endif %}
+
+if (ARTICLES.length > 0) {
+  selectArticle(ARTICLES[0].id);
+}
 </script>
 {% endblock %}
