@@ -78,6 +78,7 @@ from db.transcripts import (
     update_transcript_job,
     get_transcript_job,
     set_transcript_metadata,
+    update_transcript_title,
     delete_transcript_job,
     clear_transcript_summary,
 )
@@ -143,7 +144,7 @@ __all__ = [
     # transcripts
     "create_transcript_job", "get_done_transcript_job", "list_transcript_jobs",
     "update_transcript_job", "get_transcript_job", "set_transcript_metadata",
-    "delete_transcript_job", "clear_transcript_summary",
+    "update_transcript_title", "delete_transcript_job", "clear_transcript_summary",
     # topics
     "create_topic", "update_topic", "get_all_topics", "get_topic_by_id", "delete_topic",
     "update_topic_last_fetched", "get_followed_topic_ids", "follow_topic", "unfollow_topic",

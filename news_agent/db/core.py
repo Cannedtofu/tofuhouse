@@ -148,18 +148,23 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_utf_user          ON user_topic_follows(user_id);
 
             CREATE TABLE IF NOT EXISTS transcript_jobs (
-                job_id        TEXT    PRIMARY KEY,
-                video_url     TEXT    NOT NULL,
-                video_id      TEXT    NOT NULL,
-                video_title   TEXT,
-                video_author  TEXT,
-                mode          TEXT    NOT NULL DEFAULT 'no_diarization',
-                status        TEXT    NOT NULL DEFAULT 'pending',
-                transcript    TEXT,
-                summary       TEXT,
-                error_message TEXT,
-                created_at    TEXT    NOT NULL,
-                updated_at    TEXT    NOT NULL
+                job_id            TEXT    PRIMARY KEY,
+                video_url         TEXT    NOT NULL,
+                video_id          TEXT    NOT NULL,
+                video_title       TEXT,
+                video_author      TEXT,
+                mode              TEXT    NOT NULL DEFAULT 'no_diarization',
+                status            TEXT    NOT NULL DEFAULT 'pending',
+                transcript        TEXT,
+                summary           TEXT,
+                error_message     TEXT,
+                created_at        TEXT    NOT NULL,
+                updated_at        TEXT    NOT NULL,
+                transcript_zh     TEXT,
+                audio_path        TEXT,
+                initiated_by      TEXT,
+                input_type        TEXT    NOT NULL DEFAULT 'url',
+                original_filename TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_transcript_jobs_created ON transcript_jobs(created_at);
@@ -238,22 +243,28 @@ def init_db():
             conn.executescript("""
                 PRAGMA foreign_keys=OFF;
                 CREATE TABLE transcript_jobs_new (
-                    job_id        TEXT    PRIMARY KEY,
-                    video_url     TEXT    NOT NULL,
-                    video_id      TEXT    NOT NULL,
-                    mode          TEXT    NOT NULL DEFAULT 'no_diarization',
-                    status        TEXT    NOT NULL DEFAULT 'pending',
-                    transcript    TEXT,
-                    summary       TEXT,
-                    error_message TEXT,
-                    created_at    TEXT    NOT NULL,
-                    updated_at    TEXT    NOT NULL
+                    job_id            TEXT    PRIMARY KEY,
+                    video_url         TEXT    NOT NULL,
+                    video_id          TEXT    NOT NULL,
+                    mode              TEXT    NOT NULL DEFAULT 'no_diarization',
+                    status            TEXT    NOT NULL DEFAULT 'pending',
+                    transcript        TEXT,
+                    summary           TEXT,
+                    error_message     TEXT,
+                    created_at        TEXT    NOT NULL,
+                    updated_at        TEXT    NOT NULL,
+                    transcript_zh     TEXT,
+                    audio_path        TEXT,
+                    initiated_by      TEXT,
+                    input_type        TEXT    NOT NULL DEFAULT 'url',
+                    original_filename TEXT
                 );
                 INSERT INTO transcript_jobs_new
-                    (job_id, video_url, video_id, status, transcript, summary,
-                     error_message, created_at, updated_at)
-                    SELECT job_id, video_url, video_id, status, transcript, summary,
-                           error_message, created_at, updated_at
+                    (job_id, video_url, video_id, mode, status, transcript, summary,
+                     error_message, created_at, updated_at, transcript_zh, audio_path,
+                     initiated_by, input_type, original_filename)
+                    SELECT job_id, video_url, video_id, 'no_diarization', status, transcript, summary,
+                           error_message, created_at, updated_at, NULL, NULL, NULL, 'url', NULL
                     FROM transcript_jobs;
                 DROP TABLE transcript_jobs;
                 ALTER TABLE transcript_jobs_new RENAME TO transcript_jobs;
@@ -286,6 +297,14 @@ def init_db():
             pass
         try:
             conn.execute("ALTER TABLE transcript_jobs ADD COLUMN initiated_by TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE transcript_jobs ADD COLUMN input_type TEXT NOT NULL DEFAULT 'url'")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE transcript_jobs ADD COLUMN original_filename TEXT")
         except Exception:
             pass
         try:

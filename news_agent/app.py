@@ -13,6 +13,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, g, jsonify, redirect, render_template, request, send_file, session, url_for
+from werkzeug.utils import secure_filename
 
 import db
 from config import ADMIN_EMAIL, EMAIL_WHITELIST, REPORT_API_KEY, SECRET_KEY, TOPIC_FETCH_HOUR_SGT
@@ -20,7 +21,7 @@ from email_digest import build_email_digest
 from pipeline import run_fetch_and_summarize
 from ai_digest import generate_batch_digest
 from article_summarizer import summarize_single_article
-from topic_graph import run_topic_fetch
+from topic_workflow import run_topic_fetch
 
 # ---------------------------------------------------------------------------
 # Logging — console + rotating file
@@ -52,6 +53,15 @@ logging.getLogger().addHandler(_file_handler)
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+_TRANSCRIPT_UPLOAD_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "uploads",
+    "transcripts",
+)
+_ALLOWED_TRANSCRIPT_UPLOAD_EXTENSIONS = {
+    ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".mp4", ".mov", ".mkv", ".webm", ".avi"
+}
 
 _SGT = timezone(timedelta(hours=8))
 
@@ -1546,6 +1556,8 @@ def transcript_page():
             "mode":         r["mode"],
             "status":       r["status"],
             "initiated_by": r["initiated_by"],
+            "input_type":   r["input_type"],
+            "original_filename": r["original_filename"],
             "created_at":   r["created_at"],
         }
         for r in rows
@@ -1569,10 +1581,40 @@ def transcript_jobs_list():
             "mode":         j["mode"],
             "status":       j["status"],
             "initiated_by": j["initiated_by"],
+            "input_type":   j["input_type"],
+            "original_filename": j["original_filename"],
             "created_at":   j["created_at"],
         }
         for j in jobs
     ])
+
+
+
+def _is_allowed_transcript_upload(filename: str, mimetype: str | None) -> bool:
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext in _ALLOWED_TRANSCRIPT_UPLOAD_EXTENSIONS:
+        return True
+    return bool(mimetype and (mimetype.startswith("audio/") or mimetype.startswith("video/")))
+
+
+def _save_transcript_upload(file_storage, job_id: str) -> tuple[str, str]:
+    original_name = secure_filename(file_storage.filename or "") or f"upload-{job_id}"
+    ext = os.path.splitext(original_name)[1].lower()
+    os.makedirs(_TRANSCRIPT_UPLOAD_DIR, exist_ok=True)
+    dest = os.path.join(_TRANSCRIPT_UPLOAD_DIR, f"{job_id}{ext}")
+    file_storage.save(dest)
+    return dest, original_name
+
+
+def _delete_transcript_media_file(job) -> None:
+    if not job:
+        return
+    media_path = (job["audio_path"] or "").strip()
+    if media_path and os.path.isfile(media_path):
+        try:
+            os.remove(media_path)
+        except OSError:
+            pass
 
 
 @app.route("/transcript/process", methods=["POST"])
@@ -1624,6 +1666,47 @@ def transcript_process():
     return jsonify({"job_id": job_id, "cached": False})
 
 
+@app.route("/transcript/upload", methods=["POST"])
+@login_required
+def transcript_upload():
+    from transcript_worker import process_uploaded_transcript_job
+
+    mode = (request.form.get("mode") or "no_diarization").strip()
+    media = request.files.get("media")
+
+    if mode not in ("no_diarization", "diarization"):
+        return jsonify({"error": "Invalid mode."}), 400
+    if not media or not (media.filename or "").strip():
+        return jsonify({"error": "Please choose an audio or video file."}), 400
+    if not _is_allowed_transcript_upload(media.filename or "", getattr(media, "mimetype", None)):
+        return jsonify({"error": "Unsupported file type. Please upload audio or video media."}), 400
+
+    job_id = db.create_transcript_job(
+        video_url="",
+        video_id=f"upload:{uuid.uuid4().hex}",
+        mode=mode,
+        initiated_by=g.current_user["email"],
+        input_type="upload",
+        original_filename=secure_filename(media.filename or "") or None,
+    )
+
+    try:
+        media_path, original_name = _save_transcript_upload(media, job_id)
+        db.update_transcript_job(job_id, status="pending", audio_path=media_path)
+    except Exception:
+        db.delete_transcript_job(job_id)
+        raise
+
+    thread = threading.Thread(
+        target=process_uploaded_transcript_job,
+        args=(job_id, media_path, original_name, mode),
+        daemon=True,
+    )
+    thread.start()
+
+    return jsonify({"job_id": job_id, "cached": False})
+
+
 @app.route("/transcript/temp-audio/<token>")
 def transcript_temp_audio(token: str):
     """Serve a registered audio file to DashScope during transcription (no auth needed)."""
@@ -1650,6 +1733,8 @@ def transcript_status(job_id: str):
         "video_author":       job["video_author"],
         "video_url":          job["video_url"],
         "initiated_by":       job["initiated_by"],
+        "input_type":         job["input_type"],
+        "original_filename":  job["original_filename"],
         "summary":            job["summary"],
         "transcript":         job["transcript"],
         "transcript_zh":      job["transcript_zh"],
@@ -1742,8 +1827,29 @@ def transcript_retry(job_id: str):
 def transcript_delete(job_id: str):
     if g.current_user["email"] != ADMIN_EMAIL:
         return jsonify({"error": "Not authorised."}), 403
+    job = db.get_transcript_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    _delete_transcript_media_file(job)
     db.delete_transcript_job(job_id)
     return jsonify({"ok": True})
+
+
+@app.route("/transcript/<job_id>/title", methods=["POST"])
+@login_required
+def transcript_update_title(job_id: str):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "Not authorised."}), 403
+    if not db.get_transcript_job(job_id):
+        return jsonify({"error": "Job not found."}), 404
+
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "Title is required."}), 400
+
+    db.update_transcript_title(job_id, title)
+    return jsonify({"ok": True, "title": title})
 
 
 @app.route("/transcript/<job_id>/delete_summary", methods=["POST"])
@@ -1772,19 +1878,20 @@ def _transcript_text_content(job, version: str) -> tuple[str, str, str]:
     summary = job["summary"] or ""
     if version == "chinese":
         transcript = job["transcript_zh"] or ""
-        label = "中文版本"
+        label = "Chinese Version"
         suffix = "zh"
     else:
         transcript = job["transcript"] or ""
-        label = "原文版本"
+        label = "Original Version"
         suffix = "original"
 
     sections = [
-        f"YouTube Transcript — {label}\nURL: {video_url}\n{'=' * 60}\n",
-        f"完整转录文本\n{'-' * 60}\n{transcript}\n" if transcript else "",
+        f"Transcript - {label}\n{'=' * 60}\n",
+        f"Source URL: {video_url}\n\n" if video_url else "",
+        f"Transcript\n{'-' * 60}\n{transcript}\n" if transcript else "",
     ]
     if summary:
-        sections.insert(1, f"中文摘要\n{'-' * 60}\n{summary}\n\n{'=' * 60}\n")
+        sections.insert(2, f"Summary\n{'-' * 60}\n{summary}\n\n{'=' * 60}\n")
     return "\n".join(s for s in sections if s), label, suffix
 
 

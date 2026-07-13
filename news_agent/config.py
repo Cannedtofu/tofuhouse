@@ -48,6 +48,9 @@ MIN_CONTENT_WORDS = 200                  # re-fetch existing articles whose stor
 TOPIC_FETCH_HOUR_SGT = int(os.getenv("TOPIC_FETCH_HOUR_SGT", "6"))
 TOPIC_MAX_RESULTS_PER_QUERY = int(os.getenv("TOPIC_MAX_RESULTS_PER_QUERY", "8"))
 TOPIC_MIN_CONFIDENCE = float(os.getenv("TOPIC_MIN_CONFIDENCE", "0.35"))
+TOPIC_QUERY_SLEEP_SECONDS = float(os.getenv("TOPIC_QUERY_SLEEP_SECONDS", "3"))
+GOOGLE_SEARCH_API_KEY: str = os.getenv("GOOGLE_SEARCH_API_KEY", "")
+GOOGLE_SEARCH_ENGINE_ID: str = os.getenv("GOOGLE_SEARCH_ENGINE_ID", "")
 TOPIC_DEFAULT_CHANNELS = ["web", "youtube", "x"]
 
 # --- Default sources (seeded into DB on first run if no sources exist) ---

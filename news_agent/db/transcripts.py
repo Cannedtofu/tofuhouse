@@ -1,4 +1,4 @@
-"""Database operations for YouTube transcript jobs."""
+﻿"""Database operations for YouTube transcript jobs."""
 
 import sqlite3
 import uuid
@@ -13,6 +13,8 @@ def create_transcript_job(
     video_id: str,
     mode: str = "no_diarization",
     initiated_by: Optional[str] = None,
+    input_type: str = "url",
+    original_filename: Optional[str] = None,
 ) -> str:
     """Insert a new transcript job with status 'pending'. Returns the job_id (UUID)."""
     job_id = str(uuid.uuid4())
@@ -20,9 +22,10 @@ def create_transcript_job(
     with get_conn() as conn:
         conn.execute(
             """INSERT INTO transcript_jobs
-               (job_id, video_url, video_id, mode, status, initiated_by, created_at, updated_at)
-               VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)""",
-            (job_id, video_url, video_id, mode, initiated_by, now, now),
+               (job_id, video_url, video_id, mode, status, initiated_by, input_type,
+                original_filename, created_at, updated_at)
+               VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)""",
+            (job_id, video_url, video_id, mode, initiated_by, input_type, original_filename, now, now),
         )
     return job_id
 
@@ -43,7 +46,7 @@ def list_transcript_jobs(limit: int = 60) -> list:
     with get_conn() as conn:
         return conn.execute(
             """SELECT job_id, video_id, video_url, video_title, video_author,
-                      mode, status, initiated_by, created_at
+                      mode, status, initiated_by, input_type, original_filename, created_at
                FROM transcript_jobs
                ORDER BY created_at DESC LIMIT ?""",
             (limit,),
@@ -104,6 +107,18 @@ def set_transcript_metadata(job_id: str, video_title: Optional[str], video_autho
                    updated_at=?
                WHERE job_id=?""",
             (video_title, video_author, now, job_id),
+        )
+
+
+def update_transcript_title(job_id: str, video_title: str) -> None:
+    """Update the stored display title for a transcript job."""
+    now = datetime.now(timezone.utc).isoformat()
+    with get_conn() as conn:
+        conn.execute(
+            """UPDATE transcript_jobs
+               SET video_title=?, updated_at=?
+               WHERE job_id=?""",
+            (video_title, now, job_id),
         )
 
 

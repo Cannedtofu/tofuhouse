@@ -653,6 +653,26 @@ def _persist_audio(job_id: str, src_path: str) -> str:
     return dest
 
 
+def _run_local_media_transcript(
+    job_id: str,
+    media_path: str,
+    diarize: bool = False,
+) -> None:
+    """Transcribe an already-uploaded local media file and clean it up on success."""
+    db.update_transcript_job(job_id, status="processing", audio_path=media_path)
+    logger.info("Transcribing uploaded media for job %s (diarize=%s): %s", job_id, diarize, media_path)
+    transcript = _transcribe_audio_file(media_path, diarize=diarize)
+
+    db.update_transcript_job(job_id, status="done", transcript=transcript)
+    logger.info("Uploaded media transcript job %s done (%d chars)", job_id, len(transcript))
+
+    try:
+        os.remove(media_path)
+        logger.info("Deleted uploaded media cache %s after successful transcription", media_path)
+    except OSError:
+        pass
+
+
 def _run_audio_transcript(
     job_id: str,
     video_id: str,
@@ -1192,6 +1212,17 @@ def process_transcript_job(job_id: str, video_url: str, video_id: str,
         db.update_transcript_job(job_id, status="error", error_message=str(exc))
 
 
+def process_uploaded_transcript_job(job_id: str, media_path: str, original_filename: str, mode: str) -> None:
+    """Process a user-uploaded audio or video file through the ASR pipeline."""
+    try:
+        title = os.path.splitext(os.path.basename(original_filename))[0] or original_filename
+        db.set_transcript_metadata(job_id, video_title=title, video_author=None)
+        _run_local_media_transcript(job_id, media_path, diarize=(mode == "diarization"))
+    except Exception as exc:
+        logger.exception("Uploaded transcript job %s failed: %s", job_id, exc)
+        db.update_transcript_job(job_id, status="error", error_message=str(exc), audio_path=media_path)
+
+
 def continue_audio_transcript(job_id: str, video_id: str) -> None:
     """
     Second stage for no_diarization mode — called after user approves audio fallback.
@@ -1240,7 +1271,10 @@ def retry_audio_transcript(job_id: str) -> None:
         diarize = job["mode"] == "diarization"
         db.update_transcript_job(job_id, status="processing")
         logger.info("Retrying transcription for job %s (audio=%s)", job_id, audio_path)
-        _run_audio_transcript(job_id, job["video_id"], diarize=diarize, existing_audio_path=audio_path)
+        if (job["input_type"] or "url") == "upload":
+            _run_local_media_transcript(job_id, audio_path, diarize=diarize)
+        else:
+            _run_audio_transcript(job_id, job["video_id"], diarize=diarize, existing_audio_path=audio_path)
     except Exception as exc:
         logger.exception("Retry transcription for job %s failed: %s", job_id, exc)
         db.update_transcript_job(job_id, status="error", error_message=str(exc))

@@ -1,5 +1,5 @@
 # Project Status
-_Last updated: 2026-07-03_
+_Last updated: 2026-07-07_
 
 ## Shipped & Stable
 
@@ -7,7 +7,9 @@ _Last updated: 2026-07-03_
 - RSS/Atom fetching with URL-based dedup; richer content wins on re-fetch
 - Nitter/X scraping with HTML pagination
 - Web source fetching with link discovery plus full-content extraction
-- Topic workflow under `资讯`: LangGraph-based entity tracking across Web, YouTube, and X
+- Topic workflow under `资讯`: OpenAI-SDK-based entity tracking, currently focused on Web discovery
+- Topic `web` discovery currently uses a Google API-backed search path
+- Topic `web` discovery now limits itself to 3 query variants, paces requests, and logs per-query results for inspection
 - Topic items stored separately from source articles and rendered in the same feed UI
 
 ### Summarization & Digest
@@ -31,7 +33,8 @@ _Last updated: 2026-07-03_
 - Tightening topic-result precision and ranking heuristics
 
 ## Known Issues
-- Topic discovery currently relies on public web search result parsing, so recall and result quality depend on external page shapes
+- Topic discovery depends on valid Google API credentials and search engine configuration
+- Topic `youtube` and `x` discovery are temporarily disabled while Web discovery is being stabilized
 - Topic items do not yet participate in the existing digest preset system
 
 ## Next

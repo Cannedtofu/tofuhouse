@@ -32,16 +32,22 @@
                autocomplete="off">
         <div id="url-error" class="text-danger small mt-1" style="display:none"></div>
       </div>
+      <div class="mb-3">
+        <label for="media-upload-input" class="form-label small text-muted mb-1">Upload audio or video</label>
+        <input type="file" id="media-upload-input" class="form-control"
+               accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.mp4,.mov,.mkv,.webm,.avi">
+        <div id="media-upload-hint" class="text-muted small mt-1">If a file is selected, the transcript buttons below will use the upload instead of the link.</div>
+      </div>
       <div class="d-flex gap-2 flex-wrap">
         <button type="button" id="btn-no-diarize"
                 class="btn btn-outline-primary"
-                onclick="submitUrl('no_diarization')">
+                onclick="submitTranscriptRequest('no_diarization')">
           <span class="btn-label">不区分发言人</span>
           <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
         <button type="button" id="btn-diarize"
                 class="btn btn-primary"
-                onclick="submitUrl('diarization')">
+                onclick="submitTranscriptRequest('diarization')">
           <span class="btn-label">区分发言人</span>
           <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
@@ -57,8 +63,24 @@
 
       <!-- Video metadata header -->
       <div id="video-meta" class="mb-3" style="display:none">
-        <div id="video-title" class="fw-semibold" style="font-size:1.05rem"></div>
+        <div class="d-flex align-items-start gap-2 flex-wrap">
+          <div id="video-title" class="fw-semibold" style="font-size:1.05rem"></div>
+          {% if is_admin %}
+          <button type="button" id="edit-title-btn" class="btn btn-link btn-sm p-0"
+                  style="font-size:.8rem; display:none" onclick="toggleTitleEditor(true)">Edit title</button>
+          {% endif %}
+        </div>
+        {% if is_admin %}
+        <div id="title-editor" class="mt-2" style="display:none">
+          <div class="input-group input-group-sm">
+            <input type="text" id="title-edit-input" class="form-control" maxlength="200" placeholder="Enter a title">
+            <button type="button" class="btn btn-primary" onclick="saveTitleEdit()">Save</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="toggleTitleEditor(false)">Cancel</button>
+          </div>
+        </div>
+        {% endif %}
         <div id="video-author" class="text-muted small"></div>
+        <div id="video-source-row" class="text-muted small" style="display:none"></div>
         <div id="video-url-row" class="text-muted small" style="display:none">
           <a id="video-url-link" href="#" target="_blank" rel="noopener"
              style="font-size:.8rem; word-break:break-all"></a>
@@ -238,14 +260,21 @@ let _deleteModal   = null;
 const _isAdmin = {{ 'true' if is_admin else 'false' }};
 
 document.getElementById('yt-url-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); submitUrl('no_diarization'); }
+  if (e.key === 'Enter') { e.preventDefault(); submitTranscriptRequest('no_diarization'); }
 });
 
 // ── Submit ──────────────────────────────────────────────────────────────────
 
-function submitUrl(mode) {
+function submitTranscriptRequest(mode) {
+  const fileInput = document.getElementById('media-upload-input');
+  const selectedFile = fileInput && fileInput.files ? fileInput.files[0] : null;
+  if (selectedFile) {
+    submitUpload(mode, selectedFile);
+    return;
+  }
+
   const url = document.getElementById('yt-url-input').value.trim();
-  if (!url) { showUrlError('请输入 YouTube 链接。'); return; }
+  if (!url) { showUrlError('Please enter a link or choose an audio/video file.'); return; }
 
   clearUrlError();
   setBtnBusy(mode, true);
@@ -264,19 +293,47 @@ function submitUrl(mode) {
         return;
       }
       _currentJobId = data.job_id;
-      showResultCard('pending', '正在排队…', mode);
+      showResultCard('pending', 'Queued...', mode);
       if (data.cached) {
-        setStatusText('已找到缓存结果，正在加载…');
+        setStatusText('Loading cached result...');
       }
       startPolling(_currentJobId);
     })
     .catch(() => {
-      showUrlError('请求失败，请检查网络连接。');
+      showUrlError('Request failed. Please try again.');
       setBtnBusy(mode, false);
     });
 }
 
-// ── Sidebar ──────────────────────────────────────────────────────────────────
+function submitUpload(mode, file) {
+  clearUrlError();
+  setBtnBusy(mode, true);
+  resetResultCard();
+
+  const formData = new FormData();
+  formData.append('media', file);
+  formData.append('mode', mode);
+
+  fetch('/transcript/upload', {
+    method: 'POST',
+    body: formData,
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        showUrlError(data.error);
+        setBtnBusy(mode, false);
+        return;
+      }
+      _currentJobId = data.job_id;
+      showResultCard('pending', 'Uploading and transcribing media...', mode);
+      startPolling(_currentJobId);
+    })
+    .catch(() => {
+      showUrlError('Upload failed. Please try again.');
+      setBtnBusy(mode, false);
+    });
+}
 
 function loadJob(jobId) {
   resetResultCard();
@@ -437,7 +494,7 @@ function handleStatusUpdate(data, jobId) {
   const status = data.status;
   updateStatusBadge(status);
   setModeBadge(data.mode);
-  setVideoMeta(data.video_title, data.video_author, data.video_url, data.initiated_by);
+  setVideoMeta(data.video_title, data.video_author, data.video_url, data.initiated_by, data.input_type, data.original_filename);
 
   if (status === 'pending') {
     setStatusText('正在排队…');
@@ -586,35 +643,91 @@ function showSummaryContent(text) {
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
-function setVideoMeta(title, author, url, initiatedBy) {
-  const metaEl        = document.getElementById('video-meta');
-  const titleEl       = document.getElementById('video-title');
-  const authorEl      = document.getElementById('video-author');
-  const urlRow        = document.getElementById('video-url-row');
-  const urlLink       = document.getElementById('video-url-link');
-  const initiatedRow  = document.getElementById('video-initiated-by');
+function setVideoMeta(title, author, url, initiatedBy, inputType, originalFilename) {
+  const metaEl         = document.getElementById('video-meta');
+  const titleEl        = document.getElementById('video-title');
+  const authorEl       = document.getElementById('video-author');
+  const sourceRow      = document.getElementById('video-source-row');
+  const urlRow         = document.getElementById('video-url-row');
+  const urlLink        = document.getElementById('video-url-link');
+  const initiatedRow   = document.getElementById('video-initiated-by');
   const initiatedEmail = document.getElementById('video-initiated-by-email');
-  if (title || author || url || initiatedBy) {
-    titleEl.textContent     = title  || '';
-    authorEl.textContent    = author || '';
-    authorEl.style.display  = author ? 'block' : 'none';
-    if (url) {
-      urlLink.href         = url;
-      urlLink.textContent  = url;
-      urlRow.style.display = 'block';
-    } else {
+  const editBtn        = document.getElementById('edit-title-btn');
+  const editInput      = document.getElementById('title-edit-input');
+
+  if (title || author || url || initiatedBy || originalFilename) {
+    titleEl.textContent = title || originalFilename || '';
+    authorEl.textContent = author || '';
+    authorEl.style.display = author ? 'block' : 'none';
+
+    if (inputType === 'upload' && originalFilename) {
+      sourceRow.textContent = `Uploaded file: ${originalFilename}`;
+      sourceRow.style.display = 'block';
       urlRow.style.display = 'none';
-    }
-    if (initiatedBy && _isAdmin) {
-      initiatedEmail.textContent   = initiatedBy;
-      initiatedRow.style.display   = 'block';
     } else {
-      initiatedRow.style.display   = 'none';
+      sourceRow.style.display = 'none';
+      if (url) {
+        urlLink.href = url;
+        urlLink.textContent = url;
+        urlRow.style.display = 'block';
+      } else {
+        urlRow.style.display = 'none';
+      }
     }
+
+    if (initiatedBy && _isAdmin) {
+      initiatedEmail.textContent = initiatedBy;
+      initiatedRow.style.display = 'block';
+    } else {
+      initiatedRow.style.display = 'none';
+    }
+
+    if (editBtn && _isAdmin && _currentJobId) {
+      editBtn.style.display = 'inline';
+      if (editInput) editInput.value = title || originalFilename || '';
+    }
+
     metaEl.style.display = 'block';
   } else {
     metaEl.style.display = 'none';
+    if (editBtn) editBtn.style.display = 'none';
   }
+}
+
+function toggleTitleEditor(show) {
+  const editor = document.getElementById('title-editor');
+  const input = document.getElementById('title-edit-input');
+  const title = document.getElementById('video-title');
+  if (!editor || !input) return;
+  if (show) {
+    input.value = title ? title.textContent.trim() : '';
+    editor.style.display = 'block';
+    input.focus();
+    input.select();
+  } else {
+    editor.style.display = 'none';
+  }
+}
+
+function saveTitleEdit() {
+  const input = document.getElementById('title-edit-input');
+  if (!input || !_currentJobId) return;
+  const title = input.value.trim();
+  if (!title) { alert('Title is required.'); return; }
+
+  fetch(`/transcript/${_currentJobId}/title`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { alert(data.error); return; }
+      document.getElementById('video-title').textContent = data.title;
+      toggleTitleEditor(false);
+      refreshSidebar();
+    })
+    .catch(() => alert('Request failed. Please try again.'));
 }
 
 function setBtnBusy(mode, busy) {
@@ -624,6 +737,10 @@ function setBtnBusy(mode, busy) {
   btn.disabled = busy;
   btn.querySelector('.btn-label').style.opacity   = busy ? '.5' : '1';
   btn.querySelector('.btn-spinner').style.display = busy ? 'inline-block' : 'none';
+  const urlInput = document.getElementById('yt-url-input');
+  const fileInput = document.getElementById('media-upload-input');
+  if (urlInput) urlInput.disabled = busy;
+  if (fileInput) fileInput.disabled = busy;
   if (busy) _activeBtn = mode;
 }
 
@@ -653,6 +770,7 @@ function resetResultCard() {
   document.getElementById('transcript-zh-content').textContent = '';
   document.getElementById('summary-content').textContent       = '';
   document.getElementById('mode-badge').style.display          = 'none';
+  toggleTitleEditor(false);
   setTranslationState('idle');
   setSummarySpinning(false);
 }
@@ -728,7 +846,7 @@ function showDonePanel(data, jobId) {
   updateStatusBadge('done');
   setStatusText('转录完成。');
   setModeBadge(data.mode);
-  setVideoMeta(data.video_title, data.video_author, data.video_url, data.initiated_by);
+  setVideoMeta(data.video_title, data.video_author, data.video_url, data.initiated_by, data.input_type, data.original_filename);
   document.getElementById('transcript-content').textContent = data.transcript || '（无转录文本）';
   document.getElementById('download-original-txt').href = `/transcript/download/${jobId}?version=original`;
   document.getElementById('download-original-pdf').href = `/transcript/download/${jobId}/pdf?version=original`;
@@ -757,6 +875,11 @@ function showDonePanel(data, jobId) {
 }
 
 // ── Initial render ────────────────────────────────────────────────────────────
+const uploadInput = document.getElementById('media-upload-input');
+if (uploadInput) {
+  uploadInput.addEventListener('change', () => clearUrlError());
+}
+
 renderSidebar({{ sidebar_jobs | tojson }});
 
 // Pre-fill URL from ?url= query param (e.g. clicked "转录此视频" from the feed)
