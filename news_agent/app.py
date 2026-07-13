@@ -297,6 +297,17 @@ def _with_dashboard_anchor(panel: dict) -> dict:
     return panel
 
 
+def _clean_dashboard_report_panels(panel: dict) -> dict:
+    panel = dict(panel)
+    if panel["script_name"] == _LLM_TOKEN_INDEX_SCRIPT_NAME:
+        panel["panels"] = [
+            script_panel
+            for script_panel in (panel.get("panels") or [])
+            if script_panel.get("type") != "table"
+        ]
+    return panel
+
+
 def _build_gpu_status_panel_fallback() -> dict | None:
     last_updated = db.get_gpu_price_last_updated()
     if not last_updated:
@@ -2179,6 +2190,7 @@ def dashboard():
     status_panels = []
     script_panels = []
     for panel in all_panels:
+        panel = _clean_dashboard_report_panels(panel)
         is_gpu_status_panel = panel["script_name"] == _GPU_STATUS_SCRIPT_NAME
         access_key = "gpu-prices" if is_gpu_status_panel else panel["script_name"]
         if not is_admin and not panel_access.get(access_key, True):

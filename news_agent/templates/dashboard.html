@@ -100,8 +100,8 @@
     <div class="btn-group btn-group-sm mb-3" role="group" id="timeframe-group">
       <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('1W')">1周</button>
       <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('1M')">1个月</button>
-      <button type="button" class="btn btn-outline-secondary active" onclick="setTimeframe('3M')">3个月</button>
-      <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('ALL')">全部</button>
+      <button type="button" class="btn btn-outline-secondary" onclick="setTimeframe('3M')">3个月</button>
+      <button type="button" class="btn btn-outline-secondary active" onclick="setTimeframe('ALL')">全部</button>
     </div>
 
     <!-- Loading / empty states -->
@@ -273,7 +273,7 @@ const TIMEFRAMES = {
 let gpuChart = null;
 let allData   = [];          // [{gpu_type, data: [{timestamp, index_value}]}]
 let visibleGpus = new Set(); // which GPUs are toggled on
-let currentTimeframe = "3M";
+let currentTimeframe = "ALL";
 let pollTimer = null;
 
 // ---------------------------------------------------------------------------
@@ -456,6 +456,13 @@ function drawChart() {
   });
 }
 
+function parseChartDateValue(rawX, xType) {
+  if (xType === "date" && typeof rawX === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawX)) {
+    return `${rawX}T12:00:00`;
+  }
+  return rawX;
+}
+
 // ---------------------------------------------------------------------------
 // Refresh
 // ---------------------------------------------------------------------------
@@ -596,7 +603,7 @@ function renderScriptCharts() {
       } else {
         datasets = (panel.datasets || []).map((ds, i) => ({
           label: ds.label,
-          data: ds.data.map(pt => ({ x: pt.x, y: pt.y })),
+          data: ds.data.map(pt => ({ x: parseChartDateValue(pt.x, panel.x_type), y: pt.y })),
           borderColor: ds.color || PANEL_COLORS[i % PANEL_COLORS.length],
           backgroundColor: panel.type === 'bar'
             ? (ds.color || PANEL_COLORS[i % PANEL_COLORS.length])
@@ -612,6 +619,7 @@ function renderScriptCharts() {
       }
 
       const isDoy = panel.x_type === 'day_of_year';
+      const isDateSeries = panel.x_type === 'date';
       const formatAxisValue = (axisId, v) => percentFormats[axisId] ? (v * 100).toFixed(0) + '%' : v;
       const savedAxisRange = usesRightAxis ? getAxisRange(canvasId) : null;
       const y1Scale = usesRightAxis ? {
@@ -638,7 +646,17 @@ function renderScriptCharts() {
             tooltip: {
               callbacks: {
                 title: items => {
-                  if (!isDoy) return items[0].label;
+                  if (!isDoy) {
+                    if (isDateSeries) {
+                      return new Intl.DateTimeFormat('en-CA', {
+                        timeZone: 'UTC',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                      }).format(new Date(items[0].parsed.x));
+                    }
+                    return items[0].label;
+                  }
                   const doy = items[0].parsed.x;
                   let m = 0;
                   while (m < 11 && MONTH_STARTS[m + 1] <= doy) m++;
@@ -681,6 +699,9 @@ function renderScriptCharts() {
               // based on chart width and date range, not the data's sampling interval, so a
               // ~1-year-spanning weekly series can resolve to 'month' rather than 'week'.
               time: {
+                parser: isDateSeries ? "yyyy-MM-dd'T'HH:mm:ss" : undefined,
+                unit: isDateSeries ? 'day' : undefined,
+                round: isDateSeries ? 'day' : undefined,
                 tooltipFormat: 'yyyy-MM-dd',
                 displayFormats: { day: 'MM/dd', week: 'MM/dd', month: 'yyyy-MM', quarter: 'yyyy-MM', year: 'yyyy' },
               },
