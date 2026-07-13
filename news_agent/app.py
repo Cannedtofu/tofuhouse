@@ -436,17 +436,31 @@ def _bootstrap_dashboard_datasets() -> None:
         logger_dashboard.exception("Dashboard bootstrap failed")
 
 
-def _ensure_llm_token_index_report() -> None:
-    """Guarantee the LLM token index dashboard exists, regardless of restarts.
+def _llm_token_index_report_needs_refresh(report: dict | None) -> bool:
+    if not report:
+        return True
+    for panel in report.get("panels") or []:
+        labels = {dataset.get("label") for dataset in (panel.get("datasets") or [])}
+        if any(label and label.startswith("TrakToken") for label in labels):
+            return False
+    return True
 
-    This is intentionally request-safe and DB-backed: if the report already
-    exists we do nothing, and if it does not, we fetch it immediately so the
-    dashboard can render without depending on a prior startup hook.
+
+def _ensure_llm_token_index_report() -> None:
+    """Guarantee the LLM token index dashboard includes the latest source mix.
+
+    This is intentionally request-safe and DB-backed: if the report is missing,
+    or if it predates the TrakToken dataset addition, we refresh it immediately
+    so the dashboard can render the combined series without waiting for the next
+    scheduled run.
     """
     try:
-        existing = {row["script_name"] for row in db.get_all_script_reports()}
-        if _LLM_TOKEN_INDEX_SCRIPT_NAME not in existing:
-            logger_dashboard.info("On-demand initializing dashboard dataset: %s", _LLM_TOKEN_INDEX_SCRIPT_NAME)
+        report = next(
+            (row for row in db.get_all_script_reports() if row["script_name"] == _LLM_TOKEN_INDEX_SCRIPT_NAME),
+            None,
+        )
+        if _llm_token_index_report_needs_refresh(report):
+            logger_dashboard.info("Refreshing dashboard dataset for %s", _LLM_TOKEN_INDEX_SCRIPT_NAME)
             _run_llm_token_expenditure_index_fetch()
     except Exception:
         logger_dashboard.exception("Failed to ensure LLM token expenditure index report")
