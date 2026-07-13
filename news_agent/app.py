@@ -13,10 +13,11 @@ from logging.handlers import TimedRotatingFileHandler
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, g, jsonify, redirect, render_template, request, send_file, session, url_for
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
 import db
-from config import ADMIN_EMAIL, EMAIL_WHITELIST, REPORT_API_KEY, SECRET_KEY, TOPIC_FETCH_HOUR_SGT
+from config import ADMIN_EMAIL, EMAIL_WHITELIST, REPORT_API_KEY, SECRET_KEY, TOPIC_FETCH_HOUR_SGT, TRANSCRIPT_UPLOAD_MAX_MB
 from email_digest import build_email_digest
 from pipeline import run_fetch_and_summarize
 from ai_digest import generate_batch_digest
@@ -53,6 +54,7 @@ logging.getLogger().addHandler(_file_handler)
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+app.config['MAX_CONTENT_LENGTH'] = TRANSCRIPT_UPLOAD_MAX_MB * 1024 * 1024
 
 _TRANSCRIPT_UPLOAD_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -64,6 +66,14 @@ _ALLOWED_TRANSCRIPT_UPLOAD_EXTENSIONS = {
 }
 
 _SGT = timezone(timedelta(hours=8))
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_request_entity_too_large(exc):
+    return jsonify({
+        "error": f"Upload is too large. Please use a file up to {TRANSCRIPT_UPLOAD_MAX_MB} MB."
+    }), 413
+
 
 @app.template_filter("to_sgt")
 def to_sgt_filter(ts_str: str) -> str:

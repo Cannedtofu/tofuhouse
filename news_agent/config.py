@@ -101,6 +101,11 @@ AUDIO_CACHE_DIR: str = os.getenv(
 # over HTTP. Set to the server's public URL, e.g. http://47.239.66.248
 APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://47.239.66.248")
 
+# --- Transcript media uploads ---
+# Flask-side request limit for uploaded audio/video files. Nginx must allow at
+# least this much too, otherwise nginx will reject the request before Flask sees it.
+TRANSCRIPT_UPLOAD_MAX_MB: int = int(os.getenv("TRANSCRIPT_UPLOAD_MAX_MB", "2048"))
+
 # --- Email ---
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")

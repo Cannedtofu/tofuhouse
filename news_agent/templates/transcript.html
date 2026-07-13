@@ -318,7 +318,19 @@ function submitUpload(mode, file) {
     method: 'POST',
     body: formData,
   })
-    .then(r => r.json())
+    .then(async r => {
+      const contentType = r.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await r.json()
+        : { error: await r.text() };
+      if (!r.ok) {
+        const message = data.error || `Upload failed with HTTP ${r.status}.`;
+        throw new Error(r.status === 413
+          ? 'Upload is too large for the server. Please try a smaller file or increase the upload limit.'
+          : message.replace(/<[^>]*>/g, '').trim());
+      }
+      return data;
+    })
     .then(data => {
       if (data.error) {
         showUrlError(data.error);
@@ -329,8 +341,8 @@ function submitUpload(mode, file) {
       showResultCard('pending', 'Uploading and transcribing media...', mode);
       startPolling(_currentJobId);
     })
-    .catch(() => {
-      showUrlError('Upload failed. Please try again.');
+    .catch(err => {
+      showUrlError(err.message || 'Upload failed. Please try again.');
       setBtnBusy(mode, false);
     });
 }
