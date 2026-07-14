@@ -1082,12 +1082,18 @@ def _summarize_transcript(transcript: str) -> str:
             system=_SUMMARY_SYSTEM,
         )
 
-    return (
-        "??????\n\n"
-        f"{step2_result}\n\n"
-        "???????????\n\n"
-        f"{step1_result}"
+    final_output = (
+        "## Step 2 Summary\n\n"
+        f"{step2_result.strip()}\n\n"
+        "---\n\n"
+        "## Step 1 Ordered Rewrite\n\n"
+        f"{step1_result.strip()}"
     )
+    logger.info(
+        "Summary pipeline complete: step1_chars=%d step2_chars=%d final_chars=%d",
+        len(step1_result), len(step2_result), len(final_output),
+    )
+    return final_output
 
 
 
