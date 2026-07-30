@@ -734,6 +734,36 @@ def toggle_follow(source_id: int):
     return redirect(url_for("sources"))
 
 
+def _start_topic_fetch_job(
+    topic_id: int,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    trigger: str = "manual-topic",
+) -> bool:
+    if _topic_fetch_status["running"]:
+        return False
+
+    def _run():
+        _topic_fetch_status["running"] = True
+        log_id = db.log_fetch_start(trigger=trigger)
+        try:
+            result = run_topic_fetch(topic_ids=[topic_id], date_from=date_from, date_to=date_to)
+            db.log_fetch_finish(log_id, result)
+            _topic_fetch_status["last_result"] = {
+                "status": "ok",
+                "new_articles": result["total_new"],
+                "sources": result["sources"],
+            }
+        except Exception as exc:
+            logging.exception("Topic fetch error")
+            db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
+            _topic_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
+        finally:
+            _topic_fetch_status["running"] = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return True
+
 @app.route("/topics", methods=["GET", "POST"])
 @login_required
 def topics():
@@ -757,7 +787,15 @@ def topics():
                     backfill_date_to=backfill_date_to,
                 )
                 db.follow_topic(g.current_user["id"], topic["id"])
-                return redirect(url_for("topics"))
+                has_backfill = bool(backfill_date_from or backfill_date_to)
+                if has_backfill:
+                    _start_topic_fetch_job(
+                        topic["id"],
+                        date_from=backfill_date_from,
+                        date_to=backfill_date_to,
+                        trigger="create-topic-backfill",
+                    )
+                return redirect(url_for("topics", topic_fetch="started" if has_backfill else None))
             except Exception as exc:
                 error = f"Error saving topic: {exc}"
 
@@ -916,9 +954,6 @@ def fetch_nitter_source(source_id):
 @app.route("/topics/<int:topic_id>/fetch", methods=["POST"])
 @login_required
 def fetch_topic(topic_id: int):
-    if _topic_fetch_status["running"]:
-        return jsonify({"ok": False, "error": "A topic fetch is already running"}), 409
-
     data = request.get_json(silent=True) or {}
     date_from = data.get("date_from") or None
     date_to = data.get("date_to") or None
@@ -928,25 +963,14 @@ def fetch_topic(topic_id: int):
     date_from = date_from or topic.get("backfill_date_from")
     date_to = date_to or topic.get("backfill_date_to")
 
-    def _run():
-        _topic_fetch_status["running"] = True
-        log_id = db.log_fetch_start(trigger="manual-topic")
-        try:
-            result = run_topic_fetch(topic_ids=[topic_id], date_from=date_from, date_to=date_to)
-            db.log_fetch_finish(log_id, result)
-            _topic_fetch_status["last_result"] = {
-                "status": "ok",
-                "new_articles": result["total_new"],
-                "sources": result["sources"],
-            }
-        except Exception as exc:
-            logging.exception("Topic manual fetch error")
-            db.log_fetch_finish(log_id, {"total_new": 0, "sources": []}, error=str(exc))
-            _topic_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
-        finally:
-            _topic_fetch_status["running"] = False
-
-    threading.Thread(target=_run, daemon=True).start()
+    started = _start_topic_fetch_job(
+        topic_id,
+        date_from=date_from,
+        date_to=date_to,
+        trigger="manual-topic",
+    )
+    if not started:
+        return jsonify({"ok": False, "error": "A topic fetch is already running"}), 409
     return jsonify({"ok": True})
 
 

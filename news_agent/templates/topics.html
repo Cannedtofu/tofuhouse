@@ -136,6 +136,14 @@ function backfillTopic(id, btn) {
   fetchTopic(id, btn, { date_from: from, date_to: to });
 }
 
+function formatTopicFetchResult(res) {
+  const source = (res.sources || [])[0] || {};
+  const candidateCount = source.candidate_count ?? 0;
+  const relevantCount = source.relevant_count ?? source.fetched ?? 0;
+  const newCount = res.new_articles ?? source.new ?? 0;
+  return `完成：候选 ${candidateCount} 条，相关 ${relevantCount} 条，新增 ${newCount} 条`;
+}
+
 function pollTopicFetch(btn, oldLabel) {
   const timer = setInterval(() => {
     fetch('/topics/fetch/status')
@@ -143,11 +151,13 @@ function pollTopicFetch(btn, oldLabel) {
       .then(data => {
         if (!data.running) {
           clearInterval(timer);
-          btn.disabled = false;
-          btn.textContent = oldLabel;
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = oldLabel;
+          }
           const res = data.last_result;
           if (res && res.status === 'ok') {
-            showTopicToast(`完成：新增 ${res.new_articles} 条话题条目`);
+            showTopicToast(formatTopicFetchResult(res));
             setTimeout(() => location.reload(), 1200);
           } else if (res && res.message) {
             showTopicToast(res.message);
@@ -156,8 +166,10 @@ function pollTopicFetch(btn, oldLabel) {
       })
       .catch(() => {
         clearInterval(timer);
-        btn.disabled = false;
-        btn.textContent = oldLabel;
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = oldLabel;
+        }
         showTopicToast('轮询失败');
       });
   }, 2000);
@@ -166,5 +178,10 @@ function pollTopicFetch(btn, oldLabel) {
 function showTopicToast(text) {
   document.getElementById('topic-fetch-toast').textContent = text;
 }
+
+{% if topic_fetch_status.running or request.args.get('topic_fetch') == 'started' %}
+showTopicToast('话题回填中...');
+pollTopicFetch(null, '');
+{% endif %}
 </script>
 {% endblock %}

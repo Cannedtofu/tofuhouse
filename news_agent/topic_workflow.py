@@ -8,12 +8,11 @@ import logging
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
 import requests
-import yt_dlp
 
 import db
 from article_summarizer import _get_client
@@ -251,19 +250,83 @@ def _search_google_web(query: str, limit: int = TOPIC_MAX_RESULTS_PER_QUERY) -> 
 
 
 
-def _parse_youtube_published_at(entry: dict[str, Any]) -> str | None:
-    upload_date = str(entry.get("upload_date") or "").strip()
-    if re.fullmatch(r"\d{8}", upload_date):
-        return f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:8]}"
+def _youtube_text(node: dict[str, Any] | None) -> str:
+    if not isinstance(node, dict):
+        return ""
+    if node.get("simpleText"):
+        return str(node["simpleText"]).strip()
+    return "".join(str(run.get("text", "")) for run in node.get("runs") or []).strip()
 
-    for key in ("release_timestamp", "timestamp"):
-        value = entry.get(key)
-        if value:
-            try:
-                return datetime.fromtimestamp(int(value), tz=timezone.utc).isoformat()
-            except Exception:
-                continue
+
+def _parse_youtube_duration_seconds(raw: str | None) -> int | None:
+    if not raw:
+        return None
+    parts = str(raw).strip().split(":")
+    if not all(part.isdigit() for part in parts):
+        return None
+    seconds = 0
+    for part in parts:
+        seconds = seconds * 60 + int(part)
+    return seconds
+
+
+def _parse_youtube_relative_date(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    text = str(raw).strip().lower()
+    match = re.search(r"(\d+)", text)
+    if not match:
+        return None
+    amount = int(match.group(1))
+
+    if any(unit in text for unit in ("second", "seconds", "秒")):
+        delta = timedelta(seconds=amount)
+    elif any(unit in text for unit in ("minute", "minutes", "分鐘", "分钟")):
+        delta = timedelta(minutes=amount)
+    elif any(unit in text for unit in ("hour", "hours", "小時", "小时")):
+        delta = timedelta(hours=amount)
+    elif any(unit in text for unit in ("day", "days", "日", "天")):
+        delta = timedelta(days=amount)
+    elif any(unit in text for unit in ("week", "weeks", "週", "周", "星期")):
+        delta = timedelta(weeks=amount)
+    elif any(unit in text for unit in ("month", "months", "個月", "个月", "月")):
+        delta = timedelta(days=amount * 30)
+    elif any(unit in text for unit in ("year", "years", "年")):
+        delta = timedelta(days=amount * 365)
+    else:
+        return None
+
+    return (datetime.now(timezone.utc) - delta).date().isoformat()
+
+
+def _extract_youtube_initial_data(html: str) -> dict[str, Any] | None:
+    patterns = [
+        r"var ytInitialData = (\{.*?\});</script>",
+        r"ytInitialData\"\] = (\{.*?\});",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, html, flags=re.DOTALL)
+        if not match:
+            continue
+        try:
+            parsed = json.loads(match.group(1))
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            continue
     return None
+
+
+def _iter_youtube_video_renderers(node: Any):
+    if isinstance(node, dict):
+        renderer = node.get("videoRenderer")
+        if isinstance(renderer, dict):
+            yield renderer
+        for value in node.values():
+            yield from _iter_youtube_video_renderers(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from _iter_youtube_video_renderers(value)
 
 
 def _published_sort_key(item: dict[str, Any]) -> datetime:
@@ -278,68 +341,59 @@ def _published_sort_key(item: dict[str, Any]) -> datetime:
     except Exception:
         return datetime.min.replace(tzinfo=timezone.utc)
 
-
 def _search_youtube_videos(
     query: str,
     limit: int = TOPIC_MAX_RESULTS_PER_QUERY,
 ) -> tuple[list[dict[str, Any]], str | None]:
-    search_term = f"ytsearchdate{limit}:{query}"
-    ydl_opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "skip_download": True,
-        "ignoreerrors": True,
-        "noplaylist": True,
-    }
-
+    search_url = f"https://www.youtube.com/results?search_query={quote_plus(query)}&sp=CAI%253D"
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            payload = ydl.extract_info(search_term, download=False)
+        resp = requests.get(
+            search_url,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=25,
+        )
+        resp.raise_for_status()
     except Exception as exc:
         logger.warning("[topic] youtube search failed for %s: %s", query, exc)
         return [], f"youtube_search_failed: {exc}"
 
-    entries = payload.get("entries") if isinstance(payload, dict) else None
-    if not isinstance(entries, list):
-        return [], "youtube_no_entries"
+    payload = _extract_youtube_initial_data(resp.text)
+    if not payload:
+        return [], "youtube_initial_data_missing"
 
     results: list[dict[str, Any]] = []
     seen = set()
-    for entry in entries:
-        if not isinstance(entry, dict):
+    for entry in _iter_youtube_video_renderers(payload):
+        video_id = str(entry.get("videoId") or "").strip()
+        if not video_id or video_id in seen:
             continue
-        video_id = str(entry.get("id") or "").strip()
-        url = str(entry.get("webpage_url") or "").strip()
-        if not url and video_id:
-            url = f"https://www.youtube.com/watch?v={video_id}"
-        url = _normalize_url(url)
-        if not url.startswith("http") or url in seen:
-            continue
-        seen.add(url)
+        seen.add(video_id)
 
-        description = entry.get("description") or entry.get("snippet") or ""
-        if isinstance(description, list):
-            description = "\n".join(str(part) for part in description if part)
-
-        title = str(entry.get("title") or "").strip()
+        title = _youtube_text(entry.get("title"))
         if not title:
             continue
+
+        snippets = entry.get("detailedMetadataSnippets") or []
+        description = _youtube_text((snippets[0] if snippets else {}).get("snippetText"))
+        length_text = _youtube_text(entry.get("lengthText"))
+        published_text = _youtube_text(entry.get("publishedTimeText"))
+        url = f"https://www.youtube.com/watch?v={video_id}"
 
         results.append({
             "title": title,
             "url": url,
-            "snippet": str(description).strip(),
-            "published_at": _parse_youtube_published_at(entry),
-            "duration_seconds": entry.get("duration"),
-            "channel": str(entry.get("channel") or entry.get("uploader") or "").strip(),
-            "video_id": video_id or None,
+            "snippet": description,
+            "published_at": _parse_youtube_relative_date(published_text),
+            "published_text": published_text,
+            "duration_seconds": _parse_youtube_duration_seconds(length_text),
+            "channel": _youtube_text(entry.get("ownerText")),
+            "video_id": video_id,
         })
-        if len(results) >= limit:
-            break
 
     results.sort(key=_published_sort_key, reverse=True)
+    results = results[:limit]
 
-    note = f"youtube_search_term={search_term};sort=upload_date_desc"
+    note = f"youtube_search_url={search_url};sort=upload_date_desc;raw_candidates={len(seen)}"
     if not results:
         note = f"{note};youtube_no_candidates"
     return results, note
