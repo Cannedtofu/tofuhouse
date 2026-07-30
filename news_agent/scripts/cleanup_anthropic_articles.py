@@ -52,11 +52,15 @@ def title_is_url(row):
     return title == row["url"] or title.startswith(("http://", "https://"))
 
 
-def extract_heading(content):
+def extract_title(content):
     for line in (content or "").splitlines():
         stripped = line.strip().lstrip("#").strip()
         if line.strip().startswith("#") and stripped:
             return stripped
+    for line in (content or "").splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith(("http://", "https://")):
+            return stripped[:180]
     return ""
 
 
@@ -68,6 +72,11 @@ def duplicate_score(row):
     if not title_is_url(row):
         score += 100_000
     return score
+
+
+def add_duplicate_group(groups, key, row):
+    if key:
+        groups.setdefault(key, []).append(row)
 
 
 def main(apply):
@@ -98,17 +107,24 @@ def main(apply):
         if looks_like_error(row["content"]):
             delete_ids.add(row["id"])
             continue
-        heading = extract_heading(row["content"])
-        if heading and title_is_url(row):
-            title_updates.append((heading, row["id"]))
-        groups.setdefault(canonical_url(row["url"]), []).append(row)
+
+        better_title = extract_title(row["content"])
+        effective_title = row["title"] or better_title
+        if better_title and title_is_url(row):
+            title_updates.append((better_title, row["id"]))
+            effective_title = better_title
+
+        add_duplicate_group(groups, ("url", canonical_url(row["url"])), row)
+        if effective_title and not effective_title.startswith(("http://", "https://")):
+            add_duplicate_group(groups, ("title", effective_title.lower(), row["published_at"]), row)
 
     duplicate_delete_ids = set()
     for group in groups.values():
-        if len(group) <= 1:
+        live_group = [row for row in group if row["id"] not in delete_ids]
+        if len(live_group) <= 1:
             continue
-        keep = max(group, key=duplicate_score)
-        for row in group:
+        keep = max(live_group, key=duplicate_score)
+        for row in live_group:
             if row["id"] != keep["id"]:
                 duplicate_delete_ids.add(row["id"])
 

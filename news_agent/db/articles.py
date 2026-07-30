@@ -49,6 +49,14 @@ def insert_article(
                    WHERE replace(lower(rtrim(url, '/')), '://www.', '://') = ?""",
                 (url_key,),
             ).fetchone()
+        if not existing and not (title or "").strip().startswith(("http://", "https://")):
+            existing = conn.execute(
+                """SELECT id, title, url, content, published_at FROM articles
+                   WHERE source_id = ?
+                     AND lower(title) = lower(?)
+                     AND (published_at = ? OR (published_at IS NULL AND ? IS NULL))""",
+                (source_id, title, published_at, published_at),
+            ).fetchone()
         if existing:
             updates = []
             params = []
