@@ -52,33 +52,29 @@
           <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
       </div>
-      <p class="text-muted small mt-2 mb-0">
-        <strong>不区分发言人</strong>：YouTube 优先使用字幕；小宇宙及无字幕 YouTube 需确认后转录音频。<br>
-        <strong>区分发言人</strong>：始终使用 ASR + 说话人分离（需 API 费用）。
-      </p>
     </div>
 
     <!-- Paste transcript card -->
     <div class="card p-4 mb-3">
-      <h5 class="mb-3">Paste transcript</h5>
+      <h5 class="mb-3">粘贴逐字稿</h5>
       <p class="text-muted small mb-3">
-        Paste a word-for-word transcript here to generate a formalized Chinese script using the same Chinese translation flow.
+        在这里粘贴逐字稿，系统会使用现有“中文翻译”流程生成整理后的中文稿。
       </p>
       <div class="mb-2">
         <input type="text" id="paste-title-input" class="form-control form-control-sm"
-               placeholder="Optional title" maxlength="200" autocomplete="off">
+               placeholder="标题（可选）" maxlength="200" autocomplete="off">
       </div>
       <div class="mb-2">
         <textarea id="paste-transcript-input" class="form-control" rows="8"
-                  placeholder="Paste transcript text here..."></textarea>
+                  placeholder="在这里粘贴逐字稿文本..."></textarea>
         <div id="paste-error" class="text-danger small mt-1" style="display:none"></div>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <button type="button" id="btn-paste-transcript" class="btn btn-outline-secondary" onclick="submitPastedTranscript()">
-          <span class="btn-label">Generate formalized Chinese</span>
+          <span class="btn-label">生成整理后的中文稿</span>
           <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
         </button>
-        <span class="text-muted small">The original pasted text will be saved with the job.</span>
+        <span class="text-muted small">原始粘贴文本会保存在该任务中。</span>
       </div>
     </div>
 
@@ -335,8 +331,8 @@ function submitPastedTranscript() {
   const title = titleEl ? titleEl.value.trim() : '';
   const transcript = textEl ? textEl.value.trim() : '';
 
-  if (!transcript) { showPasteError('Please paste a transcript first.'); return; }
-  if (transcript.length < 20) { showPasteError('Transcript is too short to process.'); return; }
+  if (!transcript) { showPasteError('\u8bf7\u5148\u7c98\u8d34\u9010\u5b57\u7a3f\u3002'); return; }
+  if (transcript.length < 20) { showPasteError('\u9010\u5b57\u7a3f\u5185\u5bb9\u592a\u77ed\uff0c\u65e0\u6cd5\u5904\u7406\u3002'); return; }
 
   clearPasteError();
   setPasteBusy(true);
@@ -344,10 +340,20 @@ function submitPastedTranscript() {
 
   fetch('/transcript/paste', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
     body: JSON.stringify({ title, transcript }),
   })
-    .then(r => r.json())
+    .then(async r => {
+      const contentType = r.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await r.json()
+        : { error: await r.text() };
+      if (!r.ok) {
+        const message = data.error || `\u8bf7\u6c42\u5931\u8d25\uff08HTTP ${r.status}\uff09`;
+        throw new Error(message.replace(/<[^>]*>/g, '').trim());
+      }
+      return data;
+    })
     .then(data => {
       if (data.error) {
         showPasteError(data.error);
@@ -355,12 +361,12 @@ function submitPastedTranscript() {
         return;
       }
       _currentJobId = data.job_id;
-      showResultCard('translating', 'Formalizing Chinese transcript...', 'no_diarization');
+      showResultCard('translating', '\u6b63\u5728\u751f\u6210\u6574\u7406\u540e\u7684\u4e2d\u6587\u7a3f...', 'no_diarization');
       setTranslationState('spinning');
       startPolling(_currentJobId);
     })
-    .catch(() => {
-      showPasteError('Request failed. Please try again.');
+    .catch(err => {
+      showPasteError(err.message || '\u8bf7\u6c42\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002');
       setPasteBusy(false);
     });
 }
