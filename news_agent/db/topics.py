@@ -139,6 +139,16 @@ def unfollow_topic(user_id: int, topic_id: int) -> None:
             (user_id, topic_id),
         )
 
+def set_user_topic_follows(user_id: int, topic_ids: list[int]) -> None:
+    """Replace a user's entire followed topic list with the given topic IDs."""
+    clean_ids = sorted({int(tid) for tid in topic_ids})
+    with get_conn() as conn:
+        conn.execute("DELETE FROM user_topic_follows WHERE user_id = ?", (user_id,))
+        conn.executemany(
+            "INSERT INTO user_topic_follows (user_id, topic_id) VALUES (?, ?)",
+            [(user_id, tid) for tid in clean_ids],
+        )
+
 
 def get_all_topics_with_follow_status(user_id: int) -> list[dict]:
     with get_conn() as conn:

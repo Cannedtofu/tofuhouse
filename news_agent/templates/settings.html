@@ -3,7 +3,10 @@
 
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-md-6 col-lg-5">
+  <div class="col-md-8 col-lg-7">
+    {% if send_started %}
+    <div class="alert alert-info py-2 mt-2">已开始后台发送{{ 'AI 简报' if send_started == 'ai' else '新增信息流日报' }}，完成情况请查看日志。</div>
+    {% endif %}
 
     <!-- Token usage -->
     <div class="card p-4 mt-4">
@@ -54,7 +57,7 @@
   {% if is_admin %}
   <!-- Admin: all-user digest settings (per preset) -->
   <div class="card p-4 mt-4">
-    <h5 class="mb-3">管理员：用户简报设置</h5>
+    <h5 class="mb-3">管理员：用户 AI 简报设置</h5>
     <table class="table table-sm align-middle mb-0">
       <thead class="table-light">
         <tr>
@@ -63,6 +66,7 @@
           <th>接收简报</th>
           <th>频率</th>
           <th>上次发送</th>
+          <th>操作</th>
         </tr>
       </thead>
       <tbody>
@@ -94,8 +98,13 @@
             </form>
           </td>
           <td class="small text-muted">{{ row.digest_last_sent[:10] if row.digest_last_sent else '—' }}</td>
+          <td>
+            <form method="post" action="/admin/presets/{{ row.preset_id }}/send" class="mb-0">
+              <button class="btn btn-sm btn-outline-primary" type="submit">立即发送</button>
+            </form>
+          </td>
           {% else %}
-          <td colspan="3" class="small text-muted">无配置（用户尚未访问订阅设置）</td>
+          <td colspan="4" class="small text-muted">无配置（用户尚未访问订阅设置）</td>
           {% endif %}
         </tr>
         {% endfor %}
@@ -103,7 +112,40 @@
     </table>
   </div>
 
-  <!-- Admin: user follow lists (collapsed by default) -->
+
+  <div class="card p-4 mt-4">
+    <h5 class="mb-3">管理员：新增信息流日报</h5>
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>邮箱</th>
+          <th>状态</th>
+          <th>话题数</th>
+          <th>频率</th>
+          <th>上次发送</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in admin_raw_feed_rows %}
+        <tr>
+          <td class="small">{{ row.email }}</td>
+          <td class="small">{{ '开启' if row.enabled else '关闭' }}</td>
+          <td class="small text-muted">{{ row.topic_count }}</td>
+          <td class="small text-muted">
+            {% if row.frequency_days == 1 %}每天{% elif row.frequency_days == 3 %}每 3 天{% elif row.frequency_days == 7 %}每周{% elif row.frequency_days == 14 %}每 2 周{% else %}每 {{ row.frequency_days }} 天{% endif %}
+          </td>
+          <td class="small text-muted">{{ row.last_sent[:10] if row.last_sent else '—' }}</td>
+          <td>
+            <form method="post" action="/admin/raw-feed/{{ row.user_id }}/send" class="mb-0">
+              <button class="btn btn-sm btn-outline-primary" type="submit">立即发送</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>  <!-- Admin: user follow lists (collapsed by default) -->
   <div class="card mt-4">
     <div class="card-header d-flex align-items-center gap-2 py-3 px-4"
          style="cursor:pointer" data-bs-toggle="collapse"

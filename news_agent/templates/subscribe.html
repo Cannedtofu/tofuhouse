@@ -3,13 +3,58 @@
 
 {% block content %}
 <script id="digest-presets-data" type="application/json">{{ digest_presets | tojson }}</script>
-<script id="all-sources-data"   type="application/json">{{ all_sources   | tojson }}</script>
+<script id="all-sources-data" type="application/json">{{ all_sources | tojson }}</script>
+<script id="raw-feed-data" type="application/json">{{ raw_feed_subscription | tojson }}</script>
+<script id="all-topics-data" type="application/json">{{ all_topics | tojson }}</script>
 
 <div class="row justify-content-center">
-  <div class="col-lg-8 col-xl-7">
-    <h5 class="mb-1">📧 邮件简报订阅</h5>
-    <p class="text-muted small mb-4">简报将发送至 <strong>{{ g.current_user.email }}</strong>，每 6 小时检查一次发送条件。</p>
-    <div id="subscribe-body"></div>
+  <div class="col-lg-9 col-xl-8">
+    <h5 class="mb-1">订阅设置</h5>
+    <p class="text-muted small mb-4">简报将发送至 <strong>{{ g.current_user.email }}</strong>。</p>
+
+    <div class="card p-4 mb-4">
+      <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+        <div>
+          <h5 class="mb-1">AI 简报</h5>
+          <p class="text-muted small mb-0">基于已订阅来源生成分析型简报，保留原有逻辑。</p>
+        </div>
+        <span class="badge text-bg-light">最多 2 个</span>
+      </div>
+      <div id="subscribe-body"></div>
+    </div>
+
+    <div class="card p-4">
+      <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+        <div>
+          <h5 class="mb-1">新增信息流日报</h5>
+          <p class="text-muted small mb-0">独立于 AI 简报，只推送所选话题下目标时间范围内的 YouTube 视频清单和简短中文介绍。</p>
+        </div>
+        <span id="raw-feed-save-state" class="text-muted small"></span>
+      </div>
+
+      <div class="d-flex align-items-center gap-3 flex-wrap mb-3">
+        <div class="form-check form-switch mb-0">
+          <input type="checkbox" class="form-check-input" id="raw-feed-enabled">
+          <label class="form-check-label small" for="raw-feed-enabled">接收新增信息流日报</label>
+        </div>
+        <label class="d-flex align-items-center gap-2 small mb-0">
+          <span class="text-muted">频率</span>
+          <select class="form-select form-select-sm w-auto" id="raw-feed-frequency">
+            <option value="1">每天</option>
+            <option value="3">每 3 天</option>
+            <option value="7">每周</option>
+            <option value="14">每 2 周</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="d-flex gap-1 mb-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('raw-topic', true)">全选话题</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('raw-topic', false)">取消全选</button>
+      </div>
+      <div id="raw-topic-list" class="mb-3"></div>
+      <button class="btn btn-primary btn-sm" onclick="saveRawFeedSubscription()">保存信息流日报</button>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -17,45 +62,49 @@
 {% block scripts %}
 <script>
 let DIGEST_PRESETS = JSON.parse(document.getElementById('digest-presets-data').textContent);
-const ALL_SOURCES  = JSON.parse(document.getElementById('all-sources-data').textContent);
+const ALL_SOURCES = JSON.parse(document.getElementById('all-sources-data').textContent);
+let RAW_FEED = JSON.parse(document.getElementById('raw-feed-data').textContent);
+const ALL_TOPICS = JSON.parse(document.getElementById('all-topics-data').textContent);
 
 function _escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function setAllChecks(cls, checked) {
   document.querySelectorAll(`.${cls}`).forEach(cb => cb.checked = checked);
 }
 
-function render() {
-  const container = document.getElementById('subscribe-body');
-  const freqLabel = v => ({1:'每天', 3:'每 3 天', 7:'每周', 14:'每 2 周'}[v] || `每 ${v} 天`);
+function freqLabel(v) {
+  return ({1:'每天', 3:'每 3 天', 7:'每周', 14:'每 2 周'}[v] || `每 ${v} 天`);
+}
 
-  const SOURCE_GROUPS = [
-    { label: '推特',       types: ['nitter'] },
-    { label: 'RSS / 网站', types: ['rss', 'web'] },
-    { label: 'YouTube',    types: ['youtube'] },
-  ];
+const SOURCE_GROUPS = [
+  { label: '推特', types: ['nitter'] },
+  { label: 'RSS / 网站', types: ['rss', 'web'] },
+  { label: 'YouTube', types: ['youtube'] },
+];
 
-  function buildSourceChecks(checkedIds, idPrefix) {
-    let html = '';
-    SOURCE_GROUPS.forEach(({ label, types }) => {
-      const group = ALL_SOURCES.filter(s => types.includes(s.type));
-      if (!group.length) return;
-      html += `<div class="mb-1 mt-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em">${label}</div>`;
-      html += '<div class="row row-cols-2 row-cols-md-3 g-1">';
-      group.forEach(s => {
-        const chk = checkedIds.includes(s.id) ? 'checked' : '';
-        html += `<div class="col"><div class="form-check">
-          <input type="checkbox" class="form-check-input ${idPrefix}-src" id="${idPrefix}-${s.id}" value="${s.id}" ${chk}>
-          <label class="form-check-label small" for="${idPrefix}-${s.id}">${_escHtml(s.name)}</label>
-        </div></div>`;
-      });
-      html += '</div>';
+function buildSourceChecks(checkedIds, idPrefix) {
+  let html = '';
+  SOURCE_GROUPS.forEach(({ label, types }) => {
+    const group = ALL_SOURCES.filter(s => types.includes(s.type));
+    if (!group.length) return;
+    html += `<div class="mb-1 mt-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em">${label}</div>`;
+    html += '<div class="row row-cols-2 row-cols-md-3 g-1">';
+    group.forEach(s => {
+      const chk = checkedIds.includes(s.id) ? 'checked' : '';
+      html += `<div class="col"><div class="form-check">
+        <input type="checkbox" class="form-check-input ${idPrefix}-src" id="${idPrefix}-${s.id}" value="${s.id}" ${chk}>
+        <label class="form-check-label small" for="${idPrefix}-${s.id}">${_escHtml(s.name)}</label>
+      </div></div>`;
     });
-    return html;
-  }
+    html += '</div>';
+  });
+  return html || '<p class="text-muted small mb-0">暂无来源。</p>';
+}
 
+function renderDigestPresets() {
+  const container = document.getElementById('subscribe-body');
   let html = '';
   for (let slot = 0; slot < 2; slot++) {
     const p = DIGEST_PRESETS[slot];
@@ -76,7 +125,7 @@ function render() {
             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('pedit-${p.id}-src', true)">全选</button>
             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('pedit-${p.id}-src', false)">取消全选</button>
           </div>
-          ${buildSourceChecks(p.source_ids, `pedit-${p.id}`)}
+          ${buildSourceChecks(p.source_ids || [], `pedit-${p.id}`)}
           <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
             <div class="form-check form-switch mb-0">
               <input type="checkbox" class="form-check-input" id="pemail-${p.id}"
@@ -93,7 +142,7 @@ function render() {
           <div class="d-flex align-items-center mb-3 gap-2">
             <span class="text-muted small flex-shrink-0 fw-semibold">简报 ${slot+1}</span>
             <input type="text" class="form-control form-control-sm flex-grow-1"
-                   id="new-preset-name-${slot}" placeholder="简报名称（例：科技资讯）">
+                   id="new-preset-name-${slot}" placeholder="简报名称，例如：科技资讯">
             <button class="btn btn-sm btn-primary" onclick="saveNewPreset(${slot})">保存配置</button>
           </div>
           <div class="d-flex gap-1 mb-2">
@@ -107,12 +156,35 @@ function render() {
   container.innerHTML = html;
 }
 
+function renderRawFeed() {
+  document.getElementById('raw-feed-enabled').checked = Boolean(RAW_FEED.enabled);
+  document.getElementById('raw-feed-frequency').value = String(RAW_FEED.frequency_days || 1);
+  const checkedIds = RAW_FEED.topic_ids || [];
+  const list = document.getElementById('raw-topic-list');
+  if (!ALL_TOPICS.length) {
+    list.innerHTML = '<p class="text-muted small mb-0">暂无已配置话题。请先在“话题”栏目新增话题。</p>';
+    return;
+  }
+  let html = '<div class="row row-cols-1 row-cols-md-2 g-1">';
+  ALL_TOPICS.forEach(t => {
+    const chk = checkedIds.includes(t.id) ? 'checked' : '';
+    const aliases = (t.aliases || []).join(', ');
+    html += `<div class="col"><div class="form-check">
+      <input type="checkbox" class="form-check-input raw-topic" id="raw-topic-${t.id}" value="${t.id}" ${chk}>
+      <label class="form-check-label small" for="raw-topic-${t.id}">
+        ${_escHtml(t.name)}${aliases ? `<span class="text-muted"> · ${_escHtml(aliases)}</span>` : ''}
+      </label>
+    </div></div>`;
+  });
+  html += '</div>';
+  list.innerHTML = html;
+}
+
 function saveNewPreset(slot) {
   const nameEl = document.getElementById(`new-preset-name-${slot}`);
   const name = nameEl.value.trim();
   if (!name) { nameEl.focus(); return; }
-  const sourceIds = Array.from(document.querySelectorAll(`.pnew-${slot}-src:checked`))
-    .map(el => parseInt(el.value));
+  const sourceIds = Array.from(document.querySelectorAll(`.pnew-${slot}-src:checked`)).map(el => parseInt(el.value));
   fetch('/digest/presets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -122,7 +194,7 @@ function saveNewPreset(slot) {
   .then(data => {
     if (data.error) { alert(data.error); return; }
     DIGEST_PRESETS.push(data);
-    render();
+    renderDigestPresets();
   })
   .catch(() => alert('保存失败'));
 }
@@ -132,8 +204,7 @@ function saveEditPreset(id) {
   const name = nameEl.value.trim();
   if (!name) { nameEl.focus(); return; }
   const block = document.querySelector(`.preset-edit-block[data-preset-id="${id}"]`);
-  const sourceIds = Array.from(block.querySelectorAll(`.pedit-${id}-src:checked`))
-    .map(el => parseInt(el.value));
+  const sourceIds = Array.from(block.querySelectorAll(`.pedit-${id}-src:checked`)).map(el => parseInt(el.value));
   const digest_enabled = document.getElementById(`pemail-${id}`).checked;
   const digest_frequency_days = parseInt(document.getElementById(`pfreq-${id}`).value);
   fetch(`/digest/presets/${id}`, {
@@ -147,11 +218,36 @@ function saveEditPreset(id) {
     const idx = DIGEST_PRESETS.findIndex(p => p.id === id);
     if (idx !== -1) DIGEST_PRESETS[idx] = { ...DIGEST_PRESETS[idx], name, source_ids: sourceIds, digest_enabled, digest_frequency_days };
     const btn = block.querySelector('button.btn-primary');
-    if (btn) { const orig = btn.textContent; btn.textContent = '✓ 已保存'; setTimeout(() => { btn.textContent = orig; }, 1500); }
+    if (btn) { const orig = btn.textContent; btn.textContent = '已保存'; setTimeout(() => { btn.textContent = orig; }, 1500); }
   })
   .catch(() => alert('保存失败'));
 }
 
-render();
+function saveRawFeedSubscription() {
+  const state = document.getElementById('raw-feed-save-state');
+  const topicIds = Array.from(document.querySelectorAll('.raw-topic:checked')).map(el => parseInt(el.value));
+  const enabled = document.getElementById('raw-feed-enabled').checked;
+  const frequency_days = parseInt(document.getElementById('raw-feed-frequency').value);
+  state.textContent = '保存中...';
+  fetch('/raw-feed/subscription', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topic_ids: topicIds, enabled, frequency_days })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { throw new Error(data.error); }
+    RAW_FEED = data;
+    renderRawFeed();
+    state.textContent = '已保存';
+    setTimeout(() => { state.textContent = ''; }, 1500);
+  })
+  .catch(err => {
+    state.textContent = err.message || '保存失败';
+  });
+}
+
+renderDigestPresets();
+renderRawFeed();
 </script>
 {% endblock %}

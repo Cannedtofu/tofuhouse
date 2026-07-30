@@ -53,6 +53,9 @@ GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 TOPIC_GOOGLE_SEARCH_MODEL: str = os.getenv("TOPIC_GOOGLE_SEARCH_MODEL", "gemini-2.5-flash")
 TOPIC_DEFAULT_CHANNELS = ["web", "youtube", "x"]
 
+# --- Raw feed digest ---
+RAW_FEED_BATCH_SIZE = 10
+
 # --- Default sources (seeded into DB on first run if no sources exist) ---
 DEFAULT_SOURCES = [
     {

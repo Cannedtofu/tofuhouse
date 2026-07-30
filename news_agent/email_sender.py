@@ -57,6 +57,7 @@ def send_digest(
     markdown_body: str,
     to_email: Optional[str] = None,
     date_label: Optional[str] = None,
+    subject: Optional[str] = None,
 ) -> bool:
     """
     Send a markdown digest as a multipart email (HTML + plain-text fallback).
@@ -69,9 +70,9 @@ def send_digest(
         return False
 
     label = date_label or date.today().isoformat()
-    article_count = markdown_body.count("**[")
+    article_count = markdown_body.count("**[") or markdown_body.count("](http")
 
-    subject = f"📰 News Digest — {label} ({article_count} articles)"
+    subject = subject or f"📰 News Digest — {label} ({article_count} articles)"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject

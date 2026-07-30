@@ -242,6 +242,116 @@ def _scheduled_digest_send():
         except Exception as exc:
             logger_sched.error("Preset digest %d failed for %s: %s", preset["id"], preset["user_email"], exc)
 
+
+def _scheduled_raw_feed_send():
+    """Send due raw-feed digest emails independently from the AI digest presets."""
+    from email_sender import send_digest as _send_email
+    from raw_feed_digest import build_raw_feed_digest, date_range_for_frequency
+
+    subscriptions_due = db.get_raw_feed_subscriptions_due()
+    if not subscriptions_due:
+        return
+
+    for sub in subscriptions_due:
+        date_from, date_to = date_range_for_frequency(sub["frequency_days"])
+        try:
+            markdown_body = build_raw_feed_digest(
+                sub["topic_ids"],
+                date_from=date_from,
+                date_to=date_to,
+                user_id=sub["user_id"],
+            )
+            if not markdown_body.strip():
+                logger_sched.info(
+                    "No raw-feed videos for subscription %d (%s), skipping",
+                    sub["id"], sub["user_email"],
+                )
+                db.update_raw_feed_subscription_last_sent(sub["id"])
+                continue
+
+            subject = f"新增信息流日报 — {date_from} to {date_to}"
+            ok = _send_email(
+                markdown_body,
+                to_email=sub["user_email"],
+                date_label=f"{date_from} to {date_to}",
+                subject=subject,
+            )
+            if ok:
+                db.update_raw_feed_subscription_last_sent(sub["id"])
+                logger_sched.info("Raw-feed digest sent to %s", sub["user_email"])
+        except Exception as exc:
+            logger_sched.error("Raw-feed subscription %d failed for %s: %s", sub["id"], sub["user_email"], exc)
+
+def _send_preset_digest_now(preset_id: int) -> None:
+    """Admin-triggered full send for one AI digest preset."""
+    from email_sender import send_digest as _send_email
+    from ai_digest import generate_batch_digest
+
+    preset = db.get_digest_preset_for_admin(preset_id)
+    if not preset:
+        logger_sched.warning("Admin send skipped: preset %d not found", preset_id)
+        return
+
+    try:
+        logger_sched.info("Admin-triggered AI digest fetch starting for preset %d", preset_id)
+        run_fetch_and_summarize()
+        date_to = date.today().isoformat()
+        date_from = (date.today() - timedelta(days=preset["digest_frequency_days"])).isoformat()
+        source_ids = preset["source_ids"] or None
+        articles = db.get_articles(date_from=date_from, date_to=date_to, source_ids=source_ids)
+        article_ids = [a["id"] for a in articles]
+        if not article_ids:
+            logger_sched.info("Admin-triggered AI digest found no articles for preset %d", preset_id)
+            return
+        markdown_body = generate_batch_digest(article_ids, user_id=preset["user_id"])
+        ok = _send_email(
+            markdown_body,
+            to_email=preset["user_email"],
+            date_label=f"{date_from} to {date_to}",
+            subject=f"AI 简报 — {preset['name']} — {date_from} to {date_to}",
+        )
+        if ok:
+            db.update_preset_last_sent(preset_id)
+            logger_sched.info("Admin-triggered AI digest sent: preset %d to %s", preset_id, preset["user_email"])
+    except Exception as exc:
+        logger_sched.error("Admin-triggered AI digest failed for preset %d: %s", preset_id, exc)
+
+
+def _send_raw_feed_now(user_id: int) -> None:
+    """Admin-triggered full send for one user's raw-feed digest."""
+    from email_sender import send_digest as _send_email
+    from raw_feed_digest import build_raw_feed_digest, date_range_for_frequency
+
+    user = db.get_user_by_id(user_id)
+    if not user:
+        logger_sched.warning("Admin raw-feed send skipped: user %d not found", user_id)
+        return
+
+    try:
+        logger_sched.info("Admin-triggered topic fetch starting for raw feed user %d", user_id)
+        run_topic_fetch()
+        sub = db.get_raw_feed_subscription(user_id)
+        date_from, date_to = date_range_for_frequency(sub["frequency_days"])
+        markdown_body = build_raw_feed_digest(
+            sub["topic_ids"],
+            date_from=date_from,
+            date_to=date_to,
+            user_id=user_id,
+        )
+        if not markdown_body.strip():
+            logger_sched.info("Admin-triggered raw feed found no videos for user %d", user_id)
+            return
+        ok = _send_email(
+            markdown_body,
+            to_email=user["email"],
+            date_label=f"{date_from} to {date_to}",
+            subject=f"新增信息流日报 — {date_from} to {date_to}",
+        )
+        if ok:
+            db.update_raw_feed_subscription_last_sent(sub["id"])
+            logger_sched.info("Admin-triggered raw feed sent to %s", user["email"])
+    except Exception as exc:
+        logger_sched.error("Admin-triggered raw feed failed for user %d: %s", user_id, exc)
 logger_sched = logging.getLogger("scheduler")
 logger_dashboard = logging.getLogger("dashboard")
 
@@ -475,6 +585,7 @@ _scheduler = BackgroundScheduler(daemon=True, timezone="Asia/Singapore")
 _scheduler.add_job(_scheduled_daily_fetch, "cron", hour=5,  minute=0, id="daily_fetch")   # 05:00 SGT
 _scheduler.add_job(_scheduled_topic_fetch, "cron", hour=TOPIC_FETCH_HOUR_SGT, minute=0, id="topic_fetch")
 _scheduler.add_job(_scheduled_digest_send, "cron", hour=9,  minute=0, id="digest_send")   # 09:00 SGT
+_scheduler.add_job(_scheduled_raw_feed_send, "cron", hour=9, minute=5, id="raw_feed_send") # 09:05 SGT
 _scheduler.add_job(                                                                         # 09:00 SGT
     lambda: _run_gpu_price_fetch(),
     "cron", hour=9, minute=0, id="gpu_price_daily",
@@ -723,6 +834,26 @@ def _sync_presets_to_follows(user_id: int):
     union_ids = sorted({sid for p in presets for sid in p["source_ids"]})
     db.set_user_follows(user_id, union_ids)
 
+def _sync_raw_feed_to_topic_follows(user_id: int, topic_ids: list[int]):
+    """Keep the main topic follow list aligned with the raw-feed selection."""
+    db.set_user_topic_follows(user_id, topic_ids)
+
+
+def _sync_topic_follow_change_to_raw_feed(user_id: int, topic_id: int, action: str):
+    """Propagate topic follow/unfollow changes into the user's raw-feed subscription."""
+    sub = db.get_raw_feed_subscription(user_id)
+    ids = set(sub["topic_ids"])
+    if action == "unfollow":
+        ids.discard(topic_id)
+    else:
+        ids.add(topic_id)
+    db.update_raw_feed_subscription(
+        user_id,
+        sorted(ids),
+        enabled=sub["enabled"],
+        frequency_days=sub["frequency_days"],
+    )
+
 
 @app.route("/sources/<int:source_id>/follow", methods=["POST"])
 @login_required
@@ -843,6 +974,7 @@ def toggle_topic_follow(topic_id: int):
         db.unfollow_topic(uid, topic_id)
     else:
         db.follow_topic(uid, topic_id)
+    _sync_topic_follow_change_to_raw_feed(uid, topic_id, action)
     return redirect(url_for("topics"))
 
 
@@ -1413,6 +1545,30 @@ def digest_presets_delete(preset_id: int):
     return jsonify({"ok": True})
 
 
+
+@app.route("/raw-feed/subscription", methods=["GET"])
+@login_required
+def raw_feed_subscription_get():
+    return jsonify(db.get_raw_feed_subscription(g.current_user["id"]))
+
+
+@app.route("/raw-feed/subscription", methods=["PUT"])
+@login_required
+def raw_feed_subscription_update():
+    data = request.get_json(force=True, silent=True) or {}
+    topic_ids = [int(x) for x in data.get("topic_ids", [])]
+    enabled = bool(data.get("enabled", False))
+    try:
+        frequency_days = int(data.get("frequency_days", 1))
+    except (TypeError, ValueError):
+        frequency_days = 1
+    if frequency_days not in (1, 3, 7, 14):
+        frequency_days = 1
+    uid = g.current_user["id"]
+    sub = db.update_raw_feed_subscription(uid, topic_ids, enabled, frequency_days)
+    _sync_raw_feed_to_topic_follows(uid, topic_ids)
+    return jsonify(sub)
+
 @app.route("/digest/status/<job_id>")
 @login_required
 def digest_job_status(job_id: str):
@@ -1523,9 +1679,16 @@ def logs_view():
 def subscribe():
     uid = g.current_user["id"]
     digest_presets = db.get_digest_presets(uid)
+    raw_feed_subscription = db.get_raw_feed_subscription(uid)
     all_sources = [dict(s) for s in db.get_all_sources()]
-    return render_template("subscribe.html", digest_presets=digest_presets, all_sources=all_sources)
-
+    all_topics = db.get_all_topics(active_only=True)
+    return render_template(
+        "subscribe.html",
+        digest_presets=digest_presets,
+        raw_feed_subscription=raw_feed_subscription,
+        all_sources=all_sources,
+        all_topics=all_topics,
+    )
 
 @app.route("/settings", methods=["GET", "POST"])
 @login_required
@@ -1543,15 +1706,14 @@ def settings():
         g.current_user = db.get_user_by_id(g.current_user["id"])
         success = True
     token_summary = db.get_token_usage_summary(user_id=g.current_user["id"])
-    browser_summary = db.get_token_usage_summary()  # global — includes browser_agent
+    browser_summary = db.get_token_usage_summary()  # global - includes browser_agent
     browser_rows = [r for r in browser_summary if r["operation"] == "browser_agent"]
     is_admin = g.current_user["email"] == ADMIN_EMAIL
     all_users = db.get_all_users() if is_admin else []
     weekly_tokens = db.get_token_usage_by_user_week() if is_admin else []
-    # For the follow-list editor: sources annotated per user
     user_follows = {}
-    # For the preset digest editor: flat list of {email, preset_id, preset_name, ...}
     admin_digest_rows = []
+    admin_raw_feed_rows = []
     if is_admin:
         for u in all_users:
             user_follows[u["id"]] = db.get_all_sources_with_follow_status(u["id"])
@@ -1559,10 +1721,25 @@ def settings():
         presets_by_user = {}
         for p in all_preset_list:
             presets_by_user.setdefault(p["user_id"], []).append(p)
+        raw_subs_by_user = {
+            s["user_id"]: s
+            for s in db.get_raw_feed_subscriptions_for_users([u["id"] for u in all_users])
+        }
+        for u in all_users:
+            raw_sub = raw_subs_by_user.get(u["id"]) or db.get_raw_feed_subscription(u["id"])
+            admin_raw_feed_rows.append({
+                "user_id": u["id"],
+                "email": u["email"],
+                "enabled": raw_sub["enabled"],
+                "frequency_days": raw_sub["frequency_days"],
+                "last_sent": raw_sub.get("last_sent"),
+                "topic_count": len(raw_sub.get("topic_ids") or []),
+            })
         for u in all_users:
             user_presets = presets_by_user.get(u["id"], [])
             if not user_presets:
                 admin_digest_rows.append({
+                    "user_id": u["id"],
                     "email": u["email"],
                     "preset_id": None,
                     "preset_name": "—",
@@ -1573,6 +1750,7 @@ def settings():
             else:
                 for p in user_presets:
                     admin_digest_rows.append({
+                        "user_id": u["id"],
                         "email": u["email"],
                         "preset_id": p["id"],
                         "preset_name": p["name"],
@@ -1591,8 +1769,9 @@ def settings():
         weekly_tokens=weekly_tokens,
         user_follows=user_follows,
         admin_digest_rows=admin_digest_rows,
+        admin_raw_feed_rows=admin_raw_feed_rows,
+        send_started=request.args.get("send_started"),
     )
-
 
 @app.route("/admin/users/<int:user_id>/follows", methods=["POST"])
 @login_required
@@ -1604,6 +1783,23 @@ def admin_update_user_follows(user_id: int):
     _sync_follows_to_all_presets(user_id, checked_ids)
     return redirect(url_for("settings") + f"#follows-{user_id}")
 
+
+@app.route("/admin/presets/<int:preset_id>/send", methods=["POST"])
+@login_required
+def admin_send_preset_digest(preset_id: int):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "forbidden"}), 403
+    threading.Thread(target=_send_preset_digest_now, args=(preset_id,), daemon=True).start()
+    return redirect(url_for("settings") + "?send_started=ai")
+
+
+@app.route("/admin/raw-feed/<int:user_id>/send", methods=["POST"])
+@login_required
+def admin_send_raw_feed(user_id: int):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "forbidden"}), 403
+    threading.Thread(target=_send_raw_feed_now, args=(user_id,), daemon=True).start()
+    return redirect(url_for("settings") + "?send_started=raw")
 
 @app.route("/admin/presets/<int:preset_id>/digest", methods=["POST"])
 @login_required

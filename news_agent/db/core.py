@@ -177,6 +177,17 @@ def init_db():
                 created_at      TEXT    NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_digest_presets_user ON digest_presets(user_id);
+            CREATE TABLE IF NOT EXISTS raw_feed_subscriptions (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+                topic_ids_json  TEXT    NOT NULL DEFAULT '[]',
+                enabled         INTEGER NOT NULL DEFAULT 0,
+                frequency_days  INTEGER NOT NULL DEFAULT 1,
+                last_sent       TEXT,
+                created_at      TEXT    NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_raw_feed_subscriptions_due
+                ON raw_feed_subscriptions(enabled, last_sent);
 
             CREATE TABLE IF NOT EXISTS gpu_price_cache (
                 gpu_type   TEXT PRIMARY KEY,

@@ -162,6 +162,20 @@ def get_digest_preset(preset_id: int, user_id: int) -> Optional[dict]:
         ).fetchone()
     return _row_to_preset(row) if row else None
 
+def get_digest_preset_for_admin(preset_id: int) -> Optional[dict]:
+    """Return a preset with its owner email for admin-triggered operations."""
+    with get_conn() as conn:
+        row = conn.execute(
+            f"""SELECT dp.user_id, u.email AS user_email, {_PRESET_COLS}
+                FROM digest_presets dp
+                JOIN users u ON u.id = dp.user_id
+                WHERE dp.id = ?""",
+            (preset_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {"user_id": row["user_id"], "user_email": row["user_email"], **_row_to_preset(row)}
+
 
 def create_digest_preset(user_id: int, name: str, source_ids: list[int]) -> Optional[dict]:
     """Returns the new preset dict, or None if the user already has MAX_PRESETS_PER_USER."""
