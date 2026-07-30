@@ -798,7 +798,7 @@ def topics():
                         date_to=backfill_date_to,
                         trigger="create-topic-backfill",
                     )
-                return redirect(url_for("topics", topic_fetch="started" if has_backfill else None))
+                return redirect(url_for("topics"))
             except Exception as exc:
                 error = f"Error saving topic: {exc}"
 
@@ -812,6 +812,27 @@ def topics():
         topic_fetch_status=_topic_fetch_status,
     )
 
+
+@app.route("/topics/<int:topic_id>/queries", methods=["POST"])
+@login_required
+def update_topic_queries(topic_id: int):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return redirect(url_for("topics"))
+    topic = db.get_topic_by_id(topic_id)
+    if not topic:
+        return redirect(url_for("topics"))
+    aliases_raw = request.form.get("aliases", "").strip()
+    aliases = [part.strip() for part in re.split(r"[\n,]+", aliases_raw) if part.strip()]
+    db.update_topic(
+        topic_id=topic_id,
+        name=topic["name"],
+        aliases=aliases,
+        channels=["youtube"],
+        active=topic["active"],
+        backfill_date_from=topic.get("backfill_date_from"),
+        backfill_date_to=topic.get("backfill_date_to"),
+    )
+    return redirect(url_for("topics"))
 
 @app.route("/topics/<int:topic_id>/follow", methods=["POST"])
 @login_required

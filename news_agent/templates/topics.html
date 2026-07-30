@@ -15,7 +15,7 @@
           <input type="text" name="name" class="form-control" placeholder="例如 Jensen Huang" required>
         </div>
         <div class="mb-3">
-          <label class="form-label">别名 / 查询词</label>
+          <label class="form-label">查询词</label>
           <textarea name="aliases" class="form-control" rows="4" placeholder="每行一个，或逗号分隔&#10;例如：黄仁勋&#10;NVIDIA CEO"></textarea>
         </div>
         <div class="mb-3">
@@ -54,7 +54,7 @@
         <thead class="table-light">
           <tr>
             <th>名称</th>
-            <th>别名</th>
+            <th>查询词</th>
             <th>渠道</th>
             <th>回填范围</th>
             <th>最近抓取</th>
@@ -66,7 +66,16 @@
           {% for t in topics %}
           <tr>
             <td class="fw-medium">{{ t.name }}</td>
-            <td class="text-muted small">{{ t.aliases | join(", ") if t.aliases else "—" }}</td>
+                        <td class="text-muted small" style="min-width:220px">
+              {% if is_admin %}
+              <form method="post" action="/topics/{{ t.id }}/queries" class="d-flex gap-2 align-items-start">
+                <textarea name="aliases" class="form-control form-control-sm" rows="2" aria-label="查询词">{{ t.aliases | join("\n") }}</textarea>
+                <button class="btn btn-sm btn-outline-primary flex-shrink-0">保存</button>
+              </form>
+              {% else %}
+              {{ t.aliases | join(", ") if t.aliases else "—" }}
+              {% endif %}
+            </td>
             <td class="text-muted small">{{ t.channels | join(", ") }}</td>
             <td class="text-muted small">{{ t.backfill_date_from or "—" }}{% if t.backfill_date_to %} → {{ t.backfill_date_to }}{% endif %}</td>
             <td class="text-muted small">{{ t.last_fetched | to_sgt if t.last_fetched else "—" }}</td>
@@ -119,7 +128,10 @@ function fetchTopic(id, btn, payload) {
     .then(r => r.json())
     .then(data => {
       if (!data.ok) throw new Error(data.error || '请求失败');
-      pollTopicFetch(btn, oldLabel);
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = oldLabel;
+      }, 800);
     })
     .catch(err => {
       btn.disabled = false;
@@ -136,52 +148,8 @@ function backfillTopic(id, btn) {
   fetchTopic(id, btn, { date_from: from, date_to: to });
 }
 
-function formatTopicFetchResult(res) {
-  const source = (res.sources || [])[0] || {};
-  const candidateCount = source.candidate_count ?? 0;
-  const relevantCount = source.relevant_count ?? source.fetched ?? 0;
-  const newCount = res.new_articles ?? source.new ?? 0;
-  return `完成：候选 ${candidateCount} 条，相关 ${relevantCount} 条，新增 ${newCount} 条`;
-}
-
-function pollTopicFetch(btn, oldLabel) {
-  const timer = setInterval(() => {
-    fetch('/topics/fetch/status')
-      .then(r => r.json())
-      .then(data => {
-        if (!data.running) {
-          clearInterval(timer);
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = oldLabel;
-          }
-          const res = data.last_result;
-          if (res && res.status === 'ok') {
-            showTopicToast(formatTopicFetchResult(res));
-            setTimeout(() => location.reload(), 1200);
-          } else if (res && res.message) {
-            showTopicToast(res.message);
-          }
-        }
-      })
-      .catch(() => {
-        clearInterval(timer);
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = oldLabel;
-        }
-        showTopicToast('轮询失败');
-      });
-  }, 2000);
-}
-
 function showTopicToast(text) {
   document.getElementById('topic-fetch-toast').textContent = text;
 }
-
-{% if topic_fetch_status.running or request.args.get('topic_fetch') == 'started' %}
-showTopicToast('话题回填中...');
-pollTopicFetch(null, '');
-{% endif %}
 </script>
 {% endblock %}
