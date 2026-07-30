@@ -49,8 +49,8 @@ TOPIC_FETCH_HOUR_SGT = int(os.getenv("TOPIC_FETCH_HOUR_SGT", "6"))
 TOPIC_MAX_RESULTS_PER_QUERY = int(os.getenv("TOPIC_MAX_RESULTS_PER_QUERY", "8"))
 TOPIC_MIN_CONFIDENCE = float(os.getenv("TOPIC_MIN_CONFIDENCE", "0.35"))
 TOPIC_QUERY_SLEEP_SECONDS = float(os.getenv("TOPIC_QUERY_SLEEP_SECONDS", "3"))
-GOOGLE_SEARCH_API_KEY: str = os.getenv("GOOGLE_SEARCH_API_KEY", "")
-GOOGLE_SEARCH_ENGINE_ID: str = os.getenv("GOOGLE_SEARCH_ENGINE_ID", "")
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+TOPIC_GOOGLE_SEARCH_MODEL: str = os.getenv("TOPIC_GOOGLE_SEARCH_MODEL", "gemini-2.5-flash")
 TOPIC_DEFAULT_CHANNELS = ["web", "youtube", "x"]
 
 # --- Default sources (seeded into DB on first run if no sources exist) ---

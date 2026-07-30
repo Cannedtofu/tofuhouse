@@ -1,5 +1,5 @@
 # Project Status
-_Last updated: 2026-07-07_
+_Last updated: 2026-07-13_
 
 ## Shipped & Stable
 
@@ -8,8 +8,9 @@ _Last updated: 2026-07-07_
 - Nitter/X scraping with HTML pagination
 - Web source fetching with link discovery plus full-content extraction
 - Topic workflow under `资讯`: OpenAI-SDK-based entity tracking, currently focused on Web discovery
-- Topic `web` discovery currently uses a Google API-backed search path
+- Topic `web` discovery currently uses Gemini Google Search grounding via the Gemini API
 - Topic `web` discovery now limits itself to 3 query variants, paces requests, and logs per-query results for inspection
+- Topic `youtube` discovery returns newest-first candidate videos with title, description, and publish date before downstream usefulness filtering
 - Topic items stored separately from source articles and rendered in the same feed UI
 
 ### Summarization & Digest
@@ -33,8 +34,8 @@ _Last updated: 2026-07-07_
 - Tightening topic-result precision and ranking heuristics
 
 ## Known Issues
-- Topic discovery depends on valid Google API credentials and search engine configuration
-- Topic `youtube` and `x` discovery are temporarily disabled while Web discovery is being stabilized
+- Topic discovery depends on a valid Gemini API key and Gemini Search tool availability
+- Topic `x` discovery is temporarily disabled while Web/YouTube discovery is being stabilized
 - Topic items do not yet participate in the existing digest preset system
 
 ## Next

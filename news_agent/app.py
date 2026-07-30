@@ -742,7 +742,7 @@ def topics():
         name = request.form.get("name", "").strip()
         aliases_raw = request.form.get("aliases", "").strip()
         aliases = [part.strip() for part in re.split(r"[\n,]+", aliases_raw) if part.strip()]
-        channels = request.form.getlist("channels") or ["web", "youtube", "x"]
+        channels = ["youtube"]
         backfill_date_from = request.form.get("backfill_date_from", "").strip() or None
         backfill_date_to = request.form.get("backfill_date_to", "").strip() or None
         if not name:

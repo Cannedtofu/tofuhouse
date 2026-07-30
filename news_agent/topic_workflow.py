@@ -13,20 +13,21 @@ from typing import Any
 from urllib.parse import urlparse
 
 import requests
+import yt_dlp
 
 import db
 from article_summarizer import _get_client
 from config import (
-    GOOGLE_SEARCH_API_KEY,
-    GOOGLE_SEARCH_ENGINE_ID,
+    GEMINI_API_KEY,
     QWEN_SUMMARY_MODEL,
     TOPIC_DEFAULT_CHANNELS,
+    TOPIC_GOOGLE_SEARCH_MODEL,
     TOPIC_MAX_RESULTS_PER_QUERY,
     TOPIC_MIN_CONFIDENCE,
     TOPIC_QUERY_SLEEP_SECONDS,
 )
 from fetchers.browser_use_fetcher import fetch_article_with_meta
-from transcript_worker import _fetch_transcript_fast, extract_video_id
+from transcript_worker import extract_video_id
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ _TOPIC_SYSTEM = (
     "statement, or direct remarks by the requested entity. Respond with compact JSON only."
 )
 _QUERY_LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "topic_query_results.jsonl")
+_GEMINI_SEARCH_URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
 
 
 def _normalize_url(url: str) -> str:
@@ -102,51 +104,245 @@ def _log_query_results(
         handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
+def _extract_json_object(raw: str) -> dict[str, Any] | None:
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+
+    candidates = [raw]
+    if "```" in raw:
+        fenced = re.findall(r"```(?:json)?\s*(.*?)```", raw, flags=re.DOTALL | re.IGNORECASE)
+        candidates = fenced + candidates
+
+    for candidate in candidates:
+        candidate = candidate.strip()
+        if not candidate:
+            continue
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+
+        start = candidate.find("{")
+        end = candidate.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            try:
+                parsed = json.loads(candidate[start : end + 1])
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                continue
+    return None
+
+
 def _search_google_web(query: str, limit: int = TOPIC_MAX_RESULTS_PER_QUERY) -> tuple[list[dict[str, Any]], str | None]:
-    if not GOOGLE_SEARCH_API_KEY or not GOOGLE_SEARCH_ENGINE_ID:
-        logger.warning("[topic] google api credentials missing")
-        return [], "missing_google_api_credentials"
+    if not GEMINI_API_KEY:
+        logger.warning("[topic] gemini api key missing")
+        return [], "missing_gemini_api_key"
+
+    prompt = (
+        "Use Google Search to find public first-party interviews, speeches, statements, or direct remarks "
+        f"for this query: {query}\n"
+        "Return compact JSON only with this schema: "
+        '{"candidates":[{"title":"string","url":"https://...","snippet":"string"}]}. '
+        f"Include at most {limit} candidates. Prefer direct source pages, interview pages, transcripts, "
+        "and reputable writeups that quote the person directly. Exclude YouTube, X, and Twitter URLs."
+    )
 
     try:
-        resp = requests.get(
-            "https://www.googleapis.com/customsearch/v1",
-            params={
-                "key": GOOGLE_SEARCH_API_KEY,
-                "cx": GOOGLE_SEARCH_ENGINE_ID,
-                "q": query,
-                "num": min(limit, 10),
-                "hl": "en",
-                "safe": "off",
+        resp = requests.post(
+            _GEMINI_SEARCH_URL,
+            headers={
+                "x-goog-api-key": GEMINI_API_KEY,
+                "Content-Type": "application/json",
             },
-            timeout=20,
+            json={
+                "model": TOPIC_GOOGLE_SEARCH_MODEL,
+                "input": prompt,
+                "tools": [{"type": "google_search"}],
+            },
+            timeout=30,
         )
         resp.raise_for_status()
     except Exception as exc:
-        logger.warning("[topic] google api search failed for %s: %s", query, exc)
-        return [], f"google_api_request_failed: {exc}"
+        logger.warning("[topic] gemini google search failed for %s: %s", query, exc)
+        return [], f"gemini_google_search_failed: {exc}"
 
     try:
         payload = resp.json()
     except Exception as exc:
-        logger.warning("[topic] google api json parse failed for %s: %s", query, exc)
-        return [], f"google_api_invalid_json: {exc}"
+        logger.warning("[topic] gemini google search json parse failed for %s: %s", query, exc)
+        return [], f"gemini_google_search_invalid_json: {exc}"
 
-    items = payload.get("items") or []
-    if not items:
-        return [], "google_api_no_items"
+    steps = payload.get("steps") or []
+    model_output_blocks: list[dict[str, Any]] = []
+    executed_queries: list[str] = []
+    for step in steps:
+        if step.get("type") == "google_search_call":
+            executed_queries.extend(step.get("arguments", {}).get("queries") or [])
+        if step.get("type") == "model_output":
+            model_output_blocks.extend(step.get("content") or [])
+
+    output_text = payload.get("output_text") or ""
+    parsed_output = _extract_json_object(output_text)
+
+    citations_by_url: dict[str, dict[str, str]] = {}
+    for block in model_output_blocks:
+        if block.get("type") != "text":
+            continue
+        block_text = str(block.get("text") or "")
+        if parsed_output is None:
+            parsed_output = _extract_json_object(block_text)
+        for annotation in block.get("annotations") or []:
+            if annotation.get("type") != "url_citation":
+                continue
+            url = _normalize_url(str(annotation.get("url") or ""))
+            if not url:
+                continue
+            start_idx = int(annotation.get("start_index", 0) or 0)
+            end_idx = int(annotation.get("end_index", 0) or 0)
+            snippet = block_text[start_idx:end_idx].strip() if end_idx > start_idx else ""
+            citations_by_url[url] = {
+                "title": str(annotation.get("title") or "").strip(),
+                "snippet": snippet,
+            }
+
+    candidates = parsed_output.get("candidates", []) if parsed_output else []
+    if not isinstance(candidates, list):
+        candidates = []
 
     results: list[dict[str, Any]] = []
-    for item in items[:limit]:
-        link = str(item.get("link") or "").strip()
+    seen = set()
+    for item in candidates:
+        if not isinstance(item, dict):
+            continue
+        link = _normalize_url(str(item.get("url") or "").strip())
         if not link.startswith("http"):
             continue
+        if link in seen:
+            continue
+        seen.add(link)
+        citation = citations_by_url.get(link, {})
         results.append({
-            "title": str(item.get("title") or "").strip() or link,
-            "url": _normalize_url(link),
-            "snippet": str(item.get("snippet") or "").strip(),
+            "title": str(item.get("title") or "").strip() or citation.get("title") or link,
+            "url": link,
+            "snippet": str(item.get("snippet") or "").strip() or citation.get("snippet") or "",
         })
-    return results, None
+        if len(results) >= limit:
+            break
 
+    if not results and citations_by_url:
+        for url, citation in list(citations_by_url.items())[:limit]:
+            results.append({
+                "title": citation.get("title") or urlparse(url).netloc or url,
+                "url": url,
+                "snippet": citation.get("snippet") or "",
+            })
+
+    note = None
+    if executed_queries:
+        note = f"gemini_queries={executed_queries}"
+    if not results:
+        suffix = "gemini_no_candidates"
+        note = f"{note};{suffix}" if note else suffix
+    return results, note
+
+
+
+def _parse_youtube_published_at(entry: dict[str, Any]) -> str | None:
+    upload_date = str(entry.get("upload_date") or "").strip()
+    if re.fullmatch(r"\d{8}", upload_date):
+        return f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:8]}"
+
+    for key in ("release_timestamp", "timestamp"):
+        value = entry.get(key)
+        if value:
+            try:
+                return datetime.fromtimestamp(int(value), tz=timezone.utc).isoformat()
+            except Exception:
+                continue
+    return None
+
+
+def _published_sort_key(item: dict[str, Any]) -> datetime:
+    published_at = item.get("published_at")
+    if not published_at:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    try:
+        dt = datetime.fromisoformat(str(published_at).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _search_youtube_videos(
+    query: str,
+    limit: int = TOPIC_MAX_RESULTS_PER_QUERY,
+) -> tuple[list[dict[str, Any]], str | None]:
+    search_term = f"ytsearchdate{limit}:{query}"
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "ignoreerrors": True,
+        "noplaylist": True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            payload = ydl.extract_info(search_term, download=False)
+    except Exception as exc:
+        logger.warning("[topic] youtube search failed for %s: %s", query, exc)
+        return [], f"youtube_search_failed: {exc}"
+
+    entries = payload.get("entries") if isinstance(payload, dict) else None
+    if not isinstance(entries, list):
+        return [], "youtube_no_entries"
+
+    results: list[dict[str, Any]] = []
+    seen = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        video_id = str(entry.get("id") or "").strip()
+        url = str(entry.get("webpage_url") or "").strip()
+        if not url and video_id:
+            url = f"https://www.youtube.com/watch?v={video_id}"
+        url = _normalize_url(url)
+        if not url.startswith("http") or url in seen:
+            continue
+        seen.add(url)
+
+        description = entry.get("description") or entry.get("snippet") or ""
+        if isinstance(description, list):
+            description = "\n".join(str(part) for part in description if part)
+
+        title = str(entry.get("title") or "").strip()
+        if not title:
+            continue
+
+        results.append({
+            "title": title,
+            "url": url,
+            "snippet": str(description).strip(),
+            "published_at": _parse_youtube_published_at(entry),
+            "duration_seconds": entry.get("duration"),
+            "channel": str(entry.get("channel") or entry.get("uploader") or "").strip(),
+            "video_id": video_id or None,
+        })
+        if len(results) >= limit:
+            break
+
+    results.sort(key=_published_sort_key, reverse=True)
+
+    note = f"youtube_search_term={search_term};sort=upload_date_desc"
+    if not results:
+        note = f"{note};youtube_no_candidates"
+    return results, note
 
 def _date_in_range(date_str: str | None, date_from: str | None, date_to: str | None) -> bool:
     if not date_str:
@@ -192,7 +388,16 @@ def _slug_tokens(text: str, topic: dict) -> list[str]:
     return tokens[:12]
 
 
-def _canonical_key(topic: dict, title: str, published_at: str | None) -> str:
+def _canonical_key(
+    topic: dict,
+    title: str,
+    published_at: str | None,
+    url: str | None = None,
+    platform: str | None = None,
+) -> str:
+    if platform == "youtube" and url:
+        return hashlib.sha1(f"{topic['id']}|youtube|{_normalize_url(url)}".encode("utf-8")).hexdigest()
+
     date_key = (published_at or "")[:10]
     body = " ".join(_slug_tokens(title, topic)) or re.sub(r"\s+", " ", title.lower()).strip()[:80]
     return hashlib.sha1(f"{topic['id']}|{date_key}|{body}".encode("utf-8")).hexdigest()
@@ -224,8 +429,27 @@ def _search_web(topic: dict, queries: list[str]) -> list[dict[str, Any]]:
 
 
 def _search_youtube(topic: dict, queries: list[str]) -> list[dict[str, Any]]:
-    logger.info("[topic] youtube discovery disabled for now")
-    return []
+    if "youtube" not in (topic.get("channels") or TOPIC_DEFAULT_CHANNELS):
+        return []
+
+    results: list[dict[str, Any]] = []
+    seen = set()
+    capped_queries = queries[:3]
+    for idx, query in enumerate(capped_queries):
+        query_results, note = _search_youtube_videos(query)
+        _log_query_results(topic, "youtube", query, query_results, note=note)
+        for item in query_results:
+            url = item["url"]
+            if url in seen:
+                continue
+            seen.add(url)
+            item["platform"] = "youtube"
+            item["source_label"] = item.get("channel") or "youtube.com"
+            results.append(item)
+        if idx < len(capped_queries) - 1 and TOPIC_QUERY_SLEEP_SECONDS > 0:
+            time.sleep(TOPIC_QUERY_SLEEP_SECONDS)
+    results.sort(key=_published_sort_key, reverse=True)
+    return results
 
 
 def _search_x(topic: dict, queries: list[str]) -> list[dict[str, Any]]:
@@ -305,9 +529,15 @@ def _enrich_candidates(
                         title = line
                         break
         elif platform == "youtube":
-            transcript = _fetch_transcript_fast(url)
-            if transcript:
-                content = transcript
+            duration_seconds = cand.get("duration_seconds")
+            try:
+                duration_seconds = int(duration_seconds) if duration_seconds is not None else None
+            except (TypeError, ValueError):
+                duration_seconds = None
+            if duration_seconds is not None and duration_seconds < 20 * 60:
+                logger.info("[topic] skipped short youtube video %s (%ss)", title[:120], duration_seconds)
+                continue
+            content = "\n\n".join(part for part in (title, cand.get("snippet", "")) if part)
         elif platform == "x":
             content = cand.get("snippet") or title
 
@@ -320,7 +550,7 @@ def _enrich_candidates(
             continue
 
         enriched.append({
-            "canonical_key": _canonical_key(topic, title, published_at),
+            "canonical_key": _canonical_key(topic, title, published_at, primary_url, platform),
             "title": title or primary_url,
             "url": primary_url,
             "content": content or cand.get("snippet") or "",
@@ -334,6 +564,7 @@ def _enrich_candidates(
                 "title": cand.get("title") or title,
                 "content_snippet": cand.get("snippet") or (content[:280] if content else ""),
                 "published_at": published_at,
+                "duration_seconds": cand.get("duration_seconds"),
                 "is_primary": True,
             }],
         })
@@ -362,13 +593,22 @@ def _dedupe_and_persist(topic: dict, enriched_candidates: list[dict[str, Any]]) 
             confidence=cand["confidence"],
             supporting_sources=cand.get("supporting_sources", []),
         )
-        persisted.append({"id": item_id, "new": is_new, "title": cand["title"]})
+        persisted.append({
+            "id": item_id,
+            "new": is_new,
+            "title": cand["title"],
+            "url": cand["url"],
+            "published_at": cand.get("published_at"),
+            "duration_seconds": cand.get("supporting_sources", [{}])[0].get("duration_seconds"),
+            "primary_platform": cand["primary_platform"],
+            "confidence": cand["confidence"],
+        })
 
     db.update_topic_last_fetched(topic["id"])
     return persisted
 
 
-def _run_topic_pipeline(topic: dict, date_from: str | None, date_to: str | None) -> list[dict[str, Any]]:
+def _run_topic_pipeline(topic: dict, date_from: str | None, date_to: str | None) -> dict[str, Any]:
     queries = _build_queries(topic)
     candidates = [
         *_search_web(topic, queries),
@@ -376,7 +616,12 @@ def _run_topic_pipeline(topic: dict, date_from: str | None, date_to: str | None)
         *_search_x(topic, queries),
     ]
     enriched = _enrich_candidates(topic, candidates, date_from, date_to)
-    return _dedupe_and_persist(topic, enriched)
+    persisted = _dedupe_and_persist(topic, enriched)
+    return {
+        "candidate_count": len(candidates),
+        "relevant_count": len(persisted),
+        "items": persisted,
+    }
 
 
 def run_topic_fetch(
@@ -395,15 +640,22 @@ def run_topic_fetch(
     results: list[dict[str, Any]] = []
     for topic in topics:
         logger.info("[topic] fetching topic %s", topic["name"])
-        persisted = _run_topic_pipeline(topic, date_from, date_to)
-        new_count = sum(1 for item in persisted if item["new"])
+        pipeline_result = _run_topic_pipeline(topic, date_from, date_to)
+        items = pipeline_result["items"]
+        new_count = sum(1 for item in items if item["new"])
         total_new += new_count
         results.append({
             "name": topic["name"],
             "type": "topic",
             "new": new_count,
-            "fetched": len(persisted),
+            "fetched": len(items),
+            "candidate_count": pipeline_result["candidate_count"],
+            "relevant_count": pipeline_result["relevant_count"],
+            "items": items,
             "error": None,
         })
 
     return {"total_new": total_new, "sources": results}
+
+
+

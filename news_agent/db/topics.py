@@ -38,7 +38,7 @@ def create_topic(
 ) -> dict:
     now = _now_iso()
     aliases = [a.strip() for a in aliases if a.strip()]
-    channels = channels or ["web", "youtube", "x"]
+    channels = channels or ["youtube"]
     with get_conn() as conn:
         conn.execute(
             """INSERT INTO topics
