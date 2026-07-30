@@ -464,6 +464,7 @@ function renderSidebar(jobs) {
     const modeBadge = `<span class="badge ${j.mode === 'diarization' ? 'bg-primary' : 'bg-secondary'}" style="font-size:.65rem">${j.mode === 'diarization' ? '区分' : '不区分'}</span>`;
     return `
       <div class="sidebar-item p-2 rounded mb-1 border position-relative"
+           data-job-id="${escHtml(j.job_id)}"
            style="cursor:pointer; font-size:.82rem"
            onclick="loadJob('${escHtml(j.job_id)}')"
            title="${escHtml(j.video_url || '')}">
@@ -523,6 +524,23 @@ function confirmDelete(jobId, title) {
   _deleteModal.show();
 }
 
+function decrementTranscriptGroupCount(itemEl) {
+  const groupItems = itemEl.parentElement;
+  const groupWrap = groupItems ? groupItems.parentElement : null;
+  const countEl = groupWrap ? groupWrap.querySelector('[onclick^="toggleGroup"] .text-muted') : null;
+  if (countEl) {
+    const next = Math.max(0, (parseInt(countEl.textContent, 10) || 0) - 1);
+    countEl.textContent = String(next);
+  }
+}
+
+function removeTranscriptJobFromPage(jobId) {
+  const itemEl = Array.from(document.querySelectorAll('.sidebar-item[data-job-id]')).find(el => el.dataset.jobId === jobId);
+  if (!itemEl) return;
+  decrementTranscriptGroupCount(itemEl);
+  itemEl.remove();
+}
+
 function executeDelete() {
   if (!_deleteJobId) return;
   const jobId = _deleteJobId;
@@ -536,7 +554,8 @@ function executeDelete() {
         _currentJobId = null;
         resetResultCard();
       }
-      refreshSidebar();
+      removeTranscriptJobFromPage(jobId);
+      _deleteJobId = null;
     })
     .catch(() => alert('请求失败，请重试。'));
 }

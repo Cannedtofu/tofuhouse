@@ -27,7 +27,7 @@
       <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
         <div>
           <h5 class="mb-1">新增信息流日报</h5>
-          <p class="text-muted small mb-0">独立于 AI 简报，只推送所选话题下目标时间范围内的 YouTube 视频清单和简短中文介绍。</p>
+          <p class="text-muted small mb-0">独立于 AI 简报，推送所选话题、RSS 来源和 YouTube 来源在目标时间范围内的新增清单与简短中文介绍。</p>
         </div>
         <span id="raw-feed-save-state" class="text-muted small"></span>
       </div>
@@ -53,6 +53,12 @@
         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('raw-topic', false)">取消全选</button>
       </div>
       <div id="raw-topic-list" class="mb-3"></div>
+
+      <div class="d-flex gap-1 mb-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('raw-source', true)">全选 RSS / YouTube</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAllChecks('raw-source', false)">取消全选</button>
+      </div>
+      <div id="raw-source-list" class="mb-3"></div>
       <button class="btn btn-primary btn-sm" onclick="saveRawFeedSubscription()">保存信息流日报</button>
     </div>
   </div>
@@ -159,25 +165,45 @@ function renderDigestPresets() {
 function renderRawFeed() {
   document.getElementById('raw-feed-enabled').checked = Boolean(RAW_FEED.enabled);
   document.getElementById('raw-feed-frequency').value = String(RAW_FEED.frequency_days || 1);
-  const checkedIds = RAW_FEED.topic_ids || [];
-  const list = document.getElementById('raw-topic-list');
+  const checkedTopicIds = RAW_FEED.topic_ids || [];
+  const checkedSourceIds = RAW_FEED.source_ids || [];
+  const topicList = document.getElementById('raw-topic-list');
   if (!ALL_TOPICS.length) {
-    list.innerHTML = '<p class="text-muted small mb-0">暂无已配置话题。请先在“话题”栏目新增话题。</p>';
-    return;
+    topicList.innerHTML = '<p class="text-muted small mb-0">暂无已配置话题。请先在“话题”栏目新增话题。</p>';
+  } else {
+    let html = '<div class="mb-1 mt-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em">话题</div>';
+    html += '<div class="row row-cols-1 row-cols-md-2 g-1">';
+    ALL_TOPICS.forEach(t => {
+      const chk = checkedTopicIds.includes(t.id) ? 'checked' : '';
+      const aliases = (t.aliases || []).join(', ');
+      html += `<div class="col"><div class="form-check">
+        <input type="checkbox" class="form-check-input raw-topic" id="raw-topic-${t.id}" value="${t.id}" ${chk}>
+        <label class="form-check-label small" for="raw-topic-${t.id}">
+          ${_escHtml(t.name)}${aliases ? `<span class="text-muted"> · ${_escHtml(aliases)}</span>` : ''}
+        </label>
+      </div></div>`;
+    });
+    html += '</div>';
+    topicList.innerHTML = html;
   }
-  let html = '<div class="row row-cols-1 row-cols-md-2 g-1">';
-  ALL_TOPICS.forEach(t => {
-    const chk = checkedIds.includes(t.id) ? 'checked' : '';
-    const aliases = (t.aliases || []).join(', ');
-    html += `<div class="col"><div class="form-check">
-      <input type="checkbox" class="form-check-input raw-topic" id="raw-topic-${t.id}" value="${t.id}" ${chk}>
-      <label class="form-check-label small" for="raw-topic-${t.id}">
-        ${_escHtml(t.name)}${aliases ? `<span class="text-muted"> · ${_escHtml(aliases)}</span>` : ''}
-      </label>
-    </div></div>`;
-  });
-  html += '</div>';
-  list.innerHTML = html;
+
+  const sourceList = document.getElementById('raw-source-list');
+  const rawSources = ALL_SOURCES.filter(src => ['rss', 'youtube'].includes(src.type));
+  if (!rawSources.length) {
+    sourceList.innerHTML = '<p class="text-muted small mb-0">暂无 RSS / YouTube 来源。</p>';
+  } else {
+    let html = '<div class="mb-1 mt-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em">RSS / YouTube 来源</div>';
+    html += '<div class="row row-cols-1 row-cols-md-2 g-1">';
+    rawSources.forEach(src => {
+      const chk = checkedSourceIds.includes(src.id) ? 'checked' : '';
+      html += `<div class="col"><div class="form-check">
+        <input type="checkbox" class="form-check-input raw-source" id="raw-source-${src.id}" value="${src.id}" ${chk}>
+        <label class="form-check-label small" for="raw-source-${src.id}">${_escHtml(src.name)} <span class="text-muted">(${_escHtml(src.type)})</span></label>
+      </div></div>`;
+    });
+    html += '</div>';
+    sourceList.innerHTML = html;
+  }
 }
 
 function saveNewPreset(slot) {
@@ -226,13 +252,14 @@ function saveEditPreset(id) {
 function saveRawFeedSubscription() {
   const state = document.getElementById('raw-feed-save-state');
   const topicIds = Array.from(document.querySelectorAll('.raw-topic:checked')).map(el => parseInt(el.value));
+  const sourceIds = Array.from(document.querySelectorAll('.raw-source:checked')).map(el => parseInt(el.value));
   const enabled = document.getElementById('raw-feed-enabled').checked;
   const frequency_days = parseInt(document.getElementById('raw-feed-frequency').value);
   state.textContent = '保存中...';
   fetch('/raw-feed/subscription', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ topic_ids: topicIds, enabled, frequency_days })
+    body: JSON.stringify({ topic_ids: topicIds, source_ids: sourceIds, enabled, frequency_days })
   })
   .then(r => r.json())
   .then(data => {

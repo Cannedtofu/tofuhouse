@@ -121,6 +121,7 @@
           <th>邮箱</th>
           <th>状态</th>
           <th>话题数</th>
+          <th>来源数</th>
           <th>频率</th>
           <th>上次发送</th>
           <th>操作</th>
@@ -132,6 +133,7 @@
           <td class="small">{{ row.email }}</td>
           <td class="small">{{ '开启' if row.enabled else '关闭' }}</td>
           <td class="small text-muted">{{ row.topic_count }}</td>
+          <td class="small text-muted">{{ row.source_count }}</td>
           <td class="small text-muted">
             {% if row.frequency_days == 1 %}每天{% elif row.frequency_days == 3 %}每 3 天{% elif row.frequency_days == 7 %}每周{% elif row.frequency_days == 14 %}每 2 周{% else %}每 {{ row.frequency_days }} 天{% endif %}
           </td>

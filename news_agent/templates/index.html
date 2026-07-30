@@ -635,6 +635,47 @@ function showFetchResult(res) {
 }
 
 {% if is_admin %}
+function clearArticleDetail() {
+  currentId = null;
+  document.getElementById('detail-placeholder').style.display = 'block';
+  document.getElementById('detail-content').style.display = 'none';
+}
+
+function decrementGroupCounts(itemEl) {
+  let group = itemEl.closest('.source-group');
+  while (group) {
+    const header = Array.from(group.children).find(el => el.classList && el.classList.contains('source-group-header'));
+    const badge = header ? header.querySelector('.badge.ms-auto') : null;
+    if (badge) {
+      const next = Math.max(0, (parseInt(badge.textContent, 10) || 0) - 1);
+      badge.textContent = String(next);
+    }
+    group = group.parentElement ? group.parentElement.closest('.source-group') : null;
+  }
+}
+
+function removeArticleFromPage(id) {
+  const itemEl = document.querySelector(`.article-list-item[data-id="${id}"]`);
+  const nextEl = itemEl
+    ? (itemEl.nextElementSibling || itemEl.previousElementSibling || document.querySelector(`.article-list-item:not([data-id="${id}"])`))
+    : null;
+
+  if (itemEl) {
+    decrementGroupCounts(itemEl);
+    itemEl.remove();
+  }
+  delete byId[id];
+  const idx = ARTICLES.findIndex(a => String(a.id) === String(id));
+  if (idx >= 0) ARTICLES.splice(idx, 1);
+  delete _translationCache[id];
+
+  if (currentId === id) {
+    const nextId = nextEl ? parseInt(nextEl.dataset.id, 10) : null;
+    if (nextId && byId[nextId]) selectArticle(nextId);
+    else clearArticleDetail();
+  }
+}
+
 function deleteArticle(id) {
   if (!id) return;
   const a = byId[id];
@@ -649,7 +690,8 @@ function deleteArticle(id) {
     .then(r => r.json())
     .then(data => {
       if (!data.ok) throw new Error(data.error || '删除失败');
-      location.reload();
+      removeArticleFromPage(id);
+      showToast('已删除。', 'success');
     })
     .catch(err => alert(err.message || '删除失败'));
 }

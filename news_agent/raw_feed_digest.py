@@ -1,4 +1,4 @@
-"""Generate the independent raw-feed daily digest for topic videos."""
+"""Generate the independent raw-feed daily digest for topics and selected sources."""
 
 from __future__ import annotations
 
@@ -15,23 +15,25 @@ from config import QWEN_SUMMARY_MODEL, RAW_FEED_BATCH_SIZE
 logger = logging.getLogger(__name__)
 
 _SYSTEM_MESSAGE = (
-    "You rewrite YouTube video descriptions into concise Simplified Chinese blurbs. "
-    "Use only the supplied title and description. Do not infer transcript content or external facts."
+    "You rewrite RSS, YouTube, and topic-tracking items into concise Simplified Chinese blurbs. "
+    "Use only the supplied title and description/content. Do not infer transcripts or external facts."
 )
 
 _BATCH_PROMPT = """\
-请基于以下 YouTube 视频的标题和描述，为每个视频改写一个更简洁的视频介绍。
+请基于以下信息流条目的标题和描述，为每个条目改写一个更简洁的中文介绍。
 
 硬性要求：
 - 只依据给定的 title 和 content，不读取逐字稿，不补充外部事实。
 - intro 使用简体中文，150 个中文字符以内。
-- 不要营销腔，不要说“这个视频/本视频”。
+- 不要营销腔，不要说“这个视频/这篇文章/本视频/本文”。
 - 严格输出 JSON 数组，不要 Markdown，不要额外解释。
-- 数组每项格式：{{"id": 视频 id, "intro": "简介"}}
+- 数组每项格式：{{"id": "条目 id", "intro": "简介"}}
 
-Videos:
-{videos_json}
+Items:
+{items_json}
 """
+
+_ALLOWED_SOURCE_TYPES = {"rss", "youtube"}
 
 
 def _chunks(items: list[dict], size: int) -> Iterable[list[dict]]:
@@ -48,9 +50,7 @@ def _clean_intro(text: str | None, fallback: str = "") -> str:
 
 
 def _fallback_intro(item: dict) -> str:
-    content = item.get("content") or ""
-    title = item.get("title") or ""
-    return _clean_intro(content or title)
+    return _clean_intro(item.get("content") or item.get("title") or "")
 
 
 def _parse_json_array(text: str) -> list[dict]:
@@ -63,26 +63,59 @@ def _parse_json_array(text: str) -> list[dict]:
         return json.loads(match.group(0))
 
 
-def _build_input_items(rows: list[dict]) -> list[dict]:
+def _topic_rows_to_items(rows: list[dict]) -> list[dict]:
     items: list[dict] = []
     for row in rows:
         items.append({
-            "id": int(row["id"]),
+            "id": f"topic:{row['id']}",
             "title": row.get("title") or "",
             "url": row.get("url") or "",
             "content": (row.get("content") or "")[:1200],
             "published_at": row.get("published_at") or row.get("fetched_at") or "",
-            "topic_name": row.get("topic_name") or "",
+            "group_name": row.get("topic_name") or "未命名话题",
+            "group_type": "话题",
+            "source_type": row.get("primary_platform") or "topic",
         })
     return items
 
 
-def _generate_intros(items: list[dict], user_id: int | None = None) -> dict[int, str]:
+def _article_rows_to_items(rows: list[dict]) -> list[dict]:
+    items: list[dict] = []
+    for row in rows:
+        source_type = (row.get("source_type") or "").lower()
+        if source_type not in _ALLOWED_SOURCE_TYPES:
+            continue
+        items.append({
+            "id": f"article:{row['id']}",
+            "title": row.get("title") or "",
+            "url": row.get("url") or "",
+            "content": (row.get("summary") or row.get("content") or "")[:1200],
+            "published_at": row.get("published_at") or row.get("fetched_at") or "",
+            "group_name": row.get("source_name") or "未命名来源",
+            "group_type": "YouTube" if source_type == "youtube" else "RSS",
+            "source_type": source_type,
+        })
+    return items
+
+
+def _dedupe_items(items: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    result: list[dict] = []
+    for item in items:
+        key = (item.get("url") or item["id"]).strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(item)
+    return result
+
+
+def _generate_intros(items: list[dict], user_id: int | None = None) -> dict[str, str]:
     if not items:
         return {}
 
     client = _get_client()
-    result: dict[int, str] = {}
+    result: dict[str, str] = {}
     usage: list[tuple[int, int]] = []
 
     for batch in _chunks(items, RAW_FEED_BATCH_SIZE):
@@ -93,12 +126,14 @@ def _generate_intros(items: list[dict], user_id: int | None = None) -> dict[int,
                 "url": item["url"],
                 "content": item["content"],
                 "published_at": item["published_at"],
-                "topic_name": item["topic_name"],
+                "group_name": item["group_name"],
+                "group_type": item["group_type"],
+                "source_type": item["source_type"],
             }
             for item in batch
         ]
         prompt = _BATCH_PROMPT.format(
-            videos_json=json.dumps(payload, ensure_ascii=False, indent=2)
+            items_json=json.dumps(payload, ensure_ascii=False, indent=2)
         )
         try:
             raw = _chat(
@@ -110,7 +145,7 @@ def _generate_intros(items: list[dict], user_id: int | None = None) -> dict[int,
                 _acc=usage,
             )
             parsed = _parse_json_array(raw)
-            by_id = {int(entry.get("id")): entry.get("intro") for entry in parsed if entry.get("id") is not None}
+            by_id = {str(entry.get("id")): entry.get("intro") for entry in parsed if entry.get("id") is not None}
             for item in batch:
                 result[item["id"]] = _clean_intro(by_id.get(item["id"]), _fallback_intro(item))
         except Exception as exc:
@@ -131,32 +166,39 @@ def build_raw_feed_digest(
     date_from: str,
     date_to: str,
     user_id: int | None = None,
+    source_ids: list[int] | None = None,
 ) -> str:
-    """Build a markdown raw-feed digest for topic videos in the given date range."""
-    if not topic_ids:
+    """Build a markdown raw-feed digest for selected topics and RSS/YouTube sources."""
+    items: list[dict] = []
+
+    if topic_ids:
+        topic_rows = [dict(r) for r in db.get_topic_feed_items(date_from=date_from, date_to=date_to, topic_ids=topic_ids)]
+        items.extend(_topic_rows_to_items(topic_rows))
+
+    if source_ids:
+        article_rows = [dict(r) for r in db.get_articles(date_from=date_from, date_to=date_to, source_ids=source_ids)]
+        items.extend(_article_rows_to_items(article_rows))
+
+    items = _dedupe_items(sorted(items, key=lambda item: item.get("published_at") or "", reverse=True))
+    if not items:
         return ""
 
-    rows = [dict(r) for r in db.get_topic_feed_items(date_from=date_from, date_to=date_to, topic_ids=topic_ids)]
-    rows = [r for r in rows if (r.get("primary_platform") or "").lower() == "youtube"]
-    if not rows:
-        return ""
-
-    input_items = _build_input_items(rows)
-    intros = _generate_intros(input_items, user_id=user_id)
+    intros = _generate_intros(items, user_id=user_id)
 
     grouped: dict[str, list[dict]] = {}
-    for row in rows:
-        grouped.setdefault(row.get("topic_name") or "未命名话题", []).append(row)
+    for item in items:
+        group = f"{item['group_type']} · {item['group_name']}"
+        grouped.setdefault(group, []).append(item)
 
-    lines = [f"# 新增信息流日报", "", f"*{date_from} to {date_to}，共 {len(rows)} 条视频*", ""]
-    for topic_name, topic_rows in grouped.items():
-        lines.append(f"## {topic_name}")
+    lines = ["# 新增信息流日报", "", f"*{date_from} to {date_to}，共 {len(items)} 条*", ""]
+    for group_name, group_items in grouped.items():
+        lines.append(f"## {group_name}")
         lines.append("")
-        for row in topic_rows:
-            title = row.get("title") or row.get("url") or "Untitled video"
-            url = row.get("url") or "#"
-            pub = (row.get("published_at") or row.get("fetched_at") or "")[:10]
-            intro = intros.get(int(row["id"])) or _fallback_intro(row)
+        for item in group_items:
+            title = item.get("title") or item.get("url") or "Untitled"
+            url = item.get("url") or "#"
+            pub = (item.get("published_at") or "")[:10]
+            intro = intros.get(item["id"]) or _fallback_intro(item)
             prefix = f"{pub} · " if pub else ""
             lines.append(f"- {prefix}[{title}]({url})")
             lines.append(f"  {intro}")

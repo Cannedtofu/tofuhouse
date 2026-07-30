@@ -16,7 +16,7 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _parse_topic_ids(value: str | None) -> list[int]:
+def _parse_ids(value: str | None) -> list[int]:
     try:
         return [int(v) for v in json.loads(value or "[]")]
     except Exception:
@@ -24,10 +24,12 @@ def _parse_topic_ids(value: str | None) -> list[int]:
 
 
 def _row_to_subscription(row: sqlite3.Row) -> dict:
+    keys = set(row.keys())
     return {
         "id": row["id"],
         "user_id": row["user_id"],
-        "topic_ids": _parse_topic_ids(row["topic_ids_json"]),
+        "topic_ids": _parse_ids(row["topic_ids_json"]),
+        "source_ids": _parse_ids(row["source_ids_json"] if "source_ids_json" in keys else "[]"),
         "enabled": bool(row["enabled"]),
         "frequency_days": int(row["frequency_days"] or DEFAULT_RAW_FEED_FREQUENCY_DAYS),
         "last_sent": row["last_sent"],
@@ -47,6 +49,18 @@ def _default_topic_ids_for_user(conn: sqlite3.Connection, user_id: int) -> list[
     return [int(r["id"]) for r in rows]
 
 
+def _default_source_ids_for_user(conn: sqlite3.Connection, user_id: int) -> list[int]:
+    rows = conn.execute(
+        """SELECT s.id
+           FROM sources s
+           JOIN user_source_follows f ON f.source_id = s.id AND f.user_id = ?
+           WHERE s.type IN ('rss', 'youtube')
+           ORDER BY s.name""",
+        (user_id,),
+    ).fetchall()
+    return [int(r["id"]) for r in rows]
+
+
 def get_raw_feed_subscription(user_id: int) -> dict:
     """Return the user's single raw-feed subscription, creating a disabled default if missing."""
     now = _now_iso()
@@ -57,13 +71,15 @@ def get_raw_feed_subscription(user_id: int) -> dict:
         ).fetchone()
         if not row:
             topic_ids = _default_topic_ids_for_user(conn, user_id)
+            source_ids = _default_source_ids_for_user(conn, user_id)
             conn.execute(
                 """INSERT INTO raw_feed_subscriptions
-                   (user_id, topic_ids_json, enabled, frequency_days, created_at)
-                   VALUES (?, ?, 0, ?, ?)""",
+                   (user_id, topic_ids_json, source_ids_json, enabled, frequency_days, created_at)
+                   VALUES (?, ?, ?, 0, ?, ?)""",
                 (
                     user_id,
                     json.dumps(topic_ids, ensure_ascii=False),
+                    json.dumps(source_ids, ensure_ascii=False),
                     DEFAULT_RAW_FEED_FREQUENCY_DAYS,
                     now,
                 ),
@@ -80,23 +96,27 @@ def update_raw_feed_subscription(
     topic_ids: list[int],
     enabled: bool,
     frequency_days: int,
+    source_ids: list[int] | None = None,
 ) -> dict:
     if frequency_days not in (1, 3, 7, 14):
         frequency_days = DEFAULT_RAW_FEED_FREQUENCY_DAYS
     topic_ids = sorted({int(tid) for tid in topic_ids})
+    source_ids = sorted({int(sid) for sid in (source_ids or [])})
     now = _now_iso()
     with get_conn() as conn:
         conn.execute(
             """INSERT INTO raw_feed_subscriptions
-               (user_id, topic_ids_json, enabled, frequency_days, created_at)
-               VALUES (?, ?, ?, ?, ?)
+               (user_id, topic_ids_json, source_ids_json, enabled, frequency_days, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)
                ON CONFLICT(user_id) DO UPDATE SET
                    topic_ids_json = excluded.topic_ids_json,
+                   source_ids_json = excluded.source_ids_json,
                    enabled = excluded.enabled,
                    frequency_days = excluded.frequency_days""",
             (
                 user_id,
                 json.dumps(topic_ids, ensure_ascii=False),
+                json.dumps(source_ids, ensure_ascii=False),
                 1 if enabled else 0,
                 frequency_days,
                 now,
@@ -107,7 +127,6 @@ def update_raw_feed_subscription(
             (user_id,),
         ).fetchone()
     return _row_to_subscription(row)
-
 
 
 def get_raw_feed_subscriptions_for_users(user_ids: list[int]) -> list[dict]:
@@ -129,6 +148,7 @@ def get_raw_feed_subscriptions_for_users(user_ids: list[int]) -> list[dict]:
         sub["user_email"] = row["user_email"]
         result.append(sub)
     return result
+
 
 def get_raw_feed_subscriptions_due() -> list[dict]:
     """Return enabled raw-feed subscriptions whose next send date has arrived."""

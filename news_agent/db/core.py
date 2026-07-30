@@ -181,6 +181,7 @@ def init_db():
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id         INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
                 topic_ids_json  TEXT    NOT NULL DEFAULT '[]',
+                source_ids_json TEXT    NOT NULL DEFAULT '[]',
                 enabled         INTEGER NOT NULL DEFAULT 0,
                 frequency_days  INTEGER NOT NULL DEFAULT 1,
                 last_sent       TEXT,
@@ -336,6 +337,10 @@ def init_db():
             pass
         try:
             conn.execute("ALTER TABLE topic_items ADD COLUMN translated_content TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE raw_feed_subscriptions ADD COLUMN source_ids_json TEXT NOT NULL DEFAULT '[]'")
         except Exception:
             pass
         # Widen sources.type CHECK to include 'youtube' and 'xiaoyuzhou'

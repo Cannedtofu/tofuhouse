@@ -19,11 +19,13 @@ from article_summarizer import _get_client
 from config import (
     GEMINI_API_KEY,
     QWEN_SUMMARY_MODEL,
+    SOCKS_PROXY,
     TOPIC_DEFAULT_CHANNELS,
     TOPIC_GOOGLE_SEARCH_MODEL,
     TOPIC_MAX_RESULTS_PER_QUERY,
     TOPIC_MIN_CONFIDENCE,
     TOPIC_QUERY_SLEEP_SECONDS,
+    YOUTUBE_COOKIES_FILE,
 )
 from fetchers.browser_use_fetcher import fetch_article_with_meta
 from transcript_worker import extract_video_id
@@ -341,6 +343,68 @@ def _published_sort_key(item: dict[str, Any]) -> datetime:
     except Exception:
         return datetime.min.replace(tzinfo=timezone.utc)
 
+
+def _parse_yt_dlp_upload_date(value: Any) -> str | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if re.fullmatch(r"\d{8}", raw):
+        return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
+    try:
+        dt = datetime.fromtimestamp(float(raw), tz=timezone.utc)
+        return dt.date().isoformat()
+    except Exception:
+        return None
+
+
+def _fetch_youtube_video_metadata(url: str) -> dict[str, Any]:
+    """Fetch full YouTube metadata without reading transcripts or downloading media."""
+    try:
+        import yt_dlp
+    except Exception as exc:
+        logger.warning("[topic] yt-dlp unavailable for %s: %s", url, exc)
+        return {}
+
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "noplaylist": True,
+        "socket_timeout": 30,
+        "retries": 3,
+    }
+    if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
+        opts["cookiefile"] = YOUTUBE_COOKIES_FILE
+    if SOCKS_PROXY:
+        opts["proxy"] = SOCKS_PROXY
+
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as exc:
+        logger.warning("[topic] youtube metadata fetch failed for %s: %s", url, exc)
+        return {}
+
+    published_at = (
+        _parse_yt_dlp_upload_date(info.get("upload_date"))
+        or _parse_yt_dlp_upload_date(info.get("release_date"))
+        or _parse_yt_dlp_upload_date(info.get("timestamp"))
+    )
+    duration_seconds = info.get("duration")
+    try:
+        duration_seconds = int(duration_seconds) if duration_seconds is not None else None
+    except (TypeError, ValueError):
+        duration_seconds = None
+
+    return {
+        "title": info.get("title"),
+        "description": info.get("description") or info.get("full_description"),
+        "published_at": published_at,
+        "duration_seconds": duration_seconds,
+        "channel": info.get("channel") or info.get("uploader"),
+    }
+
+
 def _search_youtube_videos(
     query: str,
     limit: int = TOPIC_MAX_RESULTS_PER_QUERY,
@@ -457,6 +521,20 @@ def _canonical_key(
     return hashlib.sha1(f"{topic['id']}|{date_key}|{body}".encode("utf-8")).hexdigest()
 
 
+def _candidate_url_already_ingested(urls: set[str]) -> bool:
+    clean_urls = sorted({u for u in urls if u})
+    if not clean_urls:
+        return False
+    placeholders = ",".join("?" * len(clean_urls))
+    queries = (
+        f"SELECT 1 FROM topic_items WHERE url IN ({placeholders}) LIMIT 1",
+        f"SELECT 1 FROM topic_item_sources WHERE url IN ({placeholders}) LIMIT 1",
+        f"SELECT 1 FROM articles WHERE url IN ({placeholders}) LIMIT 1",
+    )
+    with db.get_conn() as conn:
+        return any(conn.execute(query, clean_urls).fetchone() for query in queries)
+
+
 def _search_web(topic: dict, queries: list[str]) -> list[dict[str, Any]]:
     if "web" not in (topic.get("channels") or TOPIC_DEFAULT_CHANNELS):
         return []
@@ -557,10 +635,15 @@ def _enrich_candidates(
     enriched: list[dict[str, Any]] = []
     seen_urls = set()
     for cand in candidates:
-        url = _normalize_url(cand["url"])
+        raw_url = cand["url"]
+        url = _normalize_url(raw_url)
+        candidate_urls = {raw_url, url}
         if url in seen_urls:
             continue
         seen_urls.add(url)
+        if _candidate_url_already_ingested(candidate_urls):
+            logger.info("[topic] skipped already ingested URL before AI: %s", url)
+            continue
 
         platform = cand["platform"]
         title = cand["title"]
@@ -591,7 +674,25 @@ def _enrich_candidates(
             if duration_seconds is not None and duration_seconds < 20 * 60:
                 logger.info("[topic] skipped short youtube video %s (%ss)", title[:120], duration_seconds)
                 continue
-            content = "\n\n".join(part for part in (title, cand.get("snippet", "")) if part)
+
+            metadata = _fetch_youtube_video_metadata(primary_url)
+            if metadata.get("title"):
+                title = metadata["title"]
+                cand["title"] = title
+            if metadata.get("published_at"):
+                published_at = metadata["published_at"]
+            if metadata.get("channel"):
+                cand["source_label"] = metadata["channel"]
+            if metadata.get("duration_seconds") is not None:
+                duration_seconds = metadata["duration_seconds"]
+                cand["duration_seconds"] = duration_seconds
+                if duration_seconds < 20 * 60:
+                    logger.info("[topic] skipped short youtube video %s (%ss)", title[:120], duration_seconds)
+                    continue
+
+            description = metadata.get("description") or cand.get("snippet") or ""
+            cand["snippet"] = description
+            content = "\n\n".join(part for part in (title, description) if part)
         elif platform == "x":
             content = cand.get("snippet") or title
 

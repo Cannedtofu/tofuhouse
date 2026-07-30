@@ -260,6 +260,7 @@ def _scheduled_raw_feed_send():
                 date_from=date_from,
                 date_to=date_to,
                 user_id=sub["user_id"],
+                source_ids=sub.get("source_ids") or [],
             )
             if not markdown_body.strip():
                 logger_sched.info(
@@ -337,6 +338,7 @@ def _send_raw_feed_now(user_id: int) -> None:
             date_from=date_from,
             date_to=date_to,
             user_id=user_id,
+            source_ids=sub.get("source_ids") or [],
         )
         if not markdown_body.strip():
             logger_sched.info("Admin-triggered raw feed found no videos for user %d", user_id)
@@ -852,6 +854,7 @@ def _sync_topic_follow_change_to_raw_feed(user_id: int, topic_id: int, action: s
         sorted(ids),
         enabled=sub["enabled"],
         frequency_days=sub["frequency_days"],
+        source_ids=sub.get("source_ids") or [],
     )
 
 
@@ -1557,6 +1560,7 @@ def raw_feed_subscription_get():
 def raw_feed_subscription_update():
     data = request.get_json(force=True, silent=True) or {}
     topic_ids = [int(x) for x in data.get("topic_ids", [])]
+    source_ids = [int(x) for x in data.get("source_ids", [])]
     enabled = bool(data.get("enabled", False))
     try:
         frequency_days = int(data.get("frequency_days", 1))
@@ -1565,7 +1569,7 @@ def raw_feed_subscription_update():
     if frequency_days not in (1, 3, 7, 14):
         frequency_days = 1
     uid = g.current_user["id"]
-    sub = db.update_raw_feed_subscription(uid, topic_ids, enabled, frequency_days)
+    sub = db.update_raw_feed_subscription(uid, topic_ids, enabled, frequency_days, source_ids=source_ids)
     _sync_raw_feed_to_topic_follows(uid, topic_ids)
     return jsonify(sub)
 
@@ -1734,6 +1738,7 @@ def settings():
                 "frequency_days": raw_sub["frequency_days"],
                 "last_sent": raw_sub.get("last_sent"),
                 "topic_count": len(raw_sub.get("topic_ids") or []),
+                "source_count": len(raw_sub.get("source_ids") or []),
             })
         for u in all_users:
             user_presets = presets_by_user.get(u["id"], [])
