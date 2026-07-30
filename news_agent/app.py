@@ -319,7 +319,7 @@ def _send_preset_digest_now(preset_id: int) -> None:
 
 
 def _send_raw_feed_now(user_id: int) -> None:
-    """Admin-triggered full send for one user's raw-feed digest."""
+    """Admin-triggered send for one user's raw-feed digest using existing items."""
     from email_sender import send_digest as _send_email
     from raw_feed_digest import build_raw_feed_digest, date_range_for_frequency
 
@@ -329,8 +329,6 @@ def _send_raw_feed_now(user_id: int) -> None:
         return
 
     try:
-        logger_sched.info("Admin-triggered topic fetch starting for raw feed user %d", user_id)
-        run_topic_fetch()
         sub = db.get_raw_feed_subscription(user_id)
         date_from, date_to = date_range_for_frequency(sub["frequency_days"])
         markdown_body = build_raw_feed_digest(
