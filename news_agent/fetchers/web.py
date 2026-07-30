@@ -8,12 +8,60 @@ import logging
 import re
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from config import MIN_ARTICLE_DATE
 
 logger = logging.getLogger(__name__)
 
 _MIN_DT = datetime.fromisoformat(MIN_ARTICLE_DATE).replace(tzinfo=timezone.utc)
+_TRACKING_QUERY_KEYS = {"fbclid", "gclid", "mc_cid", "mc_eid"}
+_TRACKING_QUERY_PREFIXES = ("utm_",)
+_ERROR_PAGE_PATTERNS = (
+    "404 poem",
+    "four-zero-four",
+    "returned a 404 error",
+    "could not be found",
+    "no main article body",
+    "bad gateway",
+)
+
+
+def _canonical_article_url(url: str) -> str:
+    """Normalize discovered URLs so equivalent links do not get fetched twice."""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    parts = urlsplit(url)
+    netloc = parts.netloc.lower()
+    if netloc.startswith("www."):
+        netloc = netloc[4:]
+    query_items = [
+        (key, value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        if key.lower() not in _TRACKING_QUERY_KEYS
+        and not any(key.lower().startswith(prefix) for prefix in _TRACKING_QUERY_PREFIXES)
+    ]
+    query = urlencode(query_items, doseq=True)
+    path = parts.path.rstrip("/") or "/"
+    return urlunsplit((parts.scheme.lower(), netloc, path, query, ""))
+
+
+def _looks_like_error_page(content: str) -> bool:
+    text = (content or "").lower()
+    return any(pattern in text for pattern in _ERROR_PAGE_PATTERNS)
+
+
+def _extract_title(content: str, fallback: str) -> str:
+    for line in content.splitlines():
+        stripped = line.strip().lstrip("#").strip()
+        if line.strip().startswith("#") and stripped:
+            return stripped
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith(("http://", "https://")):
+            return stripped[:180]
+    return fallback
 
 
 def _parse_cutoff(date_from: Optional[str]) -> Optional[datetime]:
@@ -103,7 +151,16 @@ async def _agent_discover_links(
         return []
     try:
         items = json.loads(match.group())
-        valid = [i for i in items if isinstance(i, dict) and i.get("url", "").startswith("http")]
+        valid = []
+        seen_urls = set()
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            url = _canonical_article_url(item.get("url", ""))
+            if not url.startswith("http") or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            valid.append({"url": url, "date": item.get("date")})
         logger.info("[web agent] discovered %d article link(s) from %s", len(valid), index_url)
         return valid
     except Exception as exc:
@@ -145,17 +202,20 @@ def fetch_web(
     cutoff = _parse_cutoff(date_from) or _MIN_DT
     ceiling = _parse_cutoff(date_to)
     articles = []
-    skipped_known = skipped_date = 0
+    skipped_known = skipped_date = skipped_error = 0
+
+    seen_urls = {_canonical_article_url(url) for url in known_urls}
 
     for item in link_items:
-        url = item.get("url", "").strip().rstrip("/")
+        url = _canonical_article_url(item.get("url", ""))
         listing_date = item.get("date") or None
 
         if not url:
             continue
-        if url in known_urls:
+        if url in seen_urls:
             skipped_known += 1
             continue
+        seen_urls.add(url)
 
         # Cheap pre-filter: skip without a browser call when the listing-page
         # date is present and already clearly outside the target range.
@@ -176,7 +236,10 @@ def fetch_web(
 
         if not content:
             continue
-
+        if _looks_like_error_page(content):
+            skipped_error += 1
+            logger.warning("  skipping %s - extracted content looks like an error page", url)
+            continue
         # Article-page date is authoritative; fall back to listing-page date.
         # If the article-page date is implausibly older than the listing date
         # (>30 days), trafilatura likely picked up a stale embedded date —
@@ -216,13 +279,7 @@ def fetch_web(
                 skipped_date += 1
                 continue
 
-        # Extract title from first heading in the markdown content
-        title = url
-        for line in content.splitlines():
-            stripped = line.strip().lstrip("#").strip()
-            if line.strip().startswith("#") and stripped:
-                title = stripped
-                break
+        title = _extract_title(content, url)
 
         articles.append({
             "title": title,
@@ -235,5 +292,7 @@ def fetch_web(
         logger.info("  Skipped %d already-known article(s)", skipped_known)
     if skipped_date:
         logger.info("  Skipped %d article(s) outside date range", skipped_date)
+    if skipped_error:
+        logger.info("  Skipped %d error page(s)", skipped_error)
     logger.info("  → %d new articles from %s", len(articles), index_url)
     return articles

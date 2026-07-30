@@ -3,8 +3,28 @@
 import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import urlsplit, urlunsplit
 
 from db.core import get_conn
+
+
+def _canonical_url_key(url: str) -> str:
+    parts = urlsplit((url or "").strip())
+    netloc = parts.netloc.lower()
+    if netloc.startswith("www."):
+        netloc = netloc[4:]
+    path = parts.path.rstrip("/") or "/"
+    return urlunsplit((parts.scheme.lower(), netloc, path, parts.query, ""))
+
+
+def _is_better_title(new_title: str, old_title: str, url: str) -> bool:
+    new_title = (new_title or "").strip()
+    old_title = (old_title or "").strip()
+    if not new_title or new_title.startswith(("http://", "https://")):
+        return False
+    if not old_title or old_title == url or old_title.startswith(("http://", "https://")):
+        return True
+    return False
 
 
 def insert_article(
@@ -18,15 +38,34 @@ def insert_article(
     If the article already exists and the new content is longer, the content is updated.
     """
     fetched_at = datetime.now(timezone.utc).isoformat()
+    url_key = _canonical_url_key(url)
     with get_conn() as conn:
         existing = conn.execute(
-            "SELECT id, content FROM articles WHERE url = ?", (url,)
+            "SELECT id, title, url, content, published_at FROM articles WHERE url = ?", (url,)
         ).fetchone()
+        if not existing:
+            existing = conn.execute(
+                """SELECT id, title, url, content, published_at FROM articles
+                   WHERE replace(lower(rtrim(url, '/')), '://www.', '://') = ?""",
+                (url_key,),
+            ).fetchone()
         if existing:
+            updates = []
+            params = []
             if content and len(content) > len(existing["content"] or ""):
+                updates.append("content = ?")
+                params.append(content)
+            if _is_better_title(title, existing["title"], existing["url"]):
+                updates.append("title = ?")
+                params.append(title)
+            if published_at and not existing["published_at"]:
+                updates.append("published_at = ?")
+                params.append(published_at)
+            if updates:
+                params.append(existing["id"])
                 conn.execute(
-                    "UPDATE articles SET content = ? WHERE id = ?",
-                    (content, existing["id"]),
+                    f"UPDATE articles SET {', '.join(updates)} WHERE id = ?",
+                    params,
                 )
             return False
         conn.execute(
@@ -36,7 +75,6 @@ def insert_article(
             (source_id, title, url, content, published_at, fetched_at),
         )
         return True
-
 
 def get_article_by_id(article_id: int) -> Optional[sqlite3.Row]:
     with get_conn() as conn:

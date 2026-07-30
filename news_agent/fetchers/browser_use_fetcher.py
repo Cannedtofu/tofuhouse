@@ -367,12 +367,11 @@ def _extract_with_images(html: str) -> str:
 # Tier 1: Playwright only
 # ---------------------------------------------------------------------------
 
-async def _playwright_fetch(url: str) -> tuple[str, str | None]:
+async def _playwright_fetch(url: str) -> tuple[str, str | None, int | None]:
     """
-    Navigate with a headed Playwright browser, extract text + publication date.
-    Returns (content, date_str) where date_str is YYYY-MM-DD or None.
-    The date is extracted from page metadata (trafilatura) at zero extra cost
-    since the raw HTML is already in memory.
+    Navigate with Playwright, extract text + publication date, and return HTTP status.
+    Returns (content, date_str, status_code). HTTP error pages are not sent to
+    the browser-use agent, because that turns missing pages into stored prose.
     """
     from playwright.async_api import async_playwright
 
@@ -395,7 +394,12 @@ async def _playwright_fetch(url: str) -> tuple[str, str | None]:
         page = await context.new_page()
         try:
             logger.info("[playwright] Loading: %s", url)
-            await page.goto(url, wait_until="networkidle", timeout=60_000)
+            response = await page.goto(url, wait_until="networkidle", timeout=60_000)
+            status = response.status if response else None
+            if status and status >= 400:
+                logger.warning("[playwright] HTTP %d for %s - skipping extraction", status, url)
+                return "", None, status
+
             await page.wait_for_timeout(2_000)
             # Scroll to bottom and back to trigger lazy-loaded images
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
@@ -404,37 +408,33 @@ async def _playwright_fetch(url: str) -> tuple[str, str | None]:
             await page.wait_for_timeout(500)
             html = await page.content()
             logger.info("[playwright] page HTML: %d chars", len(html))
+
+            text = _extract_with_images(html)
+            logger.info("[playwright] extracted: %d chars", len(text))
+
+            # If trafilatura/BS got too little, read rendered text before closing the page.
+            if len(text.strip()) < MIN_BROWSER_FALLBACK_CHARS:
+                try:
+                    inner = await page.evaluate("() => document.body.innerText")
+                    inner = _deduplicate_paragraphs((inner or "").strip())
+                    if len(inner) > len(text.strip()):
+                        logger.info("[playwright] inner_text fallback: %d chars", len(inner))
+                        text = inner
+                except Exception as exc:
+                    logger.debug("[playwright] inner_text failed: %s", exc)
+
+            date_str: str | None = None
+            try:
+                meta = trafilatura.extract_metadata(html)
+                if meta and meta.date:
+                    date_str = meta.date
+                    logger.info("[playwright] extracted date: %s", date_str)
+            except Exception:
+                pass
+
+            return text, date_str, status
         finally:
             await browser.close()
-
-    text = _extract_with_images(html)
-    logger.info("[playwright] extracted: %d chars", len(text))
-
-    # If trafilatura/BS got too little, read the rendered text directly from the live DOM.
-    # This captures JS-rendered content (e.g. React/Next.js apps) that trafilatura misses
-    # because the text lives in fragmented span nodes that score as boilerplate.
-    if len(text.strip()) < MIN_BROWSER_FALLBACK_CHARS:
-        try:
-            inner = await page.evaluate("() => document.body.innerText")
-            inner = _deduplicate_paragraphs((inner or "").strip())
-            if len(inner) > len(text.strip()):
-                logger.info("[playwright] inner_text fallback: %d chars", len(inner))
-                text = inner
-        except Exception as exc:
-            logger.debug("[playwright] inner_text failed: %s", exc)
-
-    # Extract publication date from page metadata — free since HTML is already in memory
-    date_str: str | None = None
-    try:
-        meta = trafilatura.extract_metadata(html)
-        if meta and meta.date:
-            date_str = meta.date
-            logger.info("[playwright] extracted date: %s", date_str)
-    except Exception:
-        pass
-
-    return text, date_str
-
 
 # ---------------------------------------------------------------------------
 # Tier 2: browser-use agent (last resort)
@@ -547,13 +547,16 @@ async def _agent_fetch(url: str) -> str:
 
 async def _fetch_async(url: str) -> str:
     """Tier 1 first; fall back to Tier 2 only if content is too short."""
-    text, _ = await _playwright_fetch(url)  # date discarded — RSS path doesn't need it
+    text, _, status = await _playwright_fetch(url)  # date discarded - RSS path does not need it
+
+    if status and status >= 400:
+        return text
 
     if len(text) >= MIN_BROWSER_FALLBACK_CHARS:
         return text
 
     logger.warning(
-        "[playwright] only %d chars — below threshold (%d), trying browser-use agent…",
+        "[playwright] only %d chars - below threshold (%d), trying browser-use agent...",
         len(text), MIN_BROWSER_FALLBACK_CHARS,
     )
     try:
@@ -568,13 +571,16 @@ async def _fetch_async(url: str) -> str:
 
 async def _fetch_async_with_meta(url: str) -> tuple[str, str | None]:
     """Like _fetch_async but also returns the publication date from page metadata."""
-    text, date_str = await _playwright_fetch(url)
+    text, date_str, status = await _playwright_fetch(url)
+
+    if status and status >= 400:
+        return text, date_str
 
     if len(text) >= MIN_BROWSER_FALLBACK_CHARS:
         return text, date_str
 
     logger.warning(
-        "[playwright] only %d chars — below threshold (%d), trying browser-use agent…",
+        "[playwright] only %d chars - below threshold (%d), trying browser-use agent...",
         len(text), MIN_BROWSER_FALLBACK_CHARS,
     )
     try:
@@ -586,7 +592,6 @@ async def _fetch_async_with_meta(url: str) -> tuple[str, str | None]:
 
     # date_str comes from the Playwright phase; the agent doesn't expose metadata
     return text, date_str
-
 
 def fetch_article(url: str) -> str:
     """Synchronous wrapper — use this from the RSS pipeline."""

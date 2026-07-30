@@ -1,5 +1,5 @@
 # Project Status
-_Last updated: 2026-07-13_
+_Last updated: 2026-07-30_
 
 ## Shipped & Stable
 
@@ -7,6 +7,7 @@ _Last updated: 2026-07-13_
 - RSS/Atom fetching with URL-based dedup; richer content wins on re-fetch
 - Nitter/X scraping with HTML pagination
 - Web source fetching with link discovery plus full-content extraction
+- Web source fetching now normalizes article URLs, skips extracted error pages, and avoids LLM-generated 404 content
 - Topic workflow under `资讯`: OpenAI-SDK-based entity tracking, currently focused on Web discovery
 - Topic `web` discovery currently uses Gemini Google Search grounding via the Gemini API
 - Topic `web` discovery now limits itself to 3 query variants, paces requests, and logs per-query results for inspection
