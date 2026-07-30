@@ -58,6 +58,30 @@
       </p>
     </div>
 
+    <!-- Paste transcript card -->
+    <div class="card p-4 mb-3">
+      <h5 class="mb-3">Paste transcript</h5>
+      <p class="text-muted small mb-3">
+        Paste a word-for-word transcript here to generate a formalized Chinese script using the same Chinese translation flow.
+      </p>
+      <div class="mb-2">
+        <input type="text" id="paste-title-input" class="form-control form-control-sm"
+               placeholder="Optional title" maxlength="200" autocomplete="off">
+      </div>
+      <div class="mb-2">
+        <textarea id="paste-transcript-input" class="form-control" rows="8"
+                  placeholder="Paste transcript text here..."></textarea>
+        <div id="paste-error" class="text-danger small mt-1" style="display:none"></div>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" id="btn-paste-transcript" class="btn btn-outline-secondary" onclick="submitPastedTranscript()">
+          <span class="btn-label">Generate formalized Chinese</span>
+          <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
+        </button>
+        <span class="text-muted small">The original pasted text will be saved with the job.</span>
+      </div>
+    </div>
+
     <!-- Status / result card -->
     <div id="result-card" class="card p-4" style="display:none">
 
@@ -302,6 +326,42 @@ function submitTranscriptRequest(mode) {
     .catch(() => {
       showUrlError('Request failed. Please try again.');
       setBtnBusy(mode, false);
+    });
+}
+
+function submitPastedTranscript() {
+  const titleEl = document.getElementById('paste-title-input');
+  const textEl = document.getElementById('paste-transcript-input');
+  const title = titleEl ? titleEl.value.trim() : '';
+  const transcript = textEl ? textEl.value.trim() : '';
+
+  if (!transcript) { showPasteError('Please paste a transcript first.'); return; }
+  if (transcript.length < 20) { showPasteError('Transcript is too short to process.'); return; }
+
+  clearPasteError();
+  setPasteBusy(true);
+  resetResultCard();
+
+  fetch('/transcript/paste', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, transcript }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        showPasteError(data.error);
+        setPasteBusy(false);
+        return;
+      }
+      _currentJobId = data.job_id;
+      showResultCard('translating', 'Formalizing Chinese transcript...', 'no_diarization');
+      setTranslationState('spinning');
+      startPolling(_currentJobId);
+    })
+    .catch(() => {
+      showPasteError('Request failed. Please try again.');
+      setPasteBusy(false);
     });
 }
 
@@ -676,6 +736,10 @@ function setVideoMeta(title, author, url, initiatedBy, inputType, originalFilena
       sourceRow.textContent = `Uploaded file: ${originalFilename}`;
       sourceRow.style.display = 'block';
       urlRow.style.display = 'none';
+    } else if (inputType === 'paste') {
+      sourceRow.textContent = 'Pasted transcript';
+      sourceRow.style.display = 'block';
+      urlRow.style.display = 'none';
     } else {
       sourceRow.style.display = 'none';
       if (url) {
@@ -742,6 +806,20 @@ function saveTitleEdit() {
     .catch(() => alert('Request failed. Please try again.'));
 }
 
+function setPasteBusy(busy) {
+  const btn = document.getElementById('btn-paste-transcript');
+  const textEl = document.getElementById('paste-transcript-input');
+  const titleEl = document.getElementById('paste-title-input');
+  if (!btn) return;
+  btn.disabled = busy;
+  const label = btn.querySelector('.btn-label');
+  const spinner = btn.querySelector('.btn-spinner');
+  if (label) label.style.opacity = busy ? '.5' : '1';
+  if (spinner) spinner.style.display = busy ? 'inline-block' : 'none';
+  if (textEl) textEl.disabled = busy;
+  if (titleEl) titleEl.disabled = busy;
+}
+
 function setBtnBusy(mode, busy) {
   const id  = mode === 'diarization' ? 'btn-diarize' : 'btn-no-diarize';
   const btn = document.getElementById(id);
@@ -758,6 +836,7 @@ function setBtnBusy(mode, busy) {
 
 function clearAllBtnBusy() {
   ['no_diarization', 'diarization'].forEach(m => setBtnBusy(m, false));
+  setPasteBusy(false);
   _activeBtn = null;
 }
 
@@ -769,6 +848,17 @@ function showUrlError(msg) {
 
 function clearUrlError() {
   document.getElementById('url-error').style.display = 'none';
+}
+
+function showPasteError(msg) {
+  const el = document.getElementById('paste-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function clearPasteError() {
+  const el = document.getElementById('paste-error');
+  if (el) el.style.display = 'none';
 }
 
 function resetResultCard() {
@@ -890,6 +980,10 @@ function showDonePanel(data, jobId) {
 const uploadInput = document.getElementById('media-upload-input');
 if (uploadInput) {
   uploadInput.addEventListener('change', () => clearUrlError());
+}
+const pasteInput = document.getElementById('paste-transcript-input');
+if (pasteInput) {
+  pasteInput.addEventListener('input', () => clearPasteError());
 }
 
 renderSidebar({{ sidebar_jobs | tojson }});

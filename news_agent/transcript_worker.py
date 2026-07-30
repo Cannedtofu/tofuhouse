@@ -834,40 +834,44 @@ _MT_CHUNK_CHARS = 4000
 _FORMALIZE_CHUNK_CHARS = 15_000
 
 _FORMALIZE_SYSTEM = (
-    "你是一位专业的文字编辑，专门整理口语转录稿件。"
-    "你的任务是在完整保留所有信息的前提下，将口语化的转录文本整理为规范、易读的书面文稿。"
-    "严禁概括、删减、合并任何实质内容；仅清理语言形式，不改变内容。"
+    "You are a professional Chinese copy editor for spoken transcripts. "
+    "Your task is to turn ASR or machine-translated transcript text into polished, readable Simplified Chinese. "
+    "Preserve every substantive fact, number, claim, example, quote, caveat, and speaker/time marker. "
+    "Do not summarize, delete, merge, or add substantive content; only improve wording, sentence structure, and paragraphing."
 )
 
 _FORMALIZE_SINGLE_PROMPT = """\
-以下是一段中文转录文稿（由语音识别或机器翻译生成），语言较为口语化。
+The following text is a Chinese transcript or machine-translated Chinese transcript. It may be oral, repetitive, and poorly paragraphed.
 
-请按以下规则整理，输出规范的书面文稿：
+Rewrite it as polished, readable Simplified Chinese according to these rules:
 
-1. **去除填充词**：删除"嗯""啊""哦""呢""就是""就是说""那个""这个""对吧""对对对""好的好的""然后然后""我的意思是""怎么说呢"等口语填充词。
-2. **消除逐字重复**：将同一意思的逐字重复表达合并为一次；不得合并内容不同但相似的句子。
-3. **规范句式**：将过长的流水句适当拆分；修正明显的语序问题。
-4. **合理分段**：按话题或论点转换划分段落，每段3至6句为宜。若有发言人标注（如[Speaker A]）或时间戳标注（如[01:23]），原样保留标注，每位发言人切换或每个时间戳处另起一段，不得删除或修改时间戳数字。
-5. **零信息丢失**：所有事实、数据、观点、举例、引用必须完整出现在输出中；不得概括或删减任何实质内容。
+1. Remove filler words such as repeated interjections, hesitation markers, and empty oral phrases.
+2. Merge only exact or near-exact word-level repetitions of the same meaning. Do not merge sentences that contain different information.
+3. Improve sentence structure and punctuation so the output reads like clear written Chinese.
+4. Add paragraph breaks lightly for readability. Keep each coherent thought together, but avoid very long unbroken blocks when a natural topic shift, example, contrast, or new stage appears. Do not split mechanically by sentence count.
+5. Preserve speaker labels such as [Speaker A] and timestamps such as [01:23] exactly. Start a new paragraph whenever the speaker changes or a timestamp appears. Also split long speeches from the same speaker into multiple natural paragraphs.
+6. Preserve all facts, data, opinions, examples, quotations, caveats, and qualifications. Do not summarize or remove substantive content.
 
-直接输出整理后的文稿，不加任何解释或前言。
+Output only the polished Chinese transcript. Do not add explanations or a preface.
 
 ---
 
 {text}"""
 
 _FORMALIZE_CHUNK_PROMPT = """\
-这是一段中文转录文稿的第 {part} 部分（共 {total} 部分）。{context_block}
+This is part {part} of {total} of a Chinese transcript or machine-translated Chinese transcript.{context_block}
 
-请按以下规则整理本部分，输出规范的书面文稿：
+Rewrite only this part as polished, readable Simplified Chinese according to these rules:
 
-1. **去除填充词**：删除"嗯""啊""哦""呢""就是""就是说""那个""这个""对吧""对对对""好的好的""然后然后""我的意思是""怎么说呢"等口语填充词。
-2. **消除逐字重复**：将同一意思的逐字重复表达合并为一次；不得合并内容不同但相似的句子。
-3. **规范句式**：将过长的流水句适当拆分；修正明显的语序问题。
-4. **合理分段**：按话题或论点转换划分段落，每段3至6句为宜。若有发言人标注（如[Speaker A]）或时间戳标注（如[01:23]），原样保留标注，每位发言人切换或每个时间戳处另起一段，不得删除或修改时间戳数字。
-5. **零信息丢失**：所有事实、数据、观点、举例、引用必须完整出现在输出中；不得概括或删减任何实质内容。
+1. Remove filler words such as repeated interjections, hesitation markers, and empty oral phrases.
+2. Merge only exact or near-exact word-level repetitions of the same meaning. Do not merge sentences that contain different information.
+3. Improve sentence structure and punctuation so the output reads like clear written Chinese.
+4. Add paragraph breaks lightly for readability. Keep each coherent thought together, but avoid very long unbroken blocks when a natural topic shift, example, contrast, or new stage appears. Do not split mechanically by sentence count.
+5. Preserve speaker labels such as [Speaker A] and timestamps such as [01:23] exactly. Start a new paragraph whenever the speaker changes or a timestamp appears. Also split long speeches from the same speaker into multiple natural paragraphs.
+6. Preserve all facts, data, opinions, examples, quotations, caveats, and qualifications. Do not summarize or remove substantive content.
+7. The preceding context is only for continuity. Do not repeat it.
 
-仅处理本部分文本，直接输出整理后的内容，不加任何解释或前言。
+Output only the polished content for this part. Do not add explanations or a preface.
 
 ---
 

@@ -1742,6 +1742,35 @@ def transcript_upload():
     return jsonify({"job_id": job_id, "cached": False})
 
 
+@app.route("/transcript/paste", methods=["POST"])
+@login_required
+def transcript_paste():
+    from transcript_worker import translate_transcript
+
+    data = request.get_json(silent=True) or {}
+    transcript = (data.get("transcript") or "").strip()
+    title = (data.get("title") or "").strip()[:200]
+
+    if not transcript:
+        return jsonify({"error": "Please paste a transcript first."}), 400
+    if len(transcript) < 20:
+        return jsonify({"error": "Transcript is too short to process."}), 400
+
+    job_id = db.create_transcript_job(
+        video_url="",
+        video_id=f"paste:{uuid.uuid4().hex}",
+        mode="no_diarization",
+        initiated_by=g.current_user["email"],
+        input_type="paste",
+        original_filename=None,
+    )
+    db.set_transcript_metadata(job_id, video_title=title or "Pasted transcript", video_author=None)
+    db.update_transcript_job(job_id, status="translating", transcript=transcript)
+
+    threading.Thread(target=translate_transcript, args=(job_id,), daemon=True).start()
+    return jsonify({"job_id": job_id, "cached": False})
+
+
 @app.route("/transcript/temp-audio/<token>")
 def transcript_temp_audio(token: str):
     """Serve a registered audio file to DashScope during transcription (no auth needed)."""
