@@ -182,6 +182,7 @@ def get_topic_item_by_id(topic_item_id: int) -> Optional[sqlite3.Row]:
 
 def delete_topic_item(topic_item_id: int) -> None:
     with get_conn() as conn:
+        conn.execute("DELETE FROM topic_item_sources WHERE topic_item_id = ?", (topic_item_id,))
         conn.execute("DELETE FROM topic_items WHERE id = ?", (topic_item_id,))
 
 

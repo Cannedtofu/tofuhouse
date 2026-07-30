@@ -343,6 +343,13 @@ def init_db():
             conn.execute("ALTER TABLE raw_feed_subscriptions ADD COLUMN source_ids_json TEXT NOT NULL DEFAULT '[]'")
         except Exception:
             pass
+        try:
+            conn.execute(
+                """DELETE FROM topic_item_sources
+                   WHERE topic_item_id NOT IN (SELECT id FROM topic_items)"""
+            )
+        except Exception:
+            pass
         # Widen sources.type CHECK to include 'youtube' and 'xiaoyuzhou'
         _src_check = conn.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='sources'"

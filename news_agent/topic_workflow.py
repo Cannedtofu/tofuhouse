@@ -528,7 +528,11 @@ def _candidate_url_already_ingested(urls: set[str]) -> bool:
     placeholders = ",".join("?" * len(clean_urls))
     queries = (
         f"SELECT 1 FROM topic_items WHERE url IN ({placeholders}) LIMIT 1",
-        f"SELECT 1 FROM topic_item_sources WHERE url IN ({placeholders}) LIMIT 1",
+        f"""SELECT 1
+            FROM topic_item_sources src
+            JOIN topic_items item ON item.id = src.topic_item_id
+            WHERE src.url IN ({placeholders})
+            LIMIT 1""",
         f"SELECT 1 FROM articles WHERE url IN ({placeholders}) LIMIT 1",
     )
     with db.get_conn() as conn:
