@@ -114,6 +114,8 @@
       </div>
 
       <form method="get" action="/" class="d-flex flex-wrap gap-2 align-items-end" id="filter-form">
+        <input type="hidden" name="source_filter" value="1">
+        <input type="hidden" name="topic_filter" value="1">
         <div>
           <label class="form-label mb-1 small fw-semibold">开始</label>
           <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
@@ -124,10 +126,10 @@
         </div>
         <div>
           <label class="form-label mb-1 small fw-semibold">来源</label>
-          {% set active_ids = selected_source_ids if selected_source_ids else followed_source_ids %}
+          {% set active_ids = selected_source_ids if source_filter_submitted else followed_source_ids %}
           <div class="dropdown">
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-              {% if active_ids %}已选 {{ active_ids|length }} 个{% else %}全部来源{% endif %}
+              {% if active_ids %}已选 {{ active_ids|length }} 个{% elif source_filter_submitted %}未选来源{% else %}全部来源{% endif %}
             </button>
             <ul class="dropdown-menu p-2" style="min-width:220px; max-height:340px; overflow-y:auto;">
               <li class="d-flex gap-1 mb-1 px-1">
@@ -148,10 +150,10 @@
         </div>
         <div>
           <label class="form-label mb-1 small fw-semibold">话题</label>
-          {% set active_topic_ids = selected_topic_ids if selected_topic_ids else followed_topic_ids %}
+          {% set active_topic_ids = selected_topic_ids if topic_filter_submitted else followed_topic_ids %}
           <div class="dropdown">
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-              {% if active_topic_ids %}已选 {{ active_topic_ids|length }} 个{% else %}全部话题{% endif %}
+              {% if active_topic_ids %}已选 {{ active_topic_ids|length }} 个{% elif topic_filter_submitted %}未选话题{% else %}全部话题{% endif %}
             </button>
             <ul class="dropdown-menu p-2" style="min-width:220px; max-height:340px; overflow-y:auto;">
               <li class="d-flex gap-1 mb-1 px-1">
@@ -564,8 +566,10 @@ function triggerFetch() {
     body: JSON.stringify({
       date_from: dateFrom || null,
       date_to: dateTo || null,
-      source_ids: sourceIds.length ? sourceIds : null,
-      topic_ids: topicIds.length ? topicIds : null
+      source_ids: sourceIds,
+      topic_ids: topicIds,
+      source_filter: true,
+      topic_filter: true
     })
   })
     .then(r => r.json())

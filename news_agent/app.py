@@ -676,6 +676,8 @@ def index():
 
     date_from = request.args.get("date_from", week_ago)
     date_to = request.args.get("date_to", today)
+    source_filter_submitted = request.args.get("source_filter") == "1"
+    topic_filter_submitted = request.args.get("topic_filter") == "1"
     selected_source_ids = request.args.getlist("source_ids", type=int)
     selected_topic_ids = request.args.getlist("topic_ids", type=int)
 
@@ -688,15 +690,15 @@ def index():
             db.follow_topic(g.current_user["id"], topic["id"])
         followed_topic_ids = db.get_followed_topic_ids(g.current_user["id"])
 
-    source_ids = selected_source_ids if selected_source_ids else (followed_ids if followed_ids else None)
-    topic_ids = selected_topic_ids if selected_topic_ids else (followed_topic_ids if followed_topic_ids else None)
+    source_ids = selected_source_ids if source_filter_submitted else (followed_ids if followed_ids else None)
+    topic_ids = selected_topic_ids if topic_filter_submitted else (followed_topic_ids if followed_topic_ids else None)
 
-    source_articles = db.get_articles(
+    source_articles = [] if source_filter_submitted and not selected_source_ids else db.get_articles(
         date_from=date_from,
         date_to=date_to,
         source_ids=source_ids,
     )
-    topic_items = db.get_topic_feed_items(
+    topic_items = [] if topic_filter_submitted and not selected_topic_ids else db.get_topic_feed_items(
         date_from=date_from,
         date_to=date_to,
         topic_ids=topic_ids,
@@ -761,6 +763,8 @@ def index():
         all_topics=all_topics,
         selected_source_ids=selected_source_ids,
         selected_topic_ids=selected_topic_ids,
+        source_filter_submitted=source_filter_submitted,
+        topic_filter_submitted=topic_filter_submitted,
         followed_source_ids=followed_ids,
         followed_topic_ids=followed_topic_ids,
         date_from=date_from,
@@ -1030,20 +1034,22 @@ def fetch():
     data = request.get_json(silent=True) or {}
     date_from = data.get("date_from") or None
     date_to = data.get("date_to") or None
-    source_ids = data.get("source_ids") or None  # None = all sources
-    topic_ids = data.get("topic_ids") or None
+    source_filter_submitted = bool(data.get("source_filter"))
+    topic_filter_submitted = bool(data.get("topic_filter"))
+    source_ids = data.get("source_ids") if source_filter_submitted else None
+    topic_ids = data.get("topic_ids") if topic_filter_submitted else None
 
     def _run():
         _fetch_status["running"] = True
         log_id = db.log_fetch_start(trigger="manual")
         try:
-            source_result = run_fetch_and_summarize(
+            source_result = {"total_new": 0, "sources": []} if source_filter_submitted and not source_ids else run_fetch_and_summarize(
                 summarize=False,
                 date_from=date_from,
                 date_to=date_to,
                 source_ids=source_ids,
             )
-            topic_result = run_topic_fetch(
+            topic_result = {"total_new": 0, "sources": []} if topic_filter_submitted and not topic_ids else run_topic_fetch(
                 topic_ids=topic_ids,
                 date_from=date_from,
                 date_to=date_to,
