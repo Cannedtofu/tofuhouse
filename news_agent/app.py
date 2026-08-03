@@ -2042,6 +2042,7 @@ def transcript_status(job_id: str):
     if not job:
         return jsonify({"error": "Job not found."}), 404
     has_cached_audio = bool(job["audio_path"] and os.path.isfile(job["audio_path"]))
+    include_content = request.args.get("include_content") != "0"
     return jsonify({
         "job_id":             job["job_id"],
         "status":             job["status"],
@@ -2052,9 +2053,10 @@ def transcript_status(job_id: str):
         "initiated_by":       job["initiated_by"],
         "input_type":         job["input_type"],
         "original_filename":  job["original_filename"],
-        "summary":            job["summary"],
-        "transcript":         job["transcript"],
-        "transcript_zh":      job["transcript_zh"],
+        "summary":            job["summary"] if include_content else None,
+        "transcript":         job["transcript"] if include_content else None,
+        "transcript_zh":      job["transcript_zh"] if include_content else None,
+        "content_omitted":    not include_content,
         "error_message":      job["error_message"],
         "has_cached_audio":   has_cached_audio,
     })

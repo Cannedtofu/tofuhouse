@@ -562,8 +562,11 @@ function executeDelete() {
 
 // ── Polling ──────────────────────────────────────────────────────────────────
 
-function fetchStatus(jobId) {
-  fetch(`/transcript/status/${jobId}`)
+function fetchStatus(jobId, includeContent = false) {
+  const url = includeContent
+    ? `/transcript/status/${jobId}`
+    : `/transcript/status/${jobId}?include_content=0`;
+  fetch(url)
     .then(r => r.json())
     .then(data => {
       if (data.error) {
@@ -579,7 +582,7 @@ function fetchStatus(jobId) {
 
 function startPolling(jobId) {
   stopPolling();
-  fetchStatus(jobId);
+  fetchStatus(jobId, false);
   _pollInterval = setInterval(() => fetchStatus(jobId), 3000);
 }
 
@@ -613,6 +616,10 @@ function handleStatusUpdate(data, jobId) {
   } else if (status === 'done') {
     stopPolling();
     clearAllBtnBusy();
+    if (data.content_omitted) {
+      fetchStatus(jobId, true);
+      return;
+    }
     showDonePanel(data, jobId);
     refreshSidebar();
   } else if (status === 'error') {
