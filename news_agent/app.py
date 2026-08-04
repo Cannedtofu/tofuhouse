@@ -150,6 +150,13 @@ _digest_jobs: dict[str, dict] = {}
 # Article translation jobs — keyed by UUID
 _article_translation_jobs: dict[str, dict] = {}
 
+_pdf_tool_jobs: dict[str, dict] = {}
+_PDF_TOOL_UPLOAD_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "uploads",
+    "pdf_tools",
+)
+
 # ---------------------------------------------------------------------------
 # Periodic background scheduler
 # ---------------------------------------------------------------------------
@@ -1365,6 +1372,71 @@ def _md_to_html_for_pdf(md: str) -> str:
     return "\n".join(out)
 
 
+
+def _markdown_pdf_bytes(title: str, content: str, version_label: str, source: str = "", pub_date: str = "", url: str = "") -> bytes:
+    """Render article-style Markdown content to PDF bytes."""
+    from html import escape
+    from playwright.sync_api import sync_playwright
+
+    body_html = _md_to_html_for_pdf(content) if content else "<p>（暂无内容）</p>"
+    html = f"""<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<style>
+  @page {{ size: A4; margin: 2.5cm; }}
+  body {{
+    font-family: "Noto Serif CJK SC", "Source Han Serif SC", "STSong", "SimSun",
+                 "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", Georgia, serif;
+    font-size: 10.5pt; line-height: 1.85; color: #1a1a1a;
+  }}
+  h1 {{ font-size: 14pt; font-weight: bold; margin: 0 0 8pt 0; line-height: 1.4; }}
+  h2 {{ font-size: 12pt; font-weight: bold; margin: 16pt 0 6pt 0;
+        padding-left: 8pt; border-left: 3pt solid #444; color: #222; }}
+  h3 {{ font-size: 11pt; font-weight: bold; margin: 12pt 0 5pt 0; }}
+  .meta {{ font-size: 8.5pt; color: #666; margin-bottom: 18pt; }}
+  .meta a {{ color: #555; text-decoration: none; }}
+  p {{ margin: 0 0 8pt 0; }}
+  ul {{ margin: 0 0 8pt 1.5em; padding: 0; }}
+  li {{ margin-bottom: 4pt; }}
+  blockquote.zh {{
+    margin: 2pt 0 10pt 0; padding: 6pt 12pt;
+    border-left: 3pt solid #2563eb;
+    color: #1e40af;
+    font-style: normal;
+  }}
+  blockquote.zh p {{ margin: 0; color: #1e40af; }}
+  pre {{ background: #f5f5f5; padding: 8pt; font-size: 9pt; overflow: hidden; }}
+  code {{ font-family: monospace; }}
+  img {{ max-width: 100%; height: auto; display: block; margin: 6pt 0; }}
+  hr {{ border: none; border-top: 1px solid #ddd; margin: 14pt 0; }}
+  a {{ color: #2563eb; }}
+</style>
+</head>
+<body>
+  <h1>{escape(title)}</h1>
+  <div class="meta">
+    {f'<span>{escape(source)}</span>' if source else ''}
+    {f' &nbsp;·&nbsp; <span>{pub_date}</span>' if pub_date else ''}
+    {f'<br><a href="{escape(url)}">{escape(url)}</a>' if url else ''}
+    &nbsp;·&nbsp; <span>{escape(version_label)}</span>
+  </div>
+  {body_html}
+</body>
+</html>"""
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content(html, wait_until="domcontentloaded")
+        pdf_bytes = page.pdf(
+            format="A4",
+            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
+            print_background=False,
+        )
+        browser.close()
+
+    return _compress_pdf(pdf_bytes)
 @app.route("/articles/<int:article_id>/download/pdf")
 @login_required
 def article_download_pdf(article_id: int):
@@ -1465,6 +1537,155 @@ def article_download_pdf(article_id: int):
 # Batch digest (all visible articles → one AI summary)
 # ---------------------------------------------------------------------------
 
+
+# ---------------------------------------------------------------------------
+# Tools
+# ---------------------------------------------------------------------------
+
+@app.route("/tools")
+@login_required
+def tools_page():
+    return render_template("tools.html")
+
+
+def _pdf_tool_job_dir(job_id: str) -> str:
+    return os.path.join(_PDF_TOOL_UPLOAD_DIR, job_id)
+
+
+def _pdf_tool_image_dir(job_id: str) -> str:
+    return os.path.join(_pdf_tool_job_dir(job_id), "images")
+
+
+def _localize_pdf_tool_images(md: str, job_id: str) -> str:
+    from pathlib import Path
+
+    image_dir = _pdf_tool_image_dir(job_id)
+
+    def repl(match):
+        alt = match.group(1)
+        filename = secure_filename(match.group(2))
+        local_path = os.path.abspath(os.path.join(image_dir, filename))
+        image_root = os.path.abspath(image_dir)
+        if not local_path.startswith(image_root):
+            return match.group(0)
+        if not os.path.exists(local_path):
+            return match.group(0)
+        return f"![{alt}]({Path(local_path).as_uri()})"
+
+    pattern = rf"!\[([^\]]*)\]\(/tools/pdf-image/{re.escape(job_id)}/([^\)]+)\)"
+    return re.sub(pattern, repl, md)
+
+
+@app.route("/tools/pdf-translate", methods=["POST"])
+@login_required
+def tools_pdf_translate():
+    upload = request.files.get("pdf")
+    if not upload or not upload.filename:
+        return jsonify({"error": "请选择一个 PDF 文件。"}), 400
+
+    original_name = upload.filename
+    if os.path.splitext(original_name)[1].lower() != ".pdf":
+        return jsonify({"error": "只支持上传 PDF 文件。"}), 400
+
+    job_id = str(uuid.uuid4())
+    job_dir = _pdf_tool_job_dir(job_id)
+    image_dir = _pdf_tool_image_dir(job_id)
+    os.makedirs(image_dir, exist_ok=True)
+
+    safe_upload_name = secure_filename(original_name) or "upload.pdf"
+    pdf_path = os.path.join(job_dir, safe_upload_name)
+    upload.save(pdf_path)
+
+    title = os.path.splitext(original_name)[0].strip() or "Uploaded PDF"
+    _pdf_tool_jobs[job_id] = {
+        "status": "running",
+        "title": title,
+        "original_filename": original_name,
+        "original_markdown": "",
+        "translated_markdown": "",
+        "pdf_bytes": None,
+        "error": None,
+    }
+
+    def _run():
+        try:
+            from article_translator import translate_article_bilingual
+            from pdf_tools import extract_pdf_markdown
+
+            original_md = extract_pdf_markdown(pdf_path, image_dir, job_id)
+            if not original_md:
+                raise ValueError("没有从 PDF 中抽取到可翻译的文字或图片。")
+
+            _pdf_tool_jobs[job_id].update({
+                "status": "translating",
+                "original_markdown": original_md,
+            })
+            translated_md = translate_article_bilingual(original_md)
+            pdf_md = _localize_pdf_tool_images(translated_md, job_id)
+            pdf_bytes = _markdown_pdf_bytes(title, pdf_md, "中英双语", source="上传 PDF")
+            _pdf_tool_jobs[job_id].update({
+                "status": "done",
+                "translated_markdown": translated_md,
+                "pdf_bytes": pdf_bytes,
+            })
+        except Exception as exc:
+            logging.exception("PDF translation tool failed")
+            _pdf_tool_jobs[job_id].update({"status": "error", "error": str(exc)})
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/tools/pdf-translate/status/<job_id>")
+@login_required
+def tools_pdf_translate_status(job_id: str):
+    job = _pdf_tool_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+
+    result = {
+        "status": job["status"],
+        "title": job.get("title"),
+        "error": job.get("error"),
+    }
+    if job["status"] == "done":
+        result.update({
+            "download_url": url_for("tools_pdf_translate_download", job_id=job_id),
+            "preview_markdown": job.get("translated_markdown", ""),
+        })
+    elif job.get("original_markdown"):
+        result["preview_markdown"] = job["original_markdown"][:12000]
+    return jsonify(result)
+
+
+@app.route("/tools/pdf-translate/download/<job_id>")
+@login_required
+def tools_pdf_translate_download(job_id: str):
+    from flask import Response as FlaskResponse
+
+    job = _pdf_tool_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    if job.get("status") != "done" or not job.get("pdf_bytes"):
+        return jsonify({"error": "PDF is not ready yet."}), 400
+
+    filename = f"{_safe_filename(job.get('title'), job_id)}_bilingual.pdf"
+    return FlaskResponse(
+        job["pdf_bytes"],
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{_url_quote(filename)}"},
+    )
+
+
+@app.route("/tools/pdf-image/<job_id>/<path:filename>")
+@login_required
+def tools_pdf_image(job_id: str, filename: str):
+    safe_name = secure_filename(os.path.basename(filename))
+    image_dir = os.path.abspath(_pdf_tool_image_dir(job_id))
+    image_path = os.path.abspath(os.path.join(image_dir, safe_name))
+    if not image_path.startswith(image_dir) or not os.path.exists(image_path):
+        return jsonify({"error": "Image not found."}), 404
+    return send_file(image_path)
 @app.route("/digest/generate", methods=["POST"])
 @login_required
 def digest_generate():

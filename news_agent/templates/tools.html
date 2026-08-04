@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}工具{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card p-4">
+      <h5 class="mb-3">PDF 翻译</h5>
+      <form id="pdf-tool-form">
+        <div class="mb-3">
+          <input type="file" id="pdf-input" name="pdf" class="form-control" accept="application/pdf,.pdf" required>
+        </div>
+        <button type="submit" id="pdf-submit-btn" class="btn btn-primary w-100">
+          <span id="pdf-submit-label">上传并翻译</span>
+          <span id="pdf-submit-spinner" class="spinner-border spinner-border-sm ms-1" style="display:none"></span>
+        </button>
+      </form>
+
+      <div id="pdf-status-card" class="mt-4" style="display:none">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span id="pdf-status-badge" class="badge bg-secondary">等待中</span>
+          <span id="pdf-status-title" class="small text-muted"></span>
+        </div>
+        <div id="pdf-status-text" class="small text-muted">正在准备任务...</div>
+        <a id="pdf-download-link" href="#" class="btn btn-outline-success btn-sm mt-3" style="display:none">下载双语 PDF</a>
+      </div>
+
+      <div id="pdf-error" class="alert alert-danger small mt-3 mb-0" style="display:none"></div>
+    </div>
+
+    <div class="card p-4 mt-3">
+      <h5 class="mb-3">粘贴逐字稿</h5>
+      <div class="mb-2">
+        <input type="text" id="paste-title-input" class="form-control form-control-sm"
+               placeholder="标题（可选）" maxlength="200" autocomplete="off">
+      </div>
+      <div class="mb-2">
+        <textarea id="paste-transcript-input" class="form-control" rows="8"
+                  placeholder="在这里粘贴逐字稿文本..."></textarea>
+        <div id="paste-error" class="text-danger small mt-1" style="display:none"></div>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" id="btn-paste-transcript" class="btn btn-outline-secondary" onclick="submitPastedTranscriptTool()">
+          <span class="btn-label">生成整理后的中文稿</span>
+          <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
+        </button>
+        <span id="paste-status" class="text-muted small">原始粘贴文本会保存在转录任务中。</span>
+      </div>
+      <div id="paste-result" class="mt-3" style="display:none">
+        <div class="d-flex gap-2 flex-wrap mb-2">
+          <a id="paste-download-txt" href="#" class="btn btn-sm btn-outline-secondary">下载中文 .txt</a>
+          <a id="paste-download-pdf" href="#" class="btn btn-sm btn-outline-secondary">下载中文 .pdf</a>
+          <a id="paste-open-transcript" href="/transcript" class="btn btn-sm btn-outline-primary">在转录中查看</a>
+        </div>
+        <div id="paste-preview" class="paste-preview border rounded p-3 bg-light"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">预览</h5>
+        <span class="text-muted small" id="pdf-preview-hint">上传后显示抽取和翻译结果</span>
+      </div>
+      <div id="pdf-preview" class="tool-preview text-muted">
+        暂无内容
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.tool-preview {
+  min-height: 65vh;
+  max-height: 75vh;
+  overflow-y: auto;
+  font-size: .93rem;
+  line-height: 1.7;
+  word-break: break-word;
+}
+.tool-preview img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 10px 0;
+  border-radius: 4px;
+}
+.tool-preview blockquote {
+  border-left: 3px solid #2563eb;
+  margin: 3px 0 14px 0;
+  padding: 6px 14px;
+  background: #eff6ff;
+  color: #1e40af;
+  border-radius: 0 4px 4px 0;
+}
+.tool-preview blockquote p { margin: 0; color: inherit; }
+.paste-preview {
+  max-height: 360px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: .9rem;
+  line-height: 1.7;
+}
+</style>
+<script>
+const pdfForm = document.getElementById('pdf-tool-form');
+const pdfInput = document.getElementById('pdf-input');
+const pdfSubmitBtn = document.getElementById('pdf-submit-btn');
+const pdfSubmitLabel = document.getElementById('pdf-submit-label');
+const pdfSubmitSpinner = document.getElementById('pdf-submit-spinner');
+const pdfStatusCard = document.getElementById('pdf-status-card');
+const pdfStatusBadge = document.getElementById('pdf-status-badge');
+const pdfStatusText = document.getElementById('pdf-status-text');
+const pdfStatusTitle = document.getElementById('pdf-status-title');
+const pdfDownloadLink = document.getElementById('pdf-download-link');
+const pdfError = document.getElementById('pdf-error');
+const pdfPreview = document.getElementById('pdf-preview');
+const pdfPreviewHint = document.getElementById('pdf-preview-hint');
+
+function renderMarkdown(md) {
+  if (typeof marked !== 'undefined') {
+    return marked.parse(md || '', { breaks: true });
+  }
+  return (md || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function setBusy(busy) {
+  pdfSubmitBtn.disabled = busy;
+  pdfSubmitLabel.textContent = busy ? '处理中...' : '上传并翻译';
+  pdfSubmitSpinner.style.display = busy ? 'inline-block' : 'none';
+}
+
+function setStatus(status, title) {
+  pdfStatusCard.style.display = 'block';
+  pdfStatusTitle.textContent = title || '';
+  const labels = {
+    running: ['bg-secondary', '抽取中', '正在抽取 PDF 文字和图片...'],
+    translating: ['bg-info text-dark', '翻译中', '正在分段翻译并生成双语 PDF...'],
+    done: ['bg-success', '完成', '双语 PDF 已生成。'],
+    error: ['bg-danger', '失败', '处理失败。']
+  };
+  const item = labels[status] || labels.running;
+  pdfStatusBadge.className = 'badge ' + item[0];
+  pdfStatusBadge.textContent = item[1];
+  pdfStatusText.textContent = item[2];
+}
+
+function showError(message) {
+  pdfError.textContent = message;
+  pdfError.style.display = 'block';
+}
+
+function pollJob(jobId) {
+  const interval = setInterval(() => {
+    fetch(`/tools/pdf-translate/status/${jobId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error && !data.status) {
+          throw new Error(data.error);
+        }
+        setStatus(data.status, data.title);
+        if (data.preview_markdown) {
+          pdfPreview.classList.remove('text-muted');
+          pdfPreview.innerHTML = renderMarkdown(data.preview_markdown);
+          pdfPreviewHint.textContent = data.status === 'done' ? '双语预览' : '原文抽取预览';
+        }
+        if (data.status === 'done') {
+          clearInterval(interval);
+          setBusy(false);
+          pdfDownloadLink.href = data.download_url;
+          pdfDownloadLink.style.display = 'inline-block';
+        } else if (data.status === 'error') {
+          clearInterval(interval);
+          setBusy(false);
+          showError(data.error || '处理失败。');
+        }
+      })
+      .catch(err => {
+        clearInterval(interval);
+        setBusy(false);
+        showError(err.message || '状态查询失败。');
+      });
+  }, 2000);
+}
+
+pdfForm.addEventListener('submit', event => {
+  event.preventDefault();
+  pdfError.style.display = 'none';
+  pdfDownloadLink.style.display = 'none';
+  if (!pdfInput.files.length) {
+    showError('请选择一个 PDF 文件。');
+    return;
+  }
+  const formData = new FormData();
+  formData.append('pdf', pdfInput.files[0]);
+  setBusy(true);
+  setStatus('running', pdfInput.files[0].name);
+  pdfPreview.classList.add('text-muted');
+  pdfPreview.textContent = '正在读取 PDF...';
+  pdfPreviewHint.textContent = '处理进行中';
+
+  fetch('/tools/pdf-translate', { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      pollJob(data.job_id);
+    })
+    .catch(err => {
+      setBusy(false);
+      setStatus('error', '');
+      showError(err.message || '上传失败。');
+    });
+});
+
+function setPasteBusyTool(busy) {
+  const btn = document.getElementById('btn-paste-transcript');
+  const textEl = document.getElementById('paste-transcript-input');
+  const titleEl = document.getElementById('paste-title-input');
+  btn.disabled = busy;
+  textEl.disabled = busy;
+  titleEl.disabled = busy;
+  const label = btn.querySelector('.btn-label');
+  const spinner = btn.querySelector('.btn-spinner');
+  if (label) label.style.opacity = busy ? '.5' : '1';
+  if (spinner) spinner.style.display = busy ? 'inline-block' : 'none';
+}
+
+function showPasteErrorTool(message) {
+  const el = document.getElementById('paste-error');
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+function clearPasteErrorTool() {
+  document.getElementById('paste-error').style.display = 'none';
+}
+
+function setPasteStatusTool(text) {
+  document.getElementById('paste-status').textContent = text;
+}
+
+function pollPastedTranscriptTool(jobId) {
+  const interval = setInterval(() => {
+    fetch(`/transcript/status/${jobId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error);
+        if (data.status === 'translating') {
+          setPasteStatusTool('正在生成整理后的中文稿...');
+          return;
+        }
+        if (data.status === 'done') {
+          clearInterval(interval);
+          setPasteBusyTool(false);
+          setPasteStatusTool('中文稿已生成。');
+          document.getElementById('paste-download-txt').href = `/transcript/download/${jobId}?version=chinese`;
+          document.getElementById('paste-download-pdf').href = `/transcript/download/${jobId}/pdf?version=chinese`;
+          document.getElementById('paste-open-transcript').href = `/transcript?job_id=${encodeURIComponent(jobId)}`;
+          document.getElementById('paste-preview').textContent = data.transcript_zh || data.transcript || '';
+          document.getElementById('paste-result').style.display = 'block';
+          return;
+        }
+        if (data.status === 'error') {
+          clearInterval(interval);
+          setPasteBusyTool(false);
+          showPasteErrorTool(data.error_message || '处理失败，请重试。');
+        }
+      })
+      .catch(err => {
+        clearInterval(interval);
+        setPasteBusyTool(false);
+        showPasteErrorTool(err.message || '状态查询失败。');
+      });
+  }, 2000);
+}
+
+function submitPastedTranscriptTool() {
+  const title = document.getElementById('paste-title-input').value.trim();
+  const transcript = document.getElementById('paste-transcript-input').value.trim();
+  clearPasteErrorTool();
+  document.getElementById('paste-result').style.display = 'none';
+
+  if (!transcript) { showPasteErrorTool('请先粘贴逐字稿。'); return; }
+  if (transcript.length < 20) { showPasteErrorTool('逐字稿内容太短，无法处理。'); return; }
+
+  setPasteBusyTool(true);
+  setPasteStatusTool('正在提交逐字稿...');
+
+  fetch('/transcript/paste', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ title, transcript }),
+  })
+    .then(async r => {
+      const contentType = r.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await r.json() : { error: await r.text() };
+      if (!r.ok) throw new Error((data.error || `请求失败（HTTP ${r.status}）`).replace(/<[^>]*>/g, '').trim());
+      return data;
+    })
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      setPasteStatusTool('正在生成整理后的中文稿...');
+      pollPastedTranscriptTool(data.job_id);
+    })
+    .catch(err => {
+      setPasteBusyTool(false);
+      showPasteErrorTool(err.message || '请求失败，请重试。');
+      setPasteStatusTool('原始粘贴文本会保存在转录任务中。');
+    });
+}
+
+const pasteInputTool = document.getElementById('paste-transcript-input');
+if (pasteInputTool) {
+  pasteInputTool.addEventListener('input', clearPasteErrorTool);
+}</script>
+{% endblock %}

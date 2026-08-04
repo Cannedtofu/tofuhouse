@@ -53,31 +53,6 @@
         </button>
       </div>
     </div>
-
-    <!-- Paste transcript card -->
-    <div class="card p-4 mb-3">
-      <h5 class="mb-3">粘贴逐字稿</h5>
-      <p class="text-muted small mb-3">
-        在这里粘贴逐字稿，系统会使用现有“中文翻译”流程生成整理后的中文稿。
-      </p>
-      <div class="mb-2">
-        <input type="text" id="paste-title-input" class="form-control form-control-sm"
-               placeholder="标题（可选）" maxlength="200" autocomplete="off">
-      </div>
-      <div class="mb-2">
-        <textarea id="paste-transcript-input" class="form-control" rows="8"
-                  placeholder="在这里粘贴逐字稿文本..."></textarea>
-        <div id="paste-error" class="text-danger small mt-1" style="display:none"></div>
-      </div>
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        <button type="button" id="btn-paste-transcript" class="btn btn-outline-secondary" onclick="submitPastedTranscript()">
-          <span class="btn-label">生成整理后的中文稿</span>
-          <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
-        </button>
-        <span class="text-muted small">原始粘贴文本会保存在该任务中。</span>
-      </div>
-    </div>
-
     <!-- Status / result card -->
     <div id="result-card" class="card p-4" style="display:none">
 
@@ -1024,9 +999,13 @@ renderSidebar({{ sidebar_jobs | tojson }});
 (function() {
   const params = new URLSearchParams(window.location.search);
   const preUrl = params.get('url');
+  const jobId = params.get('job_id');
   if (preUrl) {
     const input = document.getElementById('yt-url-input');
     if (input) input.value = preUrl;
+  }
+  if (jobId) {
+    loadJob(jobId);
   }
 })();
 </script>

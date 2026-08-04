@@ -1,5 +1,5 @@
 # Project Status
-_Last updated: 2026-08-03_
+_Last updated: 2026-08-04_
 
 ## Shipped & Stable
 
@@ -38,6 +38,8 @@ _Last updated: 2026-08-03_
 - Separate scheduled raw-feed digest job alongside the existing AI digest scheduler.
 
 ## In Progress
+- Added a 工具 tab for uploaded-PDF paragraph translation plus pasted-transcript cleanup/translation.
+
 - Tightening topic-result precision, ranking heuristics, and date semantics for topic items.
 
 ## Known Issues
