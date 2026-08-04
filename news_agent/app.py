@@ -156,6 +156,9 @@ _PDF_TOOL_UPLOAD_DIR = os.path.join(
     "uploads",
     "pdf_tools",
 )
+_PDF_TOOL_META_FILENAME = "meta.json"
+_PDF_TOOL_OUTPUT_FILENAME = "bilingual.pdf"
+_PDF_TOOL_TRANSLATED_FILENAME = "translated.md"
 
 # ---------------------------------------------------------------------------
 # Periodic background scheduler
@@ -1556,6 +1559,96 @@ def _pdf_tool_image_dir(job_id: str) -> str:
     return os.path.join(_pdf_tool_job_dir(job_id), "images")
 
 
+
+def _pdf_tool_meta_path(job_id: str) -> str:
+    return os.path.join(_pdf_tool_job_dir(job_id), _PDF_TOOL_META_FILENAME)
+
+
+def _pdf_tool_output_path(job_id: str) -> str:
+    return os.path.join(_pdf_tool_job_dir(job_id), _PDF_TOOL_OUTPUT_FILENAME)
+
+
+def _pdf_tool_translated_path(job_id: str) -> str:
+    return os.path.join(_pdf_tool_job_dir(job_id), _PDF_TOOL_TRANSLATED_FILENAME)
+
+
+def _is_valid_pdf_tool_job_id(job_id: str) -> bool:
+    return bool(re.fullmatch(r"[0-9a-fA-F-]{36}", job_id or ""))
+
+
+def _read_pdf_tool_meta(job_id: str) -> dict | None:
+    if not _is_valid_pdf_tool_job_id(job_id):
+        return None
+    path = _pdf_tool_meta_path(job_id)
+    if not os.path.exists(path):
+        return None
+    try:
+        import json
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        data["job_id"] = job_id
+        return data
+    except Exception:
+        logging.exception("Failed to read PDF tool metadata for %s", job_id)
+        return None
+
+
+def _write_pdf_tool_meta(job_id: str, updates: dict) -> dict:
+    os.makedirs(_pdf_tool_job_dir(job_id), exist_ok=True)
+    meta = _read_pdf_tool_meta(job_id) or {"job_id": job_id}
+    meta.update(updates)
+    import json
+    with open(_pdf_tool_meta_path(job_id), "w", encoding="utf-8") as fh:
+        json.dump(meta, fh, ensure_ascii=False, indent=2)
+    return meta
+
+
+def _can_access_pdf_tool_job(meta: dict | None) -> bool:
+    if not meta or not g.current_user:
+        return False
+    if g.current_user["email"] == ADMIN_EMAIL:
+        return True
+    return int(meta.get("user_id") or 0) == int(g.current_user["id"])
+
+
+def _pdf_tool_public_job(job_id: str) -> dict | None:
+    meta = _read_pdf_tool_meta(job_id)
+    memory_job = _pdf_tool_jobs.get(job_id)
+    if memory_job:
+        meta = dict(meta or {})
+        meta.update({
+            "job_id": job_id,
+            "status": memory_job.get("status"),
+            "title": memory_job.get("title"),
+            "original_filename": memory_job.get("original_filename"),
+            "error": memory_job.get("error"),
+        })
+    if not _can_access_pdf_tool_job(meta):
+        return None
+    status = meta.get("status") or "running"
+    item = {
+        "job_id": job_id,
+        "status": status,
+        "title": meta.get("title") or meta.get("original_filename") or job_id,
+        "original_filename": meta.get("original_filename"),
+        "created_at": meta.get("created_at"),
+        "completed_at": meta.get("completed_at"),
+        "error": meta.get("error"),
+    }
+    if status == "done" and os.path.exists(_pdf_tool_output_path(job_id)):
+        item["download_url"] = url_for("tools_pdf_translate_download", job_id=job_id)
+    return item
+
+
+def _list_pdf_tool_jobs(limit: int = 20) -> list[dict]:
+    ids = set(_pdf_tool_jobs.keys())
+    if os.path.isdir(_PDF_TOOL_UPLOAD_DIR):
+        for name in os.listdir(_PDF_TOOL_UPLOAD_DIR):
+            if _is_valid_pdf_tool_job_id(name):
+                ids.add(name)
+    jobs = [item for item in (_pdf_tool_public_job(job_id) for job_id in ids) if item]
+    jobs.sort(key=lambda item: item.get("completed_at") or item.get("created_at") or "", reverse=True)
+    return jobs[:limit]
 def _localize_pdf_tool_images(md: str, job_id: str) -> str:
     from pathlib import Path
 
@@ -1597,6 +1690,7 @@ def tools_pdf_translate():
     upload.save(pdf_path)
 
     title = os.path.splitext(original_name)[0].strip() or "Uploaded PDF"
+    created_at = datetime.now(timezone.utc).isoformat()
     _pdf_tool_jobs[job_id] = {
         "status": "running",
         "title": title,
@@ -1606,6 +1700,14 @@ def tools_pdf_translate():
         "pdf_bytes": None,
         "error": None,
     }
+    _write_pdf_tool_meta(job_id, {
+        "status": "running",
+        "title": title,
+        "original_filename": original_name,
+        "created_at": created_at,
+        "user_id": g.current_user["id"],
+        "initiated_by": g.current_user["email"],
+    })
 
     def _run():
         try:
@@ -1620,40 +1722,68 @@ def tools_pdf_translate():
                 "status": "translating",
                 "original_markdown": original_md,
             })
+            _write_pdf_tool_meta(job_id, {"status": "translating"})
             translated_md = translate_article_bilingual(original_md)
             pdf_md = _localize_pdf_tool_images(translated_md, job_id)
             pdf_bytes = _markdown_pdf_bytes(title, pdf_md, "中英双语", source="上传 PDF")
+            with open(_pdf_tool_output_path(job_id), "wb") as fh:
+                fh.write(pdf_bytes)
+            with open(_pdf_tool_translated_path(job_id), "w", encoding="utf-8") as fh:
+                fh.write(translated_md)
             _pdf_tool_jobs[job_id].update({
                 "status": "done",
                 "translated_markdown": translated_md,
                 "pdf_bytes": pdf_bytes,
             })
+            _write_pdf_tool_meta(job_id, {
+                "status": "done",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+            })
         except Exception as exc:
             logging.exception("PDF translation tool failed")
             _pdf_tool_jobs[job_id].update({"status": "error", "error": str(exc)})
+            _write_pdf_tool_meta(job_id, {
+                "status": "error",
+                "error": str(exc),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+            })
 
     threading.Thread(target=_run, daemon=True).start()
     return jsonify({"job_id": job_id})
+
+
+@app.route("/tools/pdf-translate/jobs")
+@login_required
+def tools_pdf_translate_jobs():
+    return jsonify({"jobs": _list_pdf_tool_jobs()})
 
 
 @app.route("/tools/pdf-translate/status/<job_id>")
 @login_required
 def tools_pdf_translate_status(job_id: str):
     job = _pdf_tool_jobs.get(job_id)
-    if not job:
+    meta = _read_pdf_tool_meta(job_id)
+    if not job and not meta:
+        return jsonify({"error": "Job not found."}), 404
+    if not _can_access_pdf_tool_job(meta):
         return jsonify({"error": "Job not found."}), 404
 
+    status = (job or meta).get("status", "running")
     result = {
-        "status": job["status"],
-        "title": job.get("title"),
-        "error": job.get("error"),
+        "status": status,
+        "title": (job or meta).get("title"),
+        "error": (job or meta).get("error"),
     }
-    if job["status"] == "done":
+    if status == "done":
+        translated_md = (job or {}).get("translated_markdown") or ""
+        if not translated_md and os.path.exists(_pdf_tool_translated_path(job_id)):
+            with open(_pdf_tool_translated_path(job_id), "r", encoding="utf-8") as fh:
+                translated_md = fh.read()
         result.update({
             "download_url": url_for("tools_pdf_translate_download", job_id=job_id),
-            "preview_markdown": job.get("translated_markdown", ""),
+            "preview_markdown": translated_md,
         })
-    elif job.get("original_markdown"):
+    elif job and job.get("original_markdown"):
         result["preview_markdown"] = job["original_markdown"][:12000]
     return jsonify(result)
 
@@ -1664,14 +1794,23 @@ def tools_pdf_translate_download(job_id: str):
     from flask import Response as FlaskResponse
 
     job = _pdf_tool_jobs.get(job_id)
-    if not job:
+    meta = _read_pdf_tool_meta(job_id)
+    if not job and not meta:
         return jsonify({"error": "Job not found."}), 404
-    if job.get("status") != "done" or not job.get("pdf_bytes"):
+    if not _can_access_pdf_tool_job(meta):
+        return jsonify({"error": "Job not found."}), 404
+
+    pdf_bytes = (job or {}).get("pdf_bytes")
+    if not pdf_bytes and os.path.exists(_pdf_tool_output_path(job_id)):
+        with open(_pdf_tool_output_path(job_id), "rb") as fh:
+            pdf_bytes = fh.read()
+    if (job or meta).get("status") != "done" or not pdf_bytes:
         return jsonify({"error": "PDF is not ready yet."}), 400
 
-    filename = f"{_safe_filename(job.get('title'), job_id)}_bilingual.pdf"
+    title = (job or meta).get("title")
+    filename = f"{_safe_filename(title, job_id)}_bilingual.pdf"
     return FlaskResponse(
-        job["pdf_bytes"],
+        pdf_bytes,
         mimetype="application/pdf",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{_url_quote(filename)}"},
     )

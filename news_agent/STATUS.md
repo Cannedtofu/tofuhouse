@@ -38,6 +38,7 @@ _Last updated: 2026-08-04_
 - Separate scheduled raw-feed digest job alongside the existing AI digest scheduler.
 
 ## In Progress
+- PDF tool now persists completed bilingual PDFs and shows a refresh-safe recent-files list.
 - Added a 工具 tab for uploaded-PDF paragraph translation plus pasted-transcript cleanup/translation.
 
 - Tightening topic-result precision, ranking heuristics, and date semantics for topic items.
