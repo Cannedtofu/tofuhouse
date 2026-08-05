@@ -61,6 +61,9 @@ _TRANSCRIPT_UPLOAD_DIR = os.path.join(
     "uploads",
     "transcripts",
 )
+_TRANSCRIPT_PASTE_CHUNK_DIR = os.path.join(_TRANSCRIPT_UPLOAD_DIR, "paste_chunks")
+_TRANSCRIPT_PASTE_CHUNK_MAX_CHARS = 150_000
+_TRANSCRIPT_PASTE_CHUNK_MAX_PARTS = 500
 _ALLOWED_TRANSCRIPT_UPLOAD_EXTENSIONS = {
     ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".mp4", ".mov", ".mkv", ".webm", ".avi"
 }
@@ -2265,6 +2268,36 @@ def _delete_transcript_media_file(job) -> None:
             pass
 
 
+def _create_pasted_transcript_job(transcript, title):
+    from transcript_worker import translate_transcript
+
+    transcript = (transcript or "").strip()
+    title = (title or "").strip()[:200]
+
+    if not transcript:
+        return None, "Please paste a transcript first."
+    if len(transcript) < 20:
+        return None, "Transcript is too short to process."
+
+    job_id = db.create_transcript_job(
+        video_url="",
+        video_id=f"paste:{uuid.uuid4().hex}",
+        mode="no_diarization",
+        initiated_by=g.current_user["email"],
+        input_type="paste",
+        original_filename=None,
+    )
+    db.set_transcript_metadata(job_id, video_title=title or "Pasted transcript", video_author=None)
+    db.update_transcript_job(job_id, status="translating", transcript=transcript)
+
+    threading.Thread(target=translate_transcript, args=(job_id,), daemon=True).start()
+    return job_id, None
+
+
+def _paste_chunk_path(upload_id, index):
+    return os.path.join(_TRANSCRIPT_PASTE_CHUNK_DIR, upload_id, f"{index:04d}.txt")
+
+
 @app.route("/transcript/process", methods=["POST"])
 @login_required
 def transcript_process():
@@ -2358,30 +2391,62 @@ def transcript_upload():
 @app.route("/transcript/paste", methods=["POST"])
 @login_required
 def transcript_paste():
-    from transcript_worker import translate_transcript
-
     data = request.get_json(silent=True) or {}
     transcript = (data.get("transcript") or "").strip()
     title = (data.get("title") or "").strip()[:200]
 
-    if not transcript:
-        return jsonify({"error": "Please paste a transcript first."}), 400
-    if len(transcript) < 20:
-        return jsonify({"error": "Transcript is too short to process."}), 400
-
-    job_id = db.create_transcript_job(
-        video_url="",
-        video_id=f"paste:{uuid.uuid4().hex}",
-        mode="no_diarization",
-        initiated_by=g.current_user["email"],
-        input_type="paste",
-        original_filename=None,
-    )
-    db.set_transcript_metadata(job_id, video_title=title or "Pasted transcript", video_author=None)
-    db.update_transcript_job(job_id, status="translating", transcript=transcript)
-
-    threading.Thread(target=translate_transcript, args=(job_id,), daemon=True).start()
+    job_id, error = _create_pasted_transcript_job(transcript, title)
+    if error:
+        return jsonify({"error": error}), 400
     return jsonify({"job_id": job_id, "cached": False})
+
+
+@app.route("/transcript/paste-chunk", methods=["POST"])
+@login_required
+def transcript_paste_chunk():
+    data = request.get_json(silent=True) or {}
+    upload_id = (data.get("upload_id") or "").strip()
+    title = (data.get("title") or "").strip()[:200]
+    chunk = data.get("chunk") or ""
+
+    try:
+        index = int(data.get("index"))
+        total = int(data.get("total"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid chunk metadata."}), 400
+
+    if not re.fullmatch(r"[a-f0-9]{32}", upload_id):
+        return jsonify({"error": "Invalid upload id."}), 400
+    if total < 1 or total > _TRANSCRIPT_PASTE_CHUNK_MAX_PARTS or index < 0 or index >= total:
+        return jsonify({"error": "Invalid chunk range."}), 400
+    if len(chunk) > _TRANSCRIPT_PASTE_CHUNK_MAX_CHARS:
+        return jsonify({"error": "Chunk is too large."}), 413
+
+    upload_dir = os.path.join(_TRANSCRIPT_PASTE_CHUNK_DIR, upload_id)
+    os.makedirs(upload_dir, exist_ok=True)
+    chunk_path = _paste_chunk_path(upload_id, index)
+    with open(chunk_path, "w", encoding="utf-8") as fh:
+        fh.write(chunk)
+
+    if index != total - 1:
+        return jsonify({"received": index, "done": False})
+
+    missing = [i for i in range(total) if not os.path.isfile(_paste_chunk_path(upload_id, i))]
+    if missing:
+        return jsonify({"error": "Some chunks are missing. Please submit again."}), 400
+
+    try:
+        parts = []
+        for i in range(total):
+            with open(_paste_chunk_path(upload_id, i), "r", encoding="utf-8") as fh:
+                parts.append(fh.read())
+        job_id, error = _create_pasted_transcript_job("".join(parts), title)
+        if error:
+            return jsonify({"error": error}), 400
+        return jsonify({"job_id": job_id, "cached": False, "done": True})
+    finally:
+        import shutil
+        shutil.rmtree(upload_dir, ignore_errors=True)
 
 
 @app.route("/transcript/temp-audio/<token>")

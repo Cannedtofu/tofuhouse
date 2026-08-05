@@ -340,7 +340,21 @@ function pollPastedTranscriptTool(jobId) {
   }, 2000);
 }
 
-function submitPastedTranscriptTool() {
+async function postPasteChunkTool(payload) {
+  const response = await fetch('/transcript/paste-chunk', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const contentType = response.headers.get('content-type') || '';
+  const data = contentType.includes('application/json') ? await response.json() : { error: await response.text() };
+  if (!response.ok) {
+    throw new Error((data.error || `请求失败（HTTP ${response.status}）`).replace(/<[^>]*>/g, '').trim());
+  }
+  return data;
+}
+
+async function submitPastedTranscriptTool() {
   const title = document.getElementById('paste-title-input').value.trim();
   const transcript = document.getElementById('paste-transcript-input').value.trim();
   clearPasteErrorTool();
@@ -352,27 +366,28 @@ function submitPastedTranscriptTool() {
   setPasteBusyTool(true);
   setPasteStatusTool('正在提交逐字稿...');
 
-  fetch('/transcript/paste', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ title, transcript }),
-  })
-    .then(async r => {
-      const contentType = r.headers.get('content-type') || '';
-      const data = contentType.includes('application/json') ? await r.json() : { error: await r.text() };
-      if (!r.ok) throw new Error((data.error || `请求失败（HTTP ${r.status}）`).replace(/<[^>]*>/g, '').trim());
-      return data;
-    })
-    .then(data => {
-      if (data.error) throw new Error(data.error);
-      setPasteStatusTool('正在生成整理后的中文稿...');
-      pollPastedTranscriptTool(data.job_id);
-    })
-    .catch(err => {
-      setPasteBusyTool(false);
-      showPasteErrorTool(err.message || '请求失败，请重试。');
-      setPasteStatusTool('原始粘贴文本会保存在转录任务中。');
-    });
+  try {
+    const chunkSize = 100000;
+    const fallbackId = `${Date.now()}${Math.random()}`.replace(/\D/g, '').padEnd(32, '0').slice(0, 32);
+    const uploadId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID().replace(/-/g, '') : fallbackId;
+    const total = Math.ceil(transcript.length / chunkSize);
+    let data = null;
+
+    for (let index = 0; index < total; index += 1) {
+      const start = index * chunkSize;
+      const chunk = transcript.slice(start, start + chunkSize);
+      setPasteStatusTool(`正在提交逐字稿 ${index + 1}/${total}...`);
+      data = await postPasteChunkTool({ upload_id: uploadId, title, index, total, chunk });
+    }
+
+    if (!data || data.error) throw new Error(data ? data.error : '请求失败，请重试。');
+    setPasteStatusTool('正在生成整理后的中文稿...');
+    pollPastedTranscriptTool(data.job_id);
+  } catch (err) {
+    setPasteBusyTool(false);
+    showPasteErrorTool(err.message || '请求失败，请重试。');
+    setPasteStatusTool('原始粘贴文本会保存在转录任务中。');
+  }
 }
 
 loadPdfJobs();
