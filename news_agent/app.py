@@ -63,7 +63,7 @@ _TRANSCRIPT_UPLOAD_DIR = os.path.join(
 )
 _TRANSCRIPT_PASTE_CHUNK_DIR = os.path.join(_TRANSCRIPT_UPLOAD_DIR, "paste_chunks")
 _TRANSCRIPT_PASTE_CHUNK_MAX_CHARS = 150_000
-_TRANSCRIPT_PASTE_CHUNK_MAX_PARTS = 500
+_TRANSCRIPT_PASTE_CHUNK_MAX_PARTS = 2000
 _ALLOWED_TRANSCRIPT_UPLOAD_EXTENSIONS = {
     ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".mp4", ".mov", ".mkv", ".webm", ".avi"
 }
