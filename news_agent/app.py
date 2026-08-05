@@ -63,7 +63,7 @@ _TRANSCRIPT_UPLOAD_DIR = os.path.join(
 )
 _TRANSCRIPT_PASTE_CHUNK_DIR = os.path.join(_TRANSCRIPT_UPLOAD_DIR, "paste_chunks")
 _TRANSCRIPT_PASTE_CHUNK_MAX_CHARS = 150_000
-_TRANSCRIPT_PASTE_CHUNK_MAX_PARTS = 2000
+_TRANSCRIPT_PASTE_CHUNK_MAX_PARTS = 10000
 _ALLOWED_TRANSCRIPT_UPLOAD_EXTENSIONS = {
     ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".mp4", ".mov", ".mkv", ".webm", ".avi"
 }
@@ -1551,7 +1551,10 @@ def article_download_pdf(article_id: int):
 @app.route("/tools")
 @login_required
 def tools_page():
-    return render_template("tools.html")
+    response = app.make_response(render_template("tools.html"))
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 def _pdf_tool_job_dir(job_id: str) -> str:

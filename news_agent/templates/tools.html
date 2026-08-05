@@ -367,7 +367,7 @@ async function submitPastedTranscriptTool() {
   setPasteStatusTool('正在提交逐字稿...');
 
   try {
-    const chunkSize = 8000;
+    const chunkSize = 1000;
     const fallbackId = `${Date.now()}${Math.random()}`.replace(/\D/g, '').padEnd(32, '0').slice(0, 32);
     const uploadId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID().replace(/-/g, '') : fallbackId;
     const total = Math.ceil(transcript.length / chunkSize);
@@ -377,7 +377,7 @@ async function submitPastedTranscriptTool() {
       const start = index * chunkSize;
       const chunk = transcript.slice(start, start + chunkSize);
       setPasteStatusTool(`正在提交逐字稿 ${index + 1}/${total}...`);
-      data = await postPasteChunkTool({ upload_id: uploadId, title, index, total, chunk, client_version: 'paste-chunks-20260805b' });
+      data = await postPasteChunkTool({ upload_id: uploadId, title, index, total, chunk, client_version: 'paste-chunks-20260805c' });
     }
 
     if (!data || data.error) throw new Error(data ? data.error : '请求失败，请重试。');
