@@ -1,5 +1,5 @@
 # Project Status
-_Last updated: 2026-08-05_
+_Last updated: 2026-08-06_
 
 ## Shipped & Stable
 
@@ -26,6 +26,7 @@ _Last updated: 2026-08-05_
 - Transcript delete actions update the UI dynamically without a full page refresh.
 - Transcript paste polling uses lightweight status responses while processing, avoiding repeated large transcript payloads.
 - Transcript paste submissions upload in chunks to avoid nginx request-body timeouts on large transcripts.
+- Transcript paste chunk transfer uses bodyless header chunks with retry to avoid request-body stalls.
 
 ### Web UI & Auth
 - Flask + Bootstrap UI with `资讯`, `来源`, `话题`, `转录`, `数据`, and `日志`.

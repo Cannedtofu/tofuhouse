@@ -340,18 +340,66 @@ function pollPastedTranscriptTool(jobId) {
   }, 2000);
 }
 
-async function postPasteChunkTool(payload) {
-  const response = await fetch('/transcript/paste-chunk', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const contentType = response.headers.get('content-type') || '';
-  const data = contentType.includes('application/json') ? await response.json() : { error: await response.text() };
-  if (!response.ok) {
-    throw new Error((data.error || `请求失败（HTTP ${response.status}）`).replace(/<[^>]*>/g, '').trim());
+function encodeBase64Utf8Tool(value) {
+  const bytes = new TextEncoder().encode(value || '');
+  let binary = '';
+  const step = 8192;
+  for (let i = 0; i < bytes.length; i += step) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
   }
-  return data;
+  return btoa(binary);
+}
+
+function waitPasteTool(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchPasteChunkTool(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function postPasteChunkTool(payload) {
+  const headers = {
+    'Accept': 'application/json',
+    'X-Paste-Upload-Id': payload.upload_id,
+    'X-Paste-Index': String(payload.index),
+    'X-Paste-Total': String(payload.total),
+    'X-Paste-Title': encodeBase64Utf8Tool(payload.title),
+    'X-Paste-Chunk': encodeBase64Utf8Tool(payload.chunk),
+    'X-Paste-Client-Version': 'paste-header-chunks-20260806a',
+  };
+  const url = `/transcript/paste-header-chunk?v=paste-header-chunks-20260806a&i=${payload.index}&r=${Date.now()}`;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      const response = await fetchPasteChunkTool(url, { method: 'GET', headers, cache: 'no-store' }, 25000);
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await response.json() : { error: await response.text() };
+      if (!response.ok) {
+        const message = (data.error || `请求失败（HTTP ${response.status}）`).replace(/<[^>]*>/g, '').trim();
+        if ([408, 429, 500, 502, 503, 504].includes(response.status) && attempt < 4) {
+          lastError = new Error(message);
+          await waitPasteTool(600 * attempt);
+          continue;
+        }
+        throw new Error(message);
+      }
+      return data;
+    } catch (err) {
+      lastError = err;
+      if (attempt >= 4) break;
+      await waitPasteTool(600 * attempt);
+    }
+  }
+
+  throw lastError || new Error('请求失败，请重试。');
 }
 
 async function submitPastedTranscriptTool() {
@@ -367,7 +415,7 @@ async function submitPastedTranscriptTool() {
   setPasteStatusTool('正在提交逐字稿...');
 
   try {
-    const chunkSize = 1000;
+    const chunkSize = 500;
     const fallbackId = `${Date.now()}${Math.random()}`.replace(/\D/g, '').padEnd(32, '0').slice(0, 32);
     const uploadId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID().replace(/-/g, '') : fallbackId;
     const total = Math.ceil(transcript.length / chunkSize);
@@ -377,7 +425,7 @@ async function submitPastedTranscriptTool() {
       const start = index * chunkSize;
       const chunk = transcript.slice(start, start + chunkSize);
       setPasteStatusTool(`正在提交逐字稿 ${index + 1}/${total}...`);
-      data = await postPasteChunkTool({ upload_id: uploadId, title, index, total, chunk, client_version: 'paste-chunks-20260805c' });
+      data = await postPasteChunkTool({ upload_id: uploadId, title, index, total, chunk, client_version: 'paste-header-chunks-20260806a' });
     }
 
     if (!data || data.error) throw new Error(data ? data.error : '请求失败，请重试。');

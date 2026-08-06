@@ -1,5 +1,6 @@
 """Flask web UI for the news feed app."""
 
+import base64
 import io
 import logging
 import os
@@ -2422,6 +2423,62 @@ def transcript_paste_chunk():
         return jsonify({"error": "Invalid upload id."}), 400
     if total < 1 or total > _TRANSCRIPT_PASTE_CHUNK_MAX_PARTS or index < 0 or index >= total:
         return jsonify({"error": "Invalid chunk range."}), 400
+    if len(chunk) > _TRANSCRIPT_PASTE_CHUNK_MAX_CHARS:
+        return jsonify({"error": "Chunk is too large."}), 413
+
+    upload_dir = os.path.join(_TRANSCRIPT_PASTE_CHUNK_DIR, upload_id)
+    os.makedirs(upload_dir, exist_ok=True)
+    chunk_path = _paste_chunk_path(upload_id, index)
+    with open(chunk_path, "w", encoding="utf-8") as fh:
+        fh.write(chunk)
+
+    if index != total - 1:
+        return jsonify({"received": index, "done": False})
+
+    missing = [i for i in range(total) if not os.path.isfile(_paste_chunk_path(upload_id, i))]
+    if missing:
+        return jsonify({"error": "Some chunks are missing. Please submit again."}), 400
+
+    try:
+        parts = []
+        for i in range(total):
+            with open(_paste_chunk_path(upload_id, i), "r", encoding="utf-8") as fh:
+                parts.append(fh.read())
+        job_id, error = _create_pasted_transcript_job("".join(parts), title)
+        if error:
+            return jsonify({"error": error}), 400
+        return jsonify({"job_id": job_id, "cached": False, "done": True})
+    finally:
+        import shutil
+        shutil.rmtree(upload_dir, ignore_errors=True)
+
+
+@app.route("/transcript/paste-header-chunk", methods=["GET"])
+@login_required
+def transcript_paste_header_chunk():
+    upload_id = (request.headers.get("X-Paste-Upload-Id") or "").strip()
+    title_b64 = request.headers.get("X-Paste-Title") or ""
+    chunk_b64 = request.headers.get("X-Paste-Chunk") or ""
+
+    try:
+        index = int(request.headers.get("X-Paste-Index"))
+        total = int(request.headers.get("X-Paste-Total"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid chunk metadata."}), 400
+
+    if not re.fullmatch(r"[a-f0-9]{32}", upload_id):
+        return jsonify({"error": "Invalid upload id."}), 400
+    if total < 1 or total > _TRANSCRIPT_PASTE_CHUNK_MAX_PARTS or index < 0 or index >= total:
+        return jsonify({"error": "Invalid chunk range."}), 400
+    if len(chunk_b64) > 12000:
+        return jsonify({"error": "Chunk header is too large."}), 431
+
+    try:
+        chunk = base64.b64decode(chunk_b64.encode("ascii"), validate=True).decode("utf-8")
+        title = base64.b64decode(title_b64.encode("ascii"), validate=True).decode("utf-8") if title_b64 else ""
+    except Exception:
+        return jsonify({"error": "Invalid chunk encoding."}), 400
+
     if len(chunk) > _TRANSCRIPT_PASTE_CHUNK_MAX_CHARS:
         return jsonify({"error": "Chunk is too large."}), 413
 
