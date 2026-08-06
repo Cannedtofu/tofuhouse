@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import threading
+import time
 import uuid
 from urllib.parse import quote as _url_quote
 from datetime import date, datetime, timedelta, timezone
@@ -52,6 +53,9 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger().addHandler(_file_handler)
+
+_request_logger = logging.getLogger("request")
+_paste_logger = logging.getLogger("transcript_paste")
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -112,9 +116,33 @@ with db.core.get_conn() as _conn:
 # ---------------------------------------------------------------------------
 
 @app.before_request
+def start_request_timer():
+    g.request_started_at = time.perf_counter()
+
+
+@app.before_request
 def load_current_user():
     uid = session.get("user_id")
     g.current_user = db.get_user_by_id(uid) if uid else None
+
+
+@app.after_request
+def log_app_request(response):
+    if request.endpoint != "static":
+        started = getattr(g, "request_started_at", None)
+        duration_ms = int((time.perf_counter() - started) * 1000) if started else -1
+        user = g.current_user["email"] if getattr(g, "current_user", None) else "anonymous"
+        _request_logger.info(
+            "method=%s path=%s status=%s duration_ms=%s remote=%s user=%s bytes=%s",
+            request.method,
+            request.path,
+            response.status_code,
+            duration_ms,
+            request.headers.get("X-Forwarded-For") or request.remote_addr or "-",
+            user,
+            response.calculate_content_length() or 0,
+        )
+    return response
 
 
 @app.context_processor
@@ -2432,6 +2460,16 @@ def transcript_paste_chunk():
     with open(chunk_path, "w", encoding="utf-8") as fh:
         fh.write(chunk)
 
+    _paste_logger.info(
+        "json_chunk upload=%s index=%s/%s chars=%s remote=%s user=%s",
+        upload_id[-8:],
+        index + 1,
+        total,
+        len(chunk),
+        request.headers.get("X-Forwarded-For") or request.remote_addr or "-",
+        g.current_user["email"],
+    )
+
     if index != total - 1:
         return jsonify({"received": index, "done": False})
 
@@ -2444,7 +2482,14 @@ def transcript_paste_chunk():
         for i in range(total):
             with open(_paste_chunk_path(upload_id, i), "r", encoding="utf-8") as fh:
                 parts.append(fh.read())
-        job_id, error = _create_pasted_transcript_job("".join(parts), title)
+        transcript = "".join(parts)
+        _paste_logger.info(
+            "json_upload_complete upload=%s chunks=%s chars=%s",
+            upload_id[-8:],
+            total,
+            len(transcript),
+        )
+        job_id, error = _create_pasted_transcript_job(transcript, title)
         if error:
             return jsonify({"error": error}), 400
         return jsonify({"job_id": job_id, "cached": False, "done": True})
@@ -2488,6 +2533,16 @@ def transcript_paste_header_chunk():
     with open(chunk_path, "w", encoding="utf-8") as fh:
         fh.write(chunk)
 
+    _paste_logger.info(
+        "header_chunk upload=%s index=%s/%s chars=%s remote=%s user=%s",
+        upload_id[-8:],
+        index + 1,
+        total,
+        len(chunk),
+        request.headers.get("X-Forwarded-For") or request.remote_addr or "-",
+        g.current_user["email"],
+    )
+
     if index != total - 1:
         return jsonify({"received": index, "done": False})
 
@@ -2500,7 +2555,14 @@ def transcript_paste_header_chunk():
         for i in range(total):
             with open(_paste_chunk_path(upload_id, i), "r", encoding="utf-8") as fh:
                 parts.append(fh.read())
-        job_id, error = _create_pasted_transcript_job("".join(parts), title)
+        transcript = "".join(parts)
+        _paste_logger.info(
+            "header_upload_complete upload=%s chunks=%s chars=%s",
+            upload_id[-8:],
+            total,
+            len(transcript),
+        )
+        job_id, error = _create_pasted_transcript_job(transcript, title)
         if error:
             return jsonify({"error": error}), 400
         return jsonify({"job_id": job_id, "cached": False, "done": True})

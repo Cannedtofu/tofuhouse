@@ -27,6 +27,7 @@ _Last updated: 2026-08-06_
 - Transcript paste polling uses lightweight status responses while processing, avoiding repeated large transcript payloads.
 - Transcript paste submissions upload in chunks to avoid nginx request-body timeouts on large transcripts.
 - Transcript paste chunk transfer uses bodyless header chunks with retry to avoid request-body stalls.
+- App-level request and pasted-transcript chunk diagnostics are written to `logs/app.log` for the Logs page.
 
 ### Web UI & Auth
 - Flask + Bootstrap UI with `资讯`, `来源`, `话题`, `转录`, `数据`, and `日志`.
