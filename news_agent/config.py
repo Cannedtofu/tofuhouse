@@ -51,7 +51,7 @@ TOPIC_MIN_CONFIDENCE = float(os.getenv("TOPIC_MIN_CONFIDENCE", "0.35"))
 TOPIC_QUERY_SLEEP_SECONDS = float(os.getenv("TOPIC_QUERY_SLEEP_SECONDS", "3"))
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 TOPIC_GOOGLE_SEARCH_MODEL: str = os.getenv("TOPIC_GOOGLE_SEARCH_MODEL", "gemini-2.5-flash")
-TOPIC_DEFAULT_CHANNELS = ["web", "youtube", "x"]
+TOPIC_DEFAULT_CHANNELS = ["youtube"]
 
 # --- Raw feed digest ---
 RAW_FEED_BATCH_SIZE = 10

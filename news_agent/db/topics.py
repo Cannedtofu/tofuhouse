@@ -322,7 +322,15 @@ def get_topic_feed_items(
         SELECT ti.*, t.name AS topic_name
         FROM topic_items ti
         JOIN topics t ON t.id = ti.topic_id
-        WHERE 1=1
+        WHERE lower(COALESCE(ti.primary_platform, '')) != 'x'
+          AND lower(COALESCE(ti.url, '')) NOT LIKE 'https://x.com/%'
+          AND lower(COALESCE(ti.url, '')) NOT LIKE 'http://x.com/%'
+          AND lower(COALESCE(ti.url, '')) NOT LIKE 'https://twitter.com/%'
+          AND lower(COALESCE(ti.url, '')) NOT LIKE 'http://twitter.com/%'
+          AND lower(COALESCE(ti.url, '')) NOT LIKE '%://%.twitter.com/%'
+          AND lower(COALESCE(ti.url, '')) NOT LIKE '%://nitter.%/%'
+          AND lower(COALESCE(ti.url, '')) NOT LIKE 'https://nitter.net/%'
+          AND lower(COALESCE(ti.url, '')) NOT LIKE 'http://nitter.net/%'
     """
     params: list = []
     if date_from:

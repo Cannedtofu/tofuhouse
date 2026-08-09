@@ -45,6 +45,18 @@ _QUERY_LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs
 _GEMINI_SEARCH_URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
 
 
+def _is_twitter_url(url: str) -> bool:
+    host = urlparse(url).netloc.lower().split("@")[-1].split(":")[0]
+    if host.startswith("www."):
+        host = host[4:]
+    if host.startswith("mobile."):
+        host = host[7:]
+    return (
+        host in {"x.com", "twitter.com", "t.co", "nitter.net"}
+        or host.endswith(".twitter.com")
+        or host.startswith("nitter.")
+    )
+
 def _normalize_url(url: str) -> str:
     url = url.strip()
     if "youtube.com/watch" in url or "youtu.be/" in url:
@@ -222,6 +234,8 @@ def _search_google_web(query: str, limit: int = TOPIC_MAX_RESULTS_PER_QUERY) -> 
         link = _normalize_url(str(item.get("url") or "").strip())
         if not link.startswith("http"):
             continue
+        if _is_twitter_url(link):
+            continue
         if link in seen:
             continue
         seen.add(link)
@@ -236,6 +250,8 @@ def _search_google_web(query: str, limit: int = TOPIC_MAX_RESULTS_PER_QUERY) -> 
 
     if not results and citations_by_url:
         for url, citation in list(citations_by_url.items())[:limit]:
+            if _is_twitter_url(url):
+                continue
             results.append({
                 "title": citation.get("title") or urlparse(url).netloc or url,
                 "url": url,
@@ -553,7 +569,7 @@ def _search_web(topic: dict, queries: list[str]) -> list[dict[str, Any]]:
                 continue
             seen.add(url)
             parsed = urlparse(url)
-            if "youtube.com" in parsed.netloc or "x.com" in parsed.netloc or "twitter.com" in parsed.netloc:
+            if "youtube.com" in parsed.netloc or _is_twitter_url(url):
                 continue
             item["platform"] = "web"
             item["source_label"] = parsed.netloc
@@ -814,6 +830,3 @@ def run_topic_fetch(
         })
 
     return {"total_new": total_new, "sources": results}
-
-
-
