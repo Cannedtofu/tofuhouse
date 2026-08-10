@@ -734,12 +734,28 @@ def index():
 
     source_ids = selected_source_ids if source_filter_submitted else (followed_ids if followed_ids else None)
     topic_ids = selected_topic_ids if topic_filter_submitted else (followed_topic_ids if followed_topic_ids else None)
+    active_topic_names = set()
+    if not (topic_filter_submitted and not selected_topic_ids):
+        active_topic_id_set = set(topic_ids) if topic_ids else None
+        active_topic_names = {
+            topic["name"].strip().casefold()
+            for topic in all_topics
+            if topic.get("name") and (active_topic_id_set is None or topic["id"] in active_topic_id_set)
+        }
 
     source_articles = [] if source_filter_submitted and not selected_source_ids else db.get_articles(
         date_from=date_from,
         date_to=date_to,
         source_ids=source_ids,
     )
+    if active_topic_names:
+        source_articles = [
+            article for article in source_articles
+            if not (
+                article["source_type"] == "nitter"
+                and (article["source_name"] or "").strip().casefold() in active_topic_names
+            )
+        ]
     topic_items = [] if topic_filter_submitted and not selected_topic_ids else db.get_topic_feed_items(
         date_from=date_from,
         date_to=date_to,
