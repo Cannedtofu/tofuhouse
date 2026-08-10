@@ -639,17 +639,17 @@ def _bootstrap_dashboard_datasets() -> None:
                         "type": "metrics",
                         "title": "POP MART YouTube weekly summary",
                         "metrics": [
-                            {"label": "???????", "value": "-"},
-                            {"label": "????????", "value": "-"},
-                            {"label": "??????", "value": "0"},
-                            {"label": "??????", "value": "0"},
+                            {"label": "本周视频播放量", "value": "-"},
+                            {"label": "本周视频发布数量", "value": "-"},
+                            {"label": "最新视频数量", "value": "0"},
+                            {"label": "抓取失败数量", "value": "0"},
                         ],
-                        "note": "??????",
+                        "note": "等待首次抓取",
                     },
                     {
                         "type": "table",
                         "title": "POP MART latest 100 videos",
-                        "headers": ["????", "????", "??URL", "??????", "?????", "?????", "??????"],
+                        "headers": ["抓取时间", "视频名称", "视频URL", "视频发布时间", "视频浏览量", "视频点赞量", "视频评论数量"],
                         "rows": [],
                     },
                 ], ensure_ascii=False),
@@ -1938,7 +1938,7 @@ def tools_pdf_translate():
 
     def _run():
         try:
-            from article_translator import translate_article_bilingual
+            from article_translator import translate_pdf_markdown_bilingual
             from pdf_tools import extract_pdf_markdown
 
             original_md = extract_pdf_markdown(pdf_path, image_dir, job_id)
@@ -1950,7 +1950,7 @@ def tools_pdf_translate():
                 "original_markdown": original_md,
             })
             _write_pdf_tool_meta(job_id, {"status": "translating"})
-            translated_md = translate_article_bilingual(original_md)
+            translated_md = translate_pdf_markdown_bilingual(original_md)
             pdf_md = _localize_pdf_tool_images(translated_md, job_id)
             pdf_bytes = _markdown_pdf_bytes(title, pdf_md, "中英双语", source="上传 PDF")
             with open(_pdf_tool_output_path(job_id), "wb") as fh:
@@ -3304,6 +3304,7 @@ def dashboard_gpu_prices_refresh():
         return jsonify({"ok": False, "message": "已在刷新中"})
     threading.Thread(target=_run_gpu_price_fetch, daemon=True).start()
     return jsonify({"ok": True})
+
 
 
 @app.route("/dashboard/popmart-youtube/refresh", methods=["POST"])

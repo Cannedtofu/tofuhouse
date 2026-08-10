@@ -1,5 +1,5 @@
 # Project Status
-_Last updated: 2026-08-06_
+_Last updated: 2026-08-10_
 
 ## Shipped & Stable
 
@@ -13,6 +13,7 @@ _Last updated: 2026-08-06_
 - Topic YouTube discovery returns newest-first candidate videos, enriches full YouTube metadata/description, skips videos under 20 minutes, then performs AI relevance filtering.
 - Topic dedupe is scoped to topic storage only; normal RSS/YouTube `articles` no longer block topic ingestion.
 - Topic items are stored separately from source articles and rendered in the same feed UI.
+- Topic feed excludes X/Twitter/Nitter URLs from topic discovery and feed rendering.
 - The `资讯` source/topic filters preserve explicit empty selections, so users can show only topics, only sources, or neither without falling back to defaults.
 
 ### Summarization & Digest
@@ -28,7 +29,14 @@ _Last updated: 2026-08-06_
 - Transcript paste submissions upload in chunks to avoid nginx request-body timeouts on large transcripts.
 - Transcript paste chunk transfer uses bodyless header chunks with retry to avoid request-body stalls.
 - App-level request and pasted-transcript chunk diagnostics are written to `logs/app.log` for the Logs page.
+- YouTube audio download now retries transient yt-dlp SSL/API-page failures and requires a current yt-dlp release line.
 
+### Conference Calls
+- Added a `电话会` tab backed by a separate `conferences.db` SQLite database.
+- Comein roadshow refresh uses Playwright to load and scroll `https://www.comein.cn/roadshow/home/all` until it sees meetings outside the next 5 days or the list stops growing.
+- Users can maintain a per-user conference topic keyword list; Qwen matches future conference titles to topics and the UI groups matched meetings by topic.
+- Conference matching now caches per-user, per-conference, per-topic labels in `conference_matches`; later refreshes only call Qwen for missing labels.
+- Admin users can manually force relabel the current 5-day conference window from the `电话会` tab.
 ### Web UI & Auth
 - Flask + Bootstrap UI with `资讯`, `来源`, `话题`, `转录`, `数据`, and `日志`.
 - Topic management page at `/topics`.
@@ -36,20 +44,22 @@ _Last updated: 2026-08-06_
 - Admin deletes on `资讯` update the page dynamically without a full reload.
 
 ### Data Dashboard
-- Added a POP MART YouTube dashboard panel under `??` with latest-100 video metrics, weekly view-delta/new-video summary cards, weekly scheduled refresh, admin manual refresh, retrying/rate-limited yt-dlp detail fetches, and separate CSV downloads for latest 100 and cumulative history.
-
+- Added a POP MART YouTube dashboard panel under `数据` with latest-100 video metrics, weekly view-delta/new-video summary cards, weekly scheduled refresh, admin manual refresh, retrying/rate-limited yt-dlp detail fetches, and separate CSV downloads for latest 100 and cumulative history.
 ### Infrastructure
+- Outbound WeCom active-push foundation is ready as a distinct subproject under `docs/wecom-assistant`: notification abstraction, token-caching client, env template, Docker files, README, server checklist, roadmap, and acceptance test script.
 - SQLite with WAL mode and in-place schema migrations.
 - Separate scheduled topic fetch job alongside the existing source scheduler.
 - Separate scheduled raw-feed digest job alongside the existing AI digest scheduler.
 
 ## In Progress
+- PDF tool translation uses large structured batches while preserving image/text block order.
 - PDF tool now persists completed bilingual PDFs and shows a refresh-safe recent-files list.
 - Added a 工具 tab for uploaded-PDF paragraph translation plus pasted-transcript cleanup/translation.
 
 - Tightening topic-result precision, ranking heuristics, and date semantics for topic items.
 
 ## Known Issues
+- Real WeCom push acceptance test is pending production CorpID, AgentID, Secret, target UserID, and the server public outbound IPv4 in WeCom trusted IPs.
 - Topic auto-fetch can still surface older videos if YouTube search returns relevant historical items; decide whether scheduled topic fetch should enforce a recent published-date window.
 - Topic `web` and `x` discovery remain disabled while YouTube discovery is stabilized.
 - Topic items do not yet participate in the existing AI digest preset system.

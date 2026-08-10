@@ -13,6 +13,9 @@ from config import QWEN_API_KEY, QWEN_BASE_URL, QWEN_SUMMARY_MODEL
 logger = logging.getLogger(__name__)
 
 _BATCH_SIZE = 6  # paragraphs per API call
+_PDF_BATCH_MAX_CHARS = 30_000
+_PDF_BATCH_MAX_PARAGRAPHS = 80
+_IMG_RE = re.compile(r'!\[[^\]]*\]\([^)]+\)')
 
 _TRANSLATE_SYSTEM = (
     "You are a professional translator. "
@@ -69,6 +72,109 @@ def _translate_batch(pairs: list[tuple[int, str]]) -> dict[int, str]:
     return result
 
 
+def _chunk_translation_pairs(
+    pairs: list[tuple[int, str]],
+    max_chars: int = _PDF_BATCH_MAX_CHARS,
+    max_paragraphs: int = _PDF_BATCH_MAX_PARAGRAPHS,
+) -> list[list[tuple[int, str]]]:
+    chunks: list[list[tuple[int, str]]] = []
+    current: list[tuple[int, str]] = []
+    current_chars = 0
+
+    for pair in pairs:
+        text_len = len(pair[1])
+        if current and (
+            len(current) >= max_paragraphs
+            or current_chars + text_len > max_chars
+        ):
+            chunks.append(current)
+            current = []
+            current_chars = 0
+        current.append(pair)
+        current_chars += text_len
+
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def _translate_large_batch(pairs: list[tuple[int, str]]) -> dict[int, str]:
+    """Translate a large structured batch, splitting only when needed."""
+    if not pairs:
+        return {}
+    try:
+        result = _translate_batch(pairs)
+        missing = [i for i, _text in pairs if i not in result]
+        if missing and len(pairs) > 1:
+            raise ValueError(f"Missing translations for {len(missing)} paragraph(s)")
+        return result
+    except Exception:
+        if len(pairs) == 1:
+            raise
+        mid = len(pairs) // 2
+        logger.warning(
+            "Large PDF translation batch failed; splitting %d paragraphs into %d + %d",
+            len(pairs), mid, len(pairs) - mid,
+        )
+        result: dict[int, str] = {}
+        result.update(_translate_large_batch(pairs[:mid]))
+        result.update(_translate_large_batch(pairs[mid:]))
+        return result
+
+
+def translate_pdf_markdown_bilingual(content: str) -> str:
+    """
+    Translate uploaded-PDF Markdown with large structured batches.
+
+    This keeps the same output format as article translation: original paragraph
+    followed by a Chinese blockquote. Internally it treats paragraphs and images
+    as ordered blocks, sends only text blocks to the model, then merges the
+    translated text back into the original block order.
+    """
+    raw_paras = re.split(r"\n{2,}", content)
+    paragraphs = [p.strip() for p in raw_paras if p.strip()]
+
+    blocks: list[dict] = []
+    to_translate: list[tuple[int, str]] = []
+
+    for paragraph in paragraphs:
+        block = {"original": paragraph, "translate_id": None}
+        clean = _IMG_RE.sub("", paragraph).strip()
+        if clean and _is_translatable(paragraph):
+            translate_id = len(blocks)
+            block["translate_id"] = translate_id
+            to_translate.append((translate_id, clean))
+        blocks.append(block)
+
+    chunks = _chunk_translation_pairs(to_translate)
+    logger.info(
+        "Translating uploaded PDF: %d/%d paragraphs in %d large batch(es)",
+        len(to_translate), len(paragraphs), len(chunks),
+    )
+
+    all_zh: dict[int, str] = {}
+    for idx, chunk in enumerate(chunks, start=1):
+        try:
+            all_zh.update(_translate_large_batch(chunk))
+            logger.info("Translated PDF batch %d/%d (%d paragraphs)", idx, len(chunks), len(chunk))
+        except Exception as exc:
+            logger.warning("PDF translation batch %d/%d failed: %s", idx, len(chunks), exc)
+
+    out: list[str] = []
+    for block in blocks:
+        original = block["original"]
+        out.append(original)
+        translate_id = block["translate_id"]
+        if translate_id in all_zh:
+            zh = all_zh[translate_id]
+            bq = "\n".join(
+                f"> {line}" if line.strip() else ">"
+                for line in zh.split("\n")
+            )
+            out.append(bq)
+
+    return "\n\n".join(out)
+
 def translate_article_bilingual(content: str) -> str:
     """
     Translate an article's markdown content into bilingual EN+ZH format.
@@ -100,7 +206,6 @@ def translate_article_bilingual(content: str) -> str:
     # Strip inline images before sending to the API — the translated Chinese blockquote
     # should be text-only. The original English paragraph (emitted as-is above it)
     # already carries the images, so nothing is lost.
-    _IMG_RE = re.compile(r'!\[[^\]]*\]\([^)]+\)')
     to_translate_clean = [
         (i, _IMG_RE.sub("", p).strip()) for i, p in to_translate
     ]
