@@ -51,7 +51,11 @@ add_if_missing() {
 add_if_missing NITTER_LOCAL_URL   "http://127.0.0.1:8080"
 add_if_missing NITTER_FETCH_PERIOD_HOURS "24"
 add_if_missing NITTER_PAGE_DELAY  "120"
-
+add_if_missing WECOM_CORP_ID ""
+add_if_missing WECOM_AGENT_ID ""
+add_if_missing WECOM_SECRET ""
+add_if_missing WECOM_TARGET_USER ""
+add_if_missing WECOM_TIMEOUT_SECONDS "10"
 if [ "$MISSING" -gt 0 ]; then
   echo "  Added $MISSING missing variable(s) to .env"
 else

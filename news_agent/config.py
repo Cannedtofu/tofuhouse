@@ -115,3 +115,11 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL", "")
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.qq.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+
+# --- WeCom notifications ---
+WECOM_CORP_ID = os.getenv("WECOM_CORP_ID", "")
+WECOM_AGENT_ID = os.getenv("WECOM_AGENT_ID", "")
+WECOM_SECRET = os.getenv("WECOM_SECRET", "")
+WECOM_TARGET_USER = os.getenv("WECOM_TARGET_USER", "")
+WECOM_API_BASE_URL = os.getenv("WECOM_API_BASE_URL", "https://qyapi.weixin.qq.com")
+WECOM_TIMEOUT_SECONDS = float(os.getenv("WECOM_TIMEOUT_SECONDS", "10"))

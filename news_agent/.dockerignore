@@ -1,0 +1,16 @@
+.env
+.env.*
+.git
+.venv
+__pycache__
+*.pyc
+*.db
+*.db-wal
+*.db-shm
+logs
+backups
+audio_cache
+uploads
+google_browser_profile
+yt_browser_profile
+yt_cookies.txt

@@ -1,0 +1,14 @@
+services:
+  news-agent:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./news.db:/app/news.db
+      - ./conferences.db:/app/conferences.db
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./audio_cache:/app/audio_cache
