@@ -1,34 +1,34 @@
 {% extends "base.html" %}
-{% block title %}电话会{% endblock %}
+{% block title %}&#30005;&#35805;&#20250;{% endblock %}
 
 {% block content %}
 <div class="row g-3">
   <div class="col-lg-4">
     <div class="card p-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">关注话题清单</h5>
+        <h5 class="mb-0">&#20851;&#27880;&#35805;&#39064;&#28165;&#21333;</h5>
         <span id="conference-status" class="small text-muted"></span>
       </div>
-      <form method="post" action="/conferences/topics">
-        <textarea name="topics" class="form-control" rows="10" placeholder="每行一个关键词&#10;例如：NVIDIA&#10;AI infra&#10;半导体设备">{{ topics | join("\n") }}</textarea>
-        <div class="form-text">保存后会用现有会议补齐缺失标签。点击刷新会重新抓取未来 5 天会议。</div>
-        <button class="btn btn-primary w-100 mt-3">保存并匹配</button>
+      <form method="post" action="/conferences/topics" onsubmit="setConferenceBusy(true, 'Saving...')">
+        <textarea name="topics" class="form-control" rows="10" placeholder="&#27599;&#34892;&#19968;&#20010;&#20851;&#38190;&#35789;&#10;&#20363;&#22914;&#65306;NVIDIA&#10;AI infra&#10;&#21322;&#23548;&#20307;&#35774;&#22791;">{{ topics | join("\n") }}</textarea>
+        <div class="form-text">&#20445;&#23384;&#21518;&#20250;&#29992;&#29616;&#26377;&#20250;&#35758;&#34917;&#40784;&#32570;&#22833;&#26631;&#31614;&#12290;&#28857;&#20987;&#21047;&#26032;&#20250;&#37325;&#26032;&#25235;&#21462;&#26410;&#26469; 5 &#22825;&#20250;&#35758;&#12290;</div>
+        <button class="btn btn-primary w-100 mt-3">&#20445;&#23384;&#24182;&#21305;&#37197;</button>
       </form>
       <button id="conference-refresh-btn" class="btn btn-outline-secondary w-100 mt-2" onclick="refreshConferences()">
-        刷新电话会
+        &#21047;&#26032;&#30005;&#35805;&#20250;
       </button>
       {% if is_admin %}
       <button id="conference-label-btn" class="btn btn-outline-primary w-100 mt-2" onclick="labelConferences()">
-        重新打标签
+        &#37325;&#26032;&#25171;&#26631;&#31614;
       </button>
       {% endif %}
       {% if fetch_status.last_result %}
       <div class="small text-muted mt-3">
-        上次结果：
+        &#19978;&#27425;&#32467;&#26524;&#65306;
         {% if fetch_status.last_result.status == 'ok' %}
-          {% if fetch_status.last_result.crawl %}抓取 {{ fetch_status.last_result.crawl.fetched }} 条，{% endif %}
-          匹配 {{ fetch_status.last_result.match.matched }} 项
-          {% if fetch_status.last_result.match.llm_called is sameas false %}，未调用 LLM{% endif %}
+          {% if fetch_status.last_result.crawl %}&#25235;&#21462; {{ fetch_status.last_result.crawl.fetched }} &#26465;&#65292;{% endif %}
+          &#21305;&#37197; {{ fetch_status.last_result.match.matched }} &#39033;
+          {% if fetch_status.last_result.match.llm_called is sameas false %}&#65292;&#26410;&#35843;&#29992; LLM{% endif %}
         {% else %}
           {{ fetch_status.last_result.message }}
         {% endif %}
@@ -39,8 +39,8 @@
 
   <div class="col-lg-8">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h5 class="mb-0">匹配会议</h5>
-      <span class="text-muted small">来源：Comein 路演</span>
+      <h5 class="mb-0">&#21305;&#37197;&#20250;&#35758;</h5>
+      <span class="text-muted small">&#26469;&#28304;&#65306;Comein &#36335;&#28436;</span>
     </div>
     {% if grouped_matches %}
       {% for group in grouped_matches %}
@@ -54,13 +54,13 @@
                 <a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }}</a>
               </div>
               <div class="article-meta mt-1">
-                {{ item.starts_at | to_sgt if item.starts_at else item.date_text or "时间待确认" }}
+                {{ item.starts_at | to_sgt if item.starts_at else item.date_text or "&#26102;&#38388;&#24453;&#30830;&#35748;" }}
               </div>
               {% if item.reason %}
               <div class="summary-text mt-2">{{ item.reason }}</div>
               {% endif %}
             </div>
-            <a class="btn btn-sm btn-outline-primary flex-shrink-0 align-self-start" href="{{ item.url }}" target="_blank" rel="noopener">打开</a>
+            <a class="btn btn-sm btn-outline-primary flex-shrink-0 align-self-start" href="{{ item.url }}" target="_blank" rel="noopener">&#25171;&#24320;</a>
           </div>
         </div>
         {% endfor %}
@@ -68,7 +68,7 @@
       {% endfor %}
     {% else %}
       <div class="card p-5 text-center text-muted">
-        暂无匹配会议。先添加关注话题，或点击刷新电话会。
+        &#26242;&#26080;&#21305;&#37197;&#20250;&#35758;&#12290;&#20808;&#28155;&#21152;&#20851;&#27880;&#35805;&#39064;&#65292;&#25110;&#28857;&#20987;&#21047;&#26032;&#30005;&#35805;&#20250;&#12290;
       </div>
     {% endif %}
   </div>
@@ -83,10 +83,10 @@ const statusEl = document.getElementById('conference-status');
 
 function setConferenceBusy(busy, text) {
   refreshBtn.disabled = busy;
-  refreshBtn.textContent = busy ? '处理中...' : '刷新电话会';
+  refreshBtn.textContent = busy ? 'Working...' : 'Refresh calls';
   if (labelBtn) {
     labelBtn.disabled = busy;
-    labelBtn.textContent = busy ? '处理中...' : '重新打标签';
+    labelBtn.textContent = busy ? 'Working...' : 'Relabel';
   }
   statusEl.textContent = text || '';
 }
@@ -96,14 +96,14 @@ function pollConferenceStatus() {
     .then(r => r.json())
     .then(data => {
       if (data.running) {
-        setConferenceBusy(true, '任务运行中');
+        setConferenceBusy(true, 'Task running');
         setTimeout(pollConferenceStatus, 2000);
         return;
       }
       setConferenceBusy(false, '');
       if (data.last_result) window.location.reload();
     })
-    .catch(() => setConferenceBusy(false, '状态读取失败'));
+    .catch(() => setConferenceBusy(false, 'Status read failed'));
 }
 
 function runConferenceTask(url, startingText) {
@@ -111,18 +111,18 @@ function runConferenceTask(url, startingText) {
   fetch(url, { method: 'POST' })
     .then(r => r.json())
     .then(data => {
-      if (!data.ok) throw new Error(data.error || '启动失败');
+      if (!data.ok) throw new Error(data.error || 'Start failed');
       setTimeout(pollConferenceStatus, 1000);
     })
-    .catch(err => setConferenceBusy(false, err.message || '启动失败'));
+    .catch(err => setConferenceBusy(false, err.message || 'Start failed'));
 }
 
 function refreshConferences() {
-  runConferenceTask('/conferences/fetch', '正在启动抓取');
+  runConferenceTask('/conferences/fetch', 'Starting crawl');
 }
 
 function labelConferences() {
-  runConferenceTask('/conferences/match', '正在启动打标签');
+  runConferenceTask('/conferences/match', 'Starting label job');
 }
 
 {% if fetch_status.running %}

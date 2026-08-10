@@ -1141,13 +1141,21 @@ def update_conference_topics():
     raw = request.form.get("topics", "")
     topics = [part.strip() for part in re.split(r"[\n,]+", raw) if part.strip()]
     conference_db.set_topics(uid, topics)
-    try:
-        match_conferences_for_user(uid)
-    except Exception as exc:
-        logging.exception("Conference topic matching failed")
-        _conference_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
-    return redirect(url_for("conferences"))
+    if not _conference_fetch_status["running"]:
+        _conference_fetch_status["running"] = True
 
+        def _run():
+            try:
+                result = match_conferences_for_user(uid)
+                _conference_fetch_status["last_result"] = {"status": "ok", "match": result, "topics_saved": True}
+            except Exception as exc:
+                logging.exception("Conference topic matching failed")
+                _conference_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
+            finally:
+                _conference_fetch_status["running"] = False
+
+        threading.Thread(target=_run, daemon=True).start()
+    return redirect(url_for("conferences"))
 
 @app.route("/conferences/fetch", methods=["POST"])
 @login_required
@@ -1155,9 +1163,9 @@ def fetch_conferences():
     if _conference_fetch_status["running"]:
         return jsonify({"ok": False, "error": "A conference refresh is already running"}), 409
     uid = g.current_user["id"]
+    _conference_fetch_status["running"] = True
 
     def _run():
-        _conference_fetch_status["running"] = True
         try:
             result = refresh_for_user(uid)
             _conference_fetch_status["last_result"] = {"status": "ok", **result}
@@ -1170,7 +1178,6 @@ def fetch_conferences():
     threading.Thread(target=_run, daemon=True).start()
     return jsonify({"ok": True})
 
-
 @app.route("/conferences/match", methods=["POST"])
 @login_required
 def match_conferences_now():
@@ -1180,8 +1187,9 @@ def match_conferences_now():
         return jsonify({"ok": False, "error": "A conference task is already running"}), 409
     uid = g.current_user["id"]
 
+    _conference_fetch_status["running"] = True
+
     def _run():
-        _conference_fetch_status["running"] = True
         try:
             result = match_conferences_for_user(uid, force=True)
             _conference_fetch_status["last_result"] = {"status": "ok", "match": result, "manual_match": True}
