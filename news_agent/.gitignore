@@ -10,3 +10,6 @@ backups/
 yt_browser_profile/
 yt_cookies.txt
 google_browser_profile/
+tmp_comein_js/
+tmp_comein_login_profile/
+tmp_playwright_comein_profile/

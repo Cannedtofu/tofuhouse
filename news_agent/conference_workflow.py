@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urljoin
 
 import conference_db
 import db
@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 ROADSHOW_URL = "https://www.comein.cn/roadshow/home/all"
 _TZ = timezone(timedelta(hours=8))
+_COMEIN_CDP_URL = os.getenv("COMEIN_CDP_URL", "").strip()
+_COMEIN_CHROME_USER_DATA_DIR = os.getenv("COMEIN_CHROME_USER_DATA_DIR", "").strip()
+_COMEIN_BROWSER_CHANNEL = os.getenv("COMEIN_BROWSER_CHANNEL", "").strip()
 
 
 def _today():
@@ -93,11 +96,101 @@ def _clean_title(title, raw_text):
     return ""
 
 
+
+def _format_starts_at(value):
+    if value in (None, ""):
+        return None, ""
+    try:
+        timestamp = int(value)
+        if timestamp < 10_000_000_000:
+            timestamp *= 1000
+        dt = datetime.fromtimestamp(timestamp / 1000, tz=_TZ).replace(second=0, microsecond=0)
+    except Exception:
+        return None, ""
+
+    today = _today()
+    if dt.date() == today:
+        date_text = f"今天 {dt:%H:%M}"
+    elif dt.date() == today + timedelta(days=1):
+        date_text = f"明天 {dt:%H:%M}"
+    else:
+        date_text = dt.strftime("%Y-%m-%d %H:%M")
+    return dt.isoformat(), date_text
+
+
+def _conference_url(item):
+    for key in ("presentUrl", "detailUrl", "url"):
+        value = (item.get(key) or "").strip()
+        if value:
+            return value
+    conference_id = str(item.get("id") or item.get("meetId") or "").strip()
+    if conference_id:
+        return f"https://www.comein.cn/roadshow/home/detail?id={conference_id}"
+    return ""
+
+
+def _normalize_page_item(raw):
+    item = raw.get("item") or {}
+    raw_text = raw.get("raw_text") or ""
+    title = _clean_title(item.get("title"), raw_text)
+    url = _conference_url(item)
+    starts_at, date_text = _format_starts_at(item.get("stime"))
+    if not starts_at:
+        starts_at, date_text = _parse_start(raw_text)
+    if not title or not url:
+        return None
+
+    raw_payload = {
+        "text": raw_text,
+        "comein": {
+            key: item.get(key)
+            for key in (
+                "id", "meetId", "activityMeetId", "eid", "title", "stime",
+                "uname", "authTag", "roadshowStatusDesc", "browseCount",
+                "industryTag", "contentTypeTag", "speakerTag", "featuredTag", "presentUrl",
+            )
+            if item.get(key) is not None
+        },
+    }
+    return {
+        "title": title,
+        "url": url,
+        "starts_at": starts_at,
+        "date_text": date_text,
+        "raw_text": json.dumps(raw_payload, ensure_ascii=False),
+    }
+
+
 def _read_items_from_page(page):
     return page.evaluate(
         r"""() => {
+          const rows = Array.from(document.querySelectorAll('.roadshow-list-item'));
+          const out = [];
+          for (const row of rows) {
+            let item = null;
+            const nodes = [row, ...Array.from(row.querySelectorAll('*'))];
+            for (const node of nodes) {
+              const props = node.__vue__ && node.__vue__.$props;
+              if (props && props.itemData && props.itemData.title) {
+                item = props.itemData;
+                break;
+              }
+            }
+            const rawText = (row.innerText || row.textContent || '').trim();
+            if (item && item.title) {
+              out.push({item, raw_text: rawText});
+            }
+          }
+          return out;
+        }"""
+    )
+
+
+def _read_legacy_dom_items_from_page(page):
+    return page.evaluate(
+        r"""() => {
           const datePattern = /\d{1,2}[:\uFF1A]\d{2}|\d{1,2}[\u6708.\/-]\d{1,2}|20\d{2}/;
-          const anchors = Array.from(document.querySelectorAll('a[href]'));
+          const anchors = Array.from(document.querySelectorAll('.roadshow-list-item a[href]'));
           const rows = [];
           for (const a of anchors) {
             const href = a.href || '';
@@ -118,6 +211,35 @@ def _read_items_from_page(page):
     )
 
 
+def _launch_browser(p):
+    if _COMEIN_CDP_URL:
+        browser = p.chromium.connect_over_cdp(_COMEIN_CDP_URL)
+        context = browser.contexts[0] if browser.contexts else browser.new_context()
+        return browser, context, False
+
+    launch_kwargs = {"headless": True}
+    if _COMEIN_BROWSER_CHANNEL:
+        launch_kwargs["channel"] = _COMEIN_BROWSER_CHANNEL
+
+    if _COMEIN_CHROME_USER_DATA_DIR:
+        context = p.chromium.launch_persistent_context(
+            _COMEIN_CHROME_USER_DATA_DIR,
+            **launch_kwargs,
+            viewport={"width": 1440, "height": 1200},
+            locale="zh-CN",
+            timezone_id="Asia/Shanghai",
+        )
+        return None, context, True
+
+    browser = p.chromium.launch(**launch_kwargs)
+    context = browser.new_context(
+        viewport={"width": 1440, "height": 1200},
+        locale="zh-CN",
+        timezone_id="Asia/Shanghai",
+    )
+    return browser, context, True
+
+
 def crawl_conferences(days=5, max_scrolls=40):
     from playwright.sync_api import sync_playwright
 
@@ -128,36 +250,43 @@ def crawl_conferences(days=5, max_scrolls=40):
     still_rounds = 0
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1440, "height": 1200})
+        browser, context, should_close = _launch_browser(p)
+        page = context.pages[0] if context.pages else context.new_page()
         page.goto(ROADSHOW_URL, wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(3500)
+        page.wait_for_timeout(5000)
 
         for _ in range(max_scrolls):
             for raw in _read_items_from_page(page):
-                url = urljoin(ROADSHOW_URL, raw.get("url") or "")
-                starts_at, date_text = _parse_start(raw.get("raw_text") or "")
-                title = _clean_title(raw.get("title"), raw.get("raw_text"))
-                if not title or not url:
+                item = _normalize_page_item(raw)
+                if not item:
                     continue
+                starts_at = item.get("starts_at")
                 if starts_at:
                     starts_date = datetime.fromisoformat(starts_at).date()
                     if starts_date > end_date:
                         saw_beyond_window = True
                     if starts_date < _today() or starts_date > end_date:
                         continue
-                seen[url] = {
-                    "title": title,
-                    "url": url,
-                    "starts_at": starts_at,
-                    "date_text": date_text,
-                    "raw_text": raw.get("raw_text") or "",
-                }
+                seen[item["url"]] = item
+
+            if not seen:
+                for raw in _read_legacy_dom_items_from_page(page):
+                    starts_at, date_text = _parse_start(raw.get("raw_text") or "")
+                    title = _clean_title(raw.get("title"), raw.get("raw_text"))
+                    url = raw.get("url") or ""
+                    if title and url:
+                        seen[url] = {
+                            "title": title,
+                            "url": url,
+                            "starts_at": starts_at,
+                            "date_text": date_text,
+                            "raw_text": raw.get("raw_text") or "",
+                        }
 
             if saw_beyond_window:
                 break
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            page.wait_for_timeout(1800)
+            page.mouse.wheel(0, 1400)
+            page.wait_for_timeout(1500)
             current_count = len(seen)
             if current_count == last_count:
                 still_rounds += 1
@@ -166,7 +295,11 @@ def crawl_conferences(days=5, max_scrolls=40):
             last_count = current_count
             if still_rounds >= 4:
                 break
-        browser.close()
+
+        if should_close:
+            context.close()
+            if browser:
+                browser.close()
 
     items = sorted(seen.values(), key=lambda x: (x.get("starts_at") or "9999", x["title"]))
     stats = conference_db.upsert_conferences(items)
@@ -176,7 +309,6 @@ def crawl_conferences(days=5, max_scrolls=40):
         "updated": stats["updated"],
         "stopped_on_beyond_window": saw_beyond_window,
     }
-
 
 def _keyword_fallback(conferences):
     output = {}

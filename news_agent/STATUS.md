@@ -1,5 +1,5 @@
 # Project Status
-_Last updated: 2026-08-10_
+_Last updated: 2026-08-11_
 
 ## Shipped & Stable
 
@@ -33,7 +33,7 @@ _Last updated: 2026-08-10_
 
 ### Conference Calls
 - Added a `电话会` tab backed by a separate `conferences.db` SQLite database.
-- Comein roadshow refresh uses Playwright to load and scroll `https://www.comein.cn/roadshow/home/all` until it sees meetings outside the next 5 days or the list stops growing.
+- Comein roadshow refresh uses Playwright to load and scroll `https://www.comein.cn/roadshow/home/all`, reads rendered `.roadshow-list-item` Vue card data, and stops after seeing meetings outside the next 5 days or when the list stops growing.
 - Users can maintain a per-user conference topic keyword list; Qwen matches future conference titles to topics and the UI groups matched meetings by topic.
 - Conference matching now caches per-user, per-conference, per-topic labels in `conference_matches`; later refreshes only call Qwen for missing labels.
 - Admin users can manually force relabel the current 5-day conference window from the `电话会` tab.
