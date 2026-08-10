@@ -35,6 +35,9 @@ _Last updated: 2026-08-06_
 - `资讯` can render both followed sources and followed topics.
 - Admin deletes on `资讯` update the page dynamically without a full reload.
 
+### Data Dashboard
+- Added a POP MART YouTube dashboard panel under `??` with latest-100 video metrics, weekly view-delta/new-video summary cards, weekly scheduled refresh, admin manual refresh, retrying/rate-limited yt-dlp detail fetches, and separate CSV downloads for latest 100 and cumulative history.
+
 ### Infrastructure
 - SQLite with WAL mode and in-place schema migrations.
 - Separate scheduled topic fetch job alongside the existing source scheduler.

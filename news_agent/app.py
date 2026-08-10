@@ -406,6 +406,10 @@ _llm_token_index_fetch_lock = threading.Lock()
 _llm_token_index_fetch_running = False
 _LLM_TOKEN_INDEX_SCRIPT_NAME = "LLM Token Expenditure Index"
 _LLM_TOKEN_INDEX_INTERVAL_HOURS = 24
+_popmart_youtube_fetch_lock = threading.Lock()
+_popmart_youtube_fetch_running = False
+_POPMART_YOUTUBE_SCRIPT_NAME = "popmart_youtube"
+_POPMART_YOUTUBE_INTERVAL_HOURS = 168
 
 
 def _run_gpu_price_fetch():
@@ -531,6 +535,39 @@ def _run_vercel_labs_fetch() -> dict:
         return {"ok": False, "error": str(exc)}
 
 
+def _run_popmart_youtube_fetch() -> dict:
+    """Fetch POP MART YouTube metrics and publish dashboard files."""
+    import traceback as _traceback
+    global _popmart_youtube_fetch_running
+    if not _popmart_youtube_fetch_lock.acquire(blocking=False):
+        logger_dashboard.info("POP MART YouTube fetch already running - skipped")
+        return {"ok": False, "error": "already_running"}
+
+    _popmart_youtube_fetch_running = True
+    try:
+        from fetchers.popmart_youtube import run_popmart_youtube_fetch
+
+        logger_dashboard.info("POP MART YouTube fetch starting...")
+        result = run_popmart_youtube_fetch()
+        logger_dashboard.info(
+            "POP MART YouTube fetch done: %d videos, %d failed",
+            result.get("videos", 0), result.get("failed", 0),
+        )
+        return result
+    except Exception as exc:
+        logger_dashboard.error("POP MART YouTube fetch error: %s", _traceback.format_exc())
+        db.upsert_script_report(
+            _POPMART_YOUTUBE_SCRIPT_NAME,
+            "error",
+            str(exc),
+            None,
+            _POPMART_YOUTUBE_INTERVAL_HOURS,
+        )
+        return {"ok": False, "error": str(exc)}
+    finally:
+        _popmart_youtube_fetch_running = False
+        _popmart_youtube_fetch_lock.release()
+
 def _run_llm_token_expenditure_index_fetch() -> dict:
     """Fetch the latest Silicon Data token index snapshot and extend local history."""
     import json as _json
@@ -587,6 +624,33 @@ def _bootstrap_dashboard_datasets() -> None:
         if _LLM_TOKEN_INDEX_SCRIPT_NAME not in existing:
             logger_dashboard.info("Bootstrapping missing dashboard dataset: %s", _LLM_TOKEN_INDEX_SCRIPT_NAME)
             _run_llm_token_expenditure_index_fetch()
+        if _POPMART_YOUTUBE_SCRIPT_NAME not in existing:
+            import json as _json
+            db.upsert_script_report(
+                _POPMART_YOUTUBE_SCRIPT_NAME,
+                "ok",
+                None,
+                _json.dumps([
+                    {
+                        "type": "metrics",
+                        "title": "POP MART YouTube weekly summary",
+                        "metrics": [
+                            {"label": "???????", "value": "-"},
+                            {"label": "????????", "value": "-"},
+                            {"label": "??????", "value": "0"},
+                            {"label": "??????", "value": "0"},
+                        ],
+                        "note": "??????",
+                    },
+                    {
+                        "type": "table",
+                        "title": "POP MART latest 100 videos",
+                        "headers": ["????", "????", "??URL", "??????", "?????", "?????", "??????"],
+                        "rows": [],
+                    },
+                ], ensure_ascii=False),
+                _POPMART_YOUTUBE_INTERVAL_HOURS,
+            )
     except Exception:
         logger_dashboard.exception("Dashboard bootstrap failed")
 
@@ -648,6 +712,10 @@ _scheduler.add_job(
 _scheduler.add_job(
     lambda: _run_llm_token_expenditure_index_fetch(),
     "cron", hour=9, minute=40, id="llm_token_expenditure_index_daily",
+)
+_scheduler.add_job(
+    lambda: _run_popmart_youtube_fetch(),
+    "cron", day_of_week="mon", hour=10, minute=10, id="popmart_youtube_weekly",
 )
 
 _scheduler.start()
@@ -3013,6 +3081,21 @@ def api_report_excel_download(script_name):
     )
 
 
+@app.route("/api/report/<script_name>/file/<file_key>", methods=["GET"])
+@login_required
+def api_report_file_download(script_name, file_key):
+    row = db.get_script_file(script_name, file_key=file_key)
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    filename = row["filename"]
+    mimetype = "text/csv; charset=utf-8" if filename.lower().endswith(".csv") else "application/octet-stream"
+    return send_file(
+        io.BytesIO(row["file_data"]),
+        download_name=filename,
+        as_attachment=True,
+        mimetype=mimetype,
+    )
+
 @app.route("/dashboard/status")
 @login_required
 def dashboard_status():
@@ -3114,6 +3197,17 @@ def dashboard_gpu_prices_refresh():
     threading.Thread(target=_run_gpu_price_fetch, daemon=True).start()
     return jsonify({"ok": True})
 
+
+@app.route("/dashboard/popmart-youtube/refresh", methods=["POST"])
+@login_required
+def dashboard_popmart_youtube_refresh():
+    """Admin-only: trigger a background POP MART YouTube refresh."""
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"error": "forbidden"}), 403
+    if _popmart_youtube_fetch_running:
+        return jsonify({"ok": False, "message": "already_running"})
+    threading.Thread(target=_run_popmart_youtube_fetch, daemon=True).start()
+    return jsonify({"ok": True})
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

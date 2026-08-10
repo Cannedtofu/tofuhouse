@@ -117,12 +117,21 @@ from db.gpu_prices import (
     get_all_gpu_price_data,
     get_gpu_price_last_updated,
 )
+from db.popmart_youtube import (
+    upsert_popmart_youtube_snapshot,
+    get_latest_popmart_youtube_videos,
+    get_all_popmart_youtube_videos,
+    get_latest_popmart_youtube_snapshot_at,
+    get_popmart_youtube_weekly_summary,
+    build_popmart_youtube_csv,
+)
 from db.script_reports import (
     upsert_script_report,
     get_all_script_reports,
     upsert_script_file,
     get_script_file,
     get_scripts_with_files,
+    get_script_file_keys,
     get_panel_access,
     set_panel_access,
     delete_script_data,
@@ -160,6 +169,9 @@ __all__ = [
     "upsert_gpu_price_data", "get_gpu_price_data",
     "get_all_gpu_price_data", "get_gpu_price_last_updated",
     "upsert_script_report", "get_all_script_reports",
-    "upsert_script_file", "get_script_file", "get_scripts_with_files",
+    "upsert_script_file", "get_script_file", "get_scripts_with_files", "get_script_file_keys",
     "get_panel_access", "set_panel_access", "delete_script_data",
+    "upsert_popmart_youtube_snapshot", "get_latest_popmart_youtube_videos",
+    "get_all_popmart_youtube_videos", "get_latest_popmart_youtube_snapshot_at",
+    "get_popmart_youtube_weekly_summary", "build_popmart_youtube_csv",
 ]

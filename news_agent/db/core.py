@@ -218,10 +218,12 @@ def init_db():
 
             CREATE TABLE IF NOT EXISTS script_files (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                script_name TEXT    NOT NULL UNIQUE,
+                script_name TEXT    NOT NULL,
+                file_key    TEXT    NOT NULL DEFAULT 'default',
                 filename    TEXT    NOT NULL,
                 file_data   BLOB    NOT NULL,
-                uploaded_at TEXT    NOT NULL
+                uploaded_at TEXT    NOT NULL,
+                UNIQUE(script_name, file_key)
             );
         """)
         # Migrations for older databases
@@ -344,6 +346,28 @@ def init_db():
         except Exception:
             pass
         try:
+            _script_file_cols = [r[1] for r in conn.execute("PRAGMA table_info(script_files)").fetchall()]
+            if "file_key" not in _script_file_cols:
+                conn.executescript("""
+                    CREATE TABLE script_files_new (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                        script_name TEXT    NOT NULL,
+                        file_key    TEXT    NOT NULL DEFAULT 'default',
+                        filename    TEXT    NOT NULL,
+                        file_data   BLOB    NOT NULL,
+                        uploaded_at TEXT    NOT NULL,
+                        UNIQUE(script_name, file_key)
+                    );
+                    INSERT INTO script_files_new
+                        (id, script_name, file_key, filename, file_data, uploaded_at)
+                    SELECT id, script_name, 'default', filename, file_data, uploaded_at
+                    FROM script_files;
+                    DROP TABLE script_files;
+                    ALTER TABLE script_files_new RENAME TO script_files;
+                """)
+        except Exception:
+            pass
+        try:
             conn.execute(
                 """DELETE FROM topic_item_sources
                    WHERE topic_item_id NOT IN (SELECT id FROM topic_items)"""
@@ -395,4 +419,38 @@ def init_db():
                 panel_key  TEXT    PRIMARY KEY,
                 public     INTEGER NOT NULL DEFAULT 1
             )
+        """)
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS popmart_youtube_videos (
+                video_id             TEXT PRIMARY KEY,
+                title                TEXT,
+                url                  TEXT NOT NULL,
+                published_at         TEXT,
+                view_count           INTEGER,
+                like_count           INTEGER,
+                comment_count        INTEGER,
+                first_seen_at        TEXT NOT NULL,
+                last_seen_at         TEXT NOT NULL,
+                last_success_at      TEXT,
+                last_error           TEXT,
+                in_latest_100        INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS popmart_youtube_snapshots (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_at   TEXT NOT NULL,
+                video_id      TEXT NOT NULL REFERENCES popmart_youtube_videos(video_id) ON DELETE CASCADE,
+                title         TEXT,
+                url           TEXT NOT NULL,
+                published_at  TEXT,
+                view_count    INTEGER,
+                like_count    INTEGER,
+                comment_count INTEGER,
+                error_message TEXT,
+                UNIQUE(snapshot_at, video_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_popmart_youtube_snapshots_video
+                ON popmart_youtube_snapshots(video_id, snapshot_at);
+            CREATE INDEX IF NOT EXISTS idx_popmart_youtube_snapshots_at
+                ON popmart_youtube_snapshots(snapshot_at);
         """)

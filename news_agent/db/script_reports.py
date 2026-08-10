@@ -57,27 +57,27 @@ def get_all_script_reports() -> list[dict]:
     return result
 
 
-def upsert_script_file(script_name: str, filename: str, file_data: bytes) -> None:
-    """Store (or replace) the latest Excel file for a script."""
+def upsert_script_file(script_name: str, filename: str, file_data: bytes, file_key: str = "default") -> None:
+    """Store (or replace) a downloadable file for a script."""
     uploaded_at = datetime.now(timezone.utc).isoformat()
     with get_conn() as conn:
         conn.execute(
-            """INSERT INTO script_files (script_name, filename, file_data, uploaded_at)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(script_name) DO UPDATE SET
+            """INSERT INTO script_files (script_name, file_key, filename, file_data, uploaded_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(script_name, file_key) DO UPDATE SET
                    filename    = excluded.filename,
                    file_data   = excluded.file_data,
                    uploaded_at = excluded.uploaded_at""",
-            (script_name, filename, file_data, uploaded_at),
+            (script_name, file_key, filename, file_data, uploaded_at),
         )
 
 
-def get_script_file(script_name: str) -> dict | None:
-    """Return the stored file for a script, or None if not found."""
+def get_script_file(script_name: str, file_key: str = "default") -> dict | None:
+    """Return a stored file for a script, or None if not found."""
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT filename, file_data, uploaded_at FROM script_files WHERE script_name = ?",
-            (script_name,),
+            "SELECT filename, file_data, uploaded_at FROM script_files WHERE script_name = ? AND file_key = ?",
+            (script_name, file_key),
         ).fetchone()
     if not row:
         return None
@@ -87,12 +87,22 @@ def get_script_file(script_name: str) -> dict | None:
 def get_scripts_with_files() -> set[str]:
     """Return set of script names that have an uploaded file."""
     with get_conn() as conn:
-        rows = conn.execute("SELECT script_name FROM script_files").fetchall()
+        rows = conn.execute("SELECT DISTINCT script_name FROM script_files WHERE file_key = 'default'").fetchall()
     return {r["script_name"] for r in rows}
 
 
+def get_script_file_keys(script_name: str) -> set[str]:
+    """Return file keys stored for one script."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT file_key FROM script_files WHERE script_name = ?",
+            (script_name,),
+        ).fetchall()
+    return {r["file_key"] for r in rows}
+
+
 def delete_script_data(script_name: str) -> None:
-    """Delete a script's report and uploaded file, for a clean reset."""
+    """Delete a script's report and uploaded files, for a clean reset."""
     with get_conn() as conn:
         conn.execute("DELETE FROM script_reports WHERE script_name = ?", (script_name,))
         conn.execute("DELETE FROM script_files WHERE script_name = ?", (script_name,))
@@ -101,7 +111,6 @@ def delete_script_data(script_name: str) -> None:
 # ---------------------------------------------------------------------------
 # Panel access control (admin toggles per-panel visibility for non-admins)
 # ---------------------------------------------------------------------------
-
 def get_panel_access() -> dict:
     """Return {panel_key: public} for all panels with a stored preference.
 

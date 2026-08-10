@@ -189,9 +189,20 @@
         {{ '🔓' if panel_access.get(s.script_name, True) else '🔒' }}
       </button>
       {% endif %}
-      {% if s.script_name in scripts_with_files %}
+      {% if s.script_name == 'popmart_youtube' %}
+      <a href="/api/report/{{ s.script_name }}/file/latest_100"
+         class="btn btn-sm btn-outline-secondary">下载最新100</a>
+      <a href="/api/report/{{ s.script_name }}/file/history_all"
+         class="btn btn-sm btn-outline-secondary">下载历史累计</a>
+      {% if is_admin %}
+      <button id="popmart-refresh-btn" class="btn btn-sm btn-outline-secondary" onclick="refreshPopmartYoutube()">
+        <span id="popmart-refresh-spinner" class="spinner-border spinner-border-sm d-none me-1"></span>
+        刷新
+      </button>
+      {% endif %}
+      {% elif s.script_name in scripts_with_files %}
       <a href="/api/report/{{ s.script_name }}/excel"
-         class="btn btn-sm btn-outline-secondary">⬇ Excel</a>
+         class="btn btn-sm btn-outline-secondary">Excel</a>
       {% endif %}
     </div>
   </div>
@@ -202,7 +213,19 @@
           <div class="small fw-semibold text-muted mb-2 panel-title"
                data-key="{{ s.script_name }}-{{ loop.index0 }}"
                title="双击编辑标题" ondblclick="startEditTitle(event, this)">{{ panel.title }}</div>
-          {% if panel.type in ('line', 'bar') %}
+          {% if panel.type == 'metrics' %}
+            <div class="row g-2 mb-2">
+              {% for metric in panel.metrics %}
+              <div class="col-6 col-lg-3">
+                <div class="border rounded-2 px-3 py-2 bg-light h-100">
+                  <div class="small text-muted">{{ metric.label }}</div>
+                  <div class="fs-5 fw-semibold">{{ metric.value }}</div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% if panel.note %}<div class="small text-muted">{{ panel.note }}</div>{% endif %}
+          {% elif panel.type in ('line', 'bar') %}
             {% set chart_id = "chart-" ~ (s.script_name | replace(' ', '-')) ~ "-" ~ loop.index %}
             <div style="position:relative;height:320px">
               <canvas id="{{ chart_id }}"></canvas>
@@ -466,6 +489,24 @@ function parseChartDateValue(rawX, xType) {
 // ---------------------------------------------------------------------------
 // Refresh
 // ---------------------------------------------------------------------------
+async function refreshPopmartYoutube() {
+  const btn = document.getElementById("popmart-refresh-btn");
+  const spinner = document.getElementById("popmart-refresh-spinner");
+  if (!btn) return;
+  btn.disabled = true;
+  spinner?.classList.remove("d-none");
+  try {
+    const resp = await fetch("/dashboard/popmart-youtube/refresh", { method: "POST" });
+    const json = await resp.json().catch(() => ({}));
+    if (!resp.ok || json.ok === false) throw new Error(json.message || json.error || resp.status);
+    alert("POP MART YouTube 抓取已开始，完成后刷新页面查看结果。");
+  } catch (e) {
+    alert("刷新失败: " + e);
+  } finally {
+    btn.disabled = false;
+    spinner?.classList.add("d-none");
+  }
+}
 async function refreshGpuPrices() {
   const btn = document.getElementById("gpu-refresh-btn");
   const spinner = document.getElementById("gpu-refresh-spinner");
