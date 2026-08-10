@@ -18,6 +18,7 @@ from flask import Flask, g, jsonify, redirect, render_template, request, send_fi
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 
+import conference_db
 import db
 from config import ADMIN_EMAIL, EMAIL_WHITELIST, REPORT_API_KEY, SECRET_KEY, TOPIC_FETCH_HOUR_SGT, TRANSCRIPT_UPLOAD_MAX_MB
 from email_digest import build_email_digest
@@ -25,6 +26,7 @@ from pipeline import run_fetch_and_summarize
 from ai_digest import generate_batch_digest
 from article_summarizer import summarize_single_article
 from topic_workflow import run_topic_fetch
+from conference_workflow import match_conferences_for_user, refresh_for_user
 
 # ---------------------------------------------------------------------------
 # Logging — console + rotating file
@@ -96,6 +98,7 @@ def to_sgt_filter(ts_str: str) -> str:
     except Exception:
         return ts_str[:19].replace("T", " ")
 db.init_db()
+conference_db.init_db()
 db.close_open_fetch_logs()
 db.seed_default_sources()
 
@@ -175,6 +178,7 @@ def _api_key_required():
 _fetch_lock = threading.Lock()
 _fetch_status: dict = {"running": False, "last_result": None}
 _topic_fetch_status: dict = {"running": False, "last_result": None}
+_conference_fetch_status: dict = {"running": False, "last_result": None}
 
 # Digest jobs — keyed by UUID, each: {"status": "running"|"done"|"error", "result": str}
 _digest_jobs: dict[str, dict] = {}
@@ -1117,6 +1121,83 @@ def delete_topic(topic_id: int):
     db.delete_topic(topic_id)
     return redirect(url_for("topics"))
 
+
+@app.route("/conferences")
+@login_required
+def conferences():
+    uid = g.current_user["id"]
+    return render_template(
+        "conferences.html",
+        topics=conference_db.get_topics(uid),
+        grouped_matches=conference_db.get_grouped_matches(uid),
+        fetch_status=_conference_fetch_status,
+    )
+
+
+@app.route("/conferences/topics", methods=["POST"])
+@login_required
+def update_conference_topics():
+    uid = g.current_user["id"]
+    raw = request.form.get("topics", "")
+    topics = [part.strip() for part in re.split(r"[\n,]+", raw) if part.strip()]
+    conference_db.set_topics(uid, topics)
+    try:
+        match_conferences_for_user(uid)
+    except Exception as exc:
+        logging.exception("Conference topic matching failed")
+        _conference_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
+    return redirect(url_for("conferences"))
+
+
+@app.route("/conferences/fetch", methods=["POST"])
+@login_required
+def fetch_conferences():
+    if _conference_fetch_status["running"]:
+        return jsonify({"ok": False, "error": "A conference refresh is already running"}), 409
+    uid = g.current_user["id"]
+
+    def _run():
+        _conference_fetch_status["running"] = True
+        try:
+            result = refresh_for_user(uid)
+            _conference_fetch_status["last_result"] = {"status": "ok", **result}
+        except Exception as exc:
+            logging.exception("Conference refresh failed")
+            _conference_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
+        finally:
+            _conference_fetch_status["running"] = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/conferences/match", methods=["POST"])
+@login_required
+def match_conferences_now():
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return jsonify({"ok": False, "error": "Not authorised."}), 403
+    if _conference_fetch_status["running"]:
+        return jsonify({"ok": False, "error": "A conference task is already running"}), 409
+    uid = g.current_user["id"]
+
+    def _run():
+        _conference_fetch_status["running"] = True
+        try:
+            result = match_conferences_for_user(uid, force=True)
+            _conference_fetch_status["last_result"] = {"status": "ok", "match": result, "manual_match": True}
+        except Exception as exc:
+            logging.exception("Manual conference labeling failed")
+            _conference_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
+        finally:
+            _conference_fetch_status["running"] = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"ok": True})
+
+@app.route("/conferences/fetch/status")
+@login_required
+def conference_fetch_status():
+    return jsonify(_conference_fetch_status)
 
 @app.route("/sources/detect", methods=["POST"])
 def detect_source():

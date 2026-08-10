@@ -22,6 +22,7 @@ MIN_BROWSER_FALLBACK_CHARS = 300        # Playwright result shorter than this tr
 
 # --- Database ---
 DB_PATH = os.getenv("DB_PATH", "news.db")
+CONFERENCE_DB_PATH = os.getenv("CONFERENCE_DB_PATH", "conferences.db")
 
 # --- Scheduler + Nitter fetch window ---
 # NITTER_FETCH_PERIOD_HOURS controls two things simultaneously:

@@ -38,6 +38,7 @@
           <a class="nav-link {% if request.path == '/digests' %}active{% endif %}" href="/digests">简报</a>
           <a class="nav-link {% if request.path == '/sources' %}active{% endif %}" href="/sources">来源</a>
           <a class="nav-link {% if request.path == '/topics' %}active{% endif %}" href="/topics">话题</a>
+          <a class="nav-link {% if request.path.startswith('/conferences') %}active{% endif %}" href="/conferences">电话会</a>
           <a class="nav-link {% if request.path == '/transcript' %}active{% endif %}" href="/transcript">转录</a>
           <a class="nav-link {% if request.path == '/tools' %}active{% endif %}" href="/tools">工具</a>
           <a class="nav-link {% if request.path.startswith('/dashboard') %}active{% endif %}" href="/dashboard">数据</a>

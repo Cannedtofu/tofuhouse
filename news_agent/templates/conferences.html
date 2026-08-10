@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}电话会{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">关注话题清单</h5>
+        <span id="conference-status" class="small text-muted"></span>
+      </div>
+      <form method="post" action="/conferences/topics">
+        <textarea name="topics" class="form-control" rows="10" placeholder="每行一个关键词&#10;例如：NVIDIA&#10;AI infra&#10;半导体设备">{{ topics | join("\n") }}</textarea>
+        <div class="form-text">保存后会用现有会议补齐缺失标签。点击刷新会重新抓取未来 5 天会议。</div>
+        <button class="btn btn-primary w-100 mt-3">保存并匹配</button>
+      </form>
+      <button id="conference-refresh-btn" class="btn btn-outline-secondary w-100 mt-2" onclick="refreshConferences()">
+        刷新电话会
+      </button>
+      {% if is_admin %}
+      <button id="conference-label-btn" class="btn btn-outline-primary w-100 mt-2" onclick="labelConferences()">
+        重新打标签
+      </button>
+      {% endif %}
+      {% if fetch_status.last_result %}
+      <div class="small text-muted mt-3">
+        上次结果：
+        {% if fetch_status.last_result.status == 'ok' %}
+          {% if fetch_status.last_result.crawl %}抓取 {{ fetch_status.last_result.crawl.fetched }} 条，{% endif %}
+          匹配 {{ fetch_status.last_result.match.matched }} 项
+          {% if fetch_status.last_result.match.llm_called is sameas false %}，未调用 LLM{% endif %}
+        {% else %}
+          {{ fetch_status.last_result.message }}
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">匹配会议</h5>
+      <span class="text-muted small">来源：Comein 路演</span>
+    </div>
+    {% if grouped_matches %}
+      {% for group in grouped_matches %}
+      <div class="mb-4">
+        <div class="source-header">{{ group.topic }} <span class="text-muted small">({{ group.items|length }})</span></div>
+        {% for item in group.items %}
+        <div class="card p-3 mb-2">
+          <div class="d-flex justify-content-between gap-3">
+            <div style="min-width:0">
+              <div class="article-title">
+                <a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }}</a>
+              </div>
+              <div class="article-meta mt-1">
+                {{ item.starts_at | to_sgt if item.starts_at else item.date_text or "时间待确认" }}
+              </div>
+              {% if item.reason %}
+              <div class="summary-text mt-2">{{ item.reason }}</div>
+              {% endif %}
+            </div>
+            <a class="btn btn-sm btn-outline-primary flex-shrink-0 align-self-start" href="{{ item.url }}" target="_blank" rel="noopener">打开</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="card p-5 text-center text-muted">
+        暂无匹配会议。先添加关注话题，或点击刷新电话会。
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const refreshBtn = document.getElementById('conference-refresh-btn');
+const labelBtn = document.getElementById('conference-label-btn');
+const statusEl = document.getElementById('conference-status');
+
+function setConferenceBusy(busy, text) {
+  refreshBtn.disabled = busy;
+  refreshBtn.textContent = busy ? '处理中...' : '刷新电话会';
+  if (labelBtn) {
+    labelBtn.disabled = busy;
+    labelBtn.textContent = busy ? '处理中...' : '重新打标签';
+  }
+  statusEl.textContent = text || '';
+}
+
+function pollConferenceStatus() {
+  fetch('/conferences/fetch/status')
+    .then(r => r.json())
+    .then(data => {
+      if (data.running) {
+        setConferenceBusy(true, '任务运行中');
+        setTimeout(pollConferenceStatus, 2000);
+        return;
+      }
+      setConferenceBusy(false, '');
+      if (data.last_result) window.location.reload();
+    })
+    .catch(() => setConferenceBusy(false, '状态读取失败'));
+}
+
+function runConferenceTask(url, startingText) {
+  setConferenceBusy(true, startingText);
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) throw new Error(data.error || '启动失败');
+      setTimeout(pollConferenceStatus, 1000);
+    })
+    .catch(err => setConferenceBusy(false, err.message || '启动失败'));
+}
+
+function refreshConferences() {
+  runConferenceTask('/conferences/fetch', '正在启动抓取');
+}
+
+function labelConferences() {
+  runConferenceTask('/conferences/match', '正在启动打标签');
+}
+
+{% if fetch_status.running %}
+pollConferenceStatus();
+{% endif %}
+</script>
+{% endblock %}
