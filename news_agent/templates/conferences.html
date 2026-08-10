@@ -6,14 +6,48 @@
   <div class="col-lg-4">
     <div class="card p-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">&#20851;&#27880;&#35805;&#39064;&#28165;&#21333;</h5>
+        <h5 class="mb-0">&#20851;&#27880;&#35805;&#39064;</h5>
         <span id="conference-status" class="small text-muted"></span>
       </div>
       <form method="post" action="/conferences/topics" onsubmit="setConferenceBusy(true, 'Saving...')">
-        <textarea name="topics" class="form-control" rows="10" placeholder="&#27599;&#34892;&#19968;&#20010;&#20851;&#38190;&#35789;&#10;&#20363;&#22914;&#65306;NVIDIA&#10;AI infra&#10;&#21322;&#23548;&#20307;&#35774;&#22791;">{{ topics | join("\n") }}</textarea>
-        <div class="form-text">&#20445;&#23384;&#21518;&#20250;&#29992;&#29616;&#26377;&#20250;&#35758;&#34917;&#40784;&#32570;&#22833;&#26631;&#31614;&#12290;&#28857;&#20987;&#21047;&#26032;&#20250;&#37325;&#26032;&#25235;&#21462;&#26410;&#26469; 5 &#22825;&#20250;&#35758;&#12290;</div>
-        <button class="btn btn-primary w-100 mt-3">&#20445;&#23384;&#24182;&#21305;&#37197;</button>
+        <div class="input-group">
+          <input type="text" name="topic" class="form-control" placeholder="&#28155;&#21152;&#20840;&#23616;&#35805;&#39064;&#65292;&#20363;&#22914;&#65306;&#30333;&#37202;" required>
+          <button class="btn btn-primary">&#28155;&#21152;</button>
+        </div>
+        <div class="form-text">&#26032;&#22686;&#21518;&#25152;&#26377;&#29992;&#25143;&#21487;&#35265;&#12290;&#28155;&#21152;&#20154;&#20250;&#33258;&#21160;&#20851;&#27880;&#35813;&#35805;&#39064;&#12290;</div>
       </form>
+
+      <div class="border-top mt-3 pt-3">
+        <div class="fw-semibold small mb-2">&#20840;&#23616;&#35805;&#39064;&#28165;&#21333;</div>
+        {% if all_topics %}
+          {% for topic in all_topics %}
+          <div class="d-flex align-items-center justify-content-between gap-2 border rounded bg-light p-2 mb-2">
+            <div class="text-truncate" title="{{ topic.name }}">{{ topic.name }}</div>
+            <div class="d-flex gap-1 flex-shrink-0">
+              {% if topic.followed %}
+              <form method="post" action="/conferences/topics/{{ topic.id }}/follow" class="mb-0">
+                <input type="hidden" name="action" value="unfollow">
+                <button class="btn btn-sm btn-success">&#24050;&#20851;&#27880;</button>
+              </form>
+              {% else %}
+              <form method="post" action="/conferences/topics/{{ topic.id }}/follow" class="mb-0" onsubmit="setConferenceBusy(true, 'Following...')">
+                <input type="hidden" name="action" value="follow">
+                <button class="btn btn-sm btn-outline-secondary">&#20851;&#27880;</button>
+              </form>
+              {% endif %}
+              {% if is_admin %}
+              <form method="post" action="/conferences/topics/{{ topic.id }}/delete" class="mb-0" onsubmit="return confirm('Delete topic {{ topic.name }}?')">
+                <button class="btn btn-sm btn-outline-danger">&#21024;&#38500;</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted small">&#26242;&#26080;&#35805;&#39064;&#12290;</div>
+        {% endif %}
+      </div>
+
       <button id="conference-refresh-btn" class="btn btn-outline-secondary w-100 mt-2" onclick="refreshConferences()">
         &#21047;&#26032;&#30005;&#35805;&#20250;
       </button>
@@ -68,7 +102,7 @@
       {% endfor %}
     {% else %}
       <div class="card p-5 text-center text-muted">
-        &#26242;&#26080;&#21305;&#37197;&#20250;&#35758;&#12290;&#20808;&#28155;&#21152;&#20851;&#27880;&#35805;&#39064;&#65292;&#25110;&#28857;&#20987;&#21047;&#26032;&#30005;&#35805;&#20250;&#12290;
+        &#26242;&#26080;&#21305;&#37197;&#20250;&#35758;&#12290;&#20808;&#20851;&#27880;&#35805;&#39064;&#65292;&#25110;&#28857;&#20987;&#21047;&#26032;&#30005;&#35805;&#20250;&#12290;
       </div>
     {% endif %}
   </div>

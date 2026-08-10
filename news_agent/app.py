@@ -1129,33 +1129,64 @@ def conferences():
     return render_template(
         "conferences.html",
         topics=conference_db.get_topics(uid),
+        all_topics=conference_db.get_all_topics_with_follow_status(uid),
         grouped_matches=conference_db.get_grouped_matches(uid),
         fetch_status=_conference_fetch_status,
     )
+
+
+def _start_conference_match_job(user_id, force=False, result_extra=None):
+    if _conference_fetch_status["running"]:
+        return False
+    _conference_fetch_status["running"] = True
+    result_extra = result_extra or {}
+
+    def _run():
+        try:
+            result = match_conferences_for_user(user_id, force=force)
+            _conference_fetch_status["last_result"] = {"status": "ok", "match": result, **result_extra}
+        except Exception as exc:
+            logging.exception("Conference topic matching failed")
+            _conference_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
+        finally:
+            _conference_fetch_status["running"] = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return True
 
 
 @app.route("/conferences/topics", methods=["POST"])
 @login_required
 def update_conference_topics():
     uid = g.current_user["id"]
-    raw = request.form.get("topics", "")
-    topics = [part.strip() for part in re.split(r"[\n,]+", raw) if part.strip()]
-    conference_db.set_topics(uid, topics)
-    if not _conference_fetch_status["running"]:
-        _conference_fetch_status["running"] = True
-
-        def _run():
-            try:
-                result = match_conferences_for_user(uid)
-                _conference_fetch_status["last_result"] = {"status": "ok", "match": result, "topics_saved": True}
-            except Exception as exc:
-                logging.exception("Conference topic matching failed")
-                _conference_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
-            finally:
-                _conference_fetch_status["running"] = False
-
-        threading.Thread(target=_run, daemon=True).start()
+    name = request.form.get("topic", "").strip()
+    if name:
+        conference_db.create_topic(name, user_id=uid, follow=True)
+        _start_conference_match_job(uid, result_extra={"topic_added": True})
     return redirect(url_for("conferences"))
+
+
+@app.route("/conferences/topics/<int:topic_id>/follow", methods=["POST"])
+@login_required
+def toggle_conference_topic_follow(topic_id):
+    uid = g.current_user["id"]
+    action = request.form.get("action", "follow")
+    if action == "unfollow":
+        conference_db.unfollow_topic(uid, topic_id)
+    else:
+        conference_db.follow_topic(uid, topic_id)
+        _start_conference_match_job(uid, result_extra={"topic_followed": True})
+    return redirect(url_for("conferences"))
+
+
+@app.route("/conferences/topics/<int:topic_id>/delete", methods=["POST"])
+@login_required
+def delete_conference_topic(topic_id):
+    if g.current_user["email"] != ADMIN_EMAIL:
+        return redirect(url_for("conferences"))
+    conference_db.delete_topic(topic_id)
+    return redirect(url_for("conferences"))
+
 
 @app.route("/conferences/fetch", methods=["POST"])
 @login_required
@@ -1178,29 +1209,17 @@ def fetch_conferences():
     threading.Thread(target=_run, daemon=True).start()
     return jsonify({"ok": True})
 
+
 @app.route("/conferences/match", methods=["POST"])
 @login_required
 def match_conferences_now():
     if g.current_user["email"] != ADMIN_EMAIL:
         return jsonify({"ok": False, "error": "Not authorised."}), 403
-    if _conference_fetch_status["running"]:
+    started = _start_conference_match_job(g.current_user["id"], force=True, result_extra={"manual_match": True})
+    if not started:
         return jsonify({"ok": False, "error": "A conference task is already running"}), 409
-    uid = g.current_user["id"]
-
-    _conference_fetch_status["running"] = True
-
-    def _run():
-        try:
-            result = match_conferences_for_user(uid, force=True)
-            _conference_fetch_status["last_result"] = {"status": "ok", "match": result, "manual_match": True}
-        except Exception as exc:
-            logging.exception("Manual conference labeling failed")
-            _conference_fetch_status["last_result"] = {"status": "error", "message": str(exc)}
-        finally:
-            _conference_fetch_status["running"] = False
-
-    threading.Thread(target=_run, daemon=True).start()
     return jsonify({"ok": True})
+
 
 @app.route("/conferences/fetch/status")
 @login_required

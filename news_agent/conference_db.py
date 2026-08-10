@@ -51,6 +51,24 @@ def init_db():
                 updated_at  TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS conference_topics (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                name               TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                created_by_user_id INTEGER,
+                created_at         TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_conference_topics_name
+                ON conference_topics(name COLLATE NOCASE);
+
+            CREATE TABLE IF NOT EXISTS user_conference_topic_follows (
+                user_id  INTEGER NOT NULL,
+                topic_id INTEGER NOT NULL REFERENCES conference_topics(id) ON DELETE CASCADE,
+                followed_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, topic_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_conference_topic_follows_user
+                ON user_conference_topic_follows(user_id);
+
             CREATE TABLE IF NOT EXISTS conference_matches (
                 user_id       INTEGER NOT NULL,
                 conference_id INTEGER NOT NULL REFERENCES conference_calls(id) ON DELETE CASCADE,
@@ -63,6 +81,36 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_conference_matches_user_topic
                 ON conference_matches(user_id, topic, matched);
         """)
+        _migrate_legacy_topics(conn)
+
+
+def _migrate_legacy_topics(conn):
+    rows = conn.execute("SELECT user_id, topics_json FROM user_conference_topics").fetchall()
+    now = _now_iso()
+    for row in rows:
+        try:
+            topics = json.loads(row["topics_json"] or "[]")
+        except Exception:
+            topics = []
+        for name in topics:
+            name = str(name or "").strip()
+            if not name:
+                continue
+            conn.execute(
+                """INSERT OR IGNORE INTO conference_topics (name, created_by_user_id, created_at)
+                   VALUES (?, ?, ?)""",
+                (name, row["user_id"], now),
+            )
+            topic_row = conn.execute(
+                "SELECT id FROM conference_topics WHERE name = ? COLLATE NOCASE",
+                (name,),
+            ).fetchone()
+            if topic_row:
+                conn.execute(
+                    """INSERT OR IGNORE INTO user_conference_topic_follows
+                       (user_id, topic_id, followed_at) VALUES (?, ?, ?)""",
+                    (row["user_id"], topic_row["id"], now),
+                )
 
 
 def upsert_conferences(items):
@@ -109,18 +157,87 @@ def upsert_conferences(items):
     return {"inserted": inserted, "updated": updated}
 
 
+def create_topic(name, user_id=None, follow=True):
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("Topic name is required")
+    now = _now_iso()
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO conference_topics (name, created_by_user_id, created_at)
+               VALUES (?, ?, ?)""",
+            (name, user_id, now),
+        )
+        row = conn.execute(
+            "SELECT * FROM conference_topics WHERE name = ? COLLATE NOCASE",
+            (name,),
+        ).fetchone()
+        if follow and user_id is not None:
+            conn.execute(
+                """INSERT OR IGNORE INTO user_conference_topic_follows
+                   (user_id, topic_id, followed_at) VALUES (?, ?, ?)""",
+                (user_id, row["id"], now),
+            )
+    return dict(row)
+
+
 def get_topics(user_id):
     with get_conn() as conn:
-        row = conn.execute(
-            "SELECT topics_json FROM user_conference_topics WHERE user_id = ?",
+        rows = conn.execute(
+            """SELECT t.name
+               FROM conference_topics t
+               JOIN user_conference_topic_follows f ON f.topic_id = t.id
+               WHERE f.user_id = ?
+               ORDER BY t.name COLLATE NOCASE""",
             (user_id,),
-        ).fetchone()
-    if not row:
-        return []
-    try:
-        return json.loads(row["topics_json"] or "[]")
-    except Exception:
-        return []
+        ).fetchall()
+    return [row["name"] for row in rows]
+
+
+def get_all_topics_with_follow_status(user_id):
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT t.*,
+                      CASE WHEN f.topic_id IS NOT NULL THEN 1 ELSE 0 END AS followed
+               FROM conference_topics t
+               LEFT JOIN user_conference_topic_follows f
+                 ON f.topic_id = t.id AND f.user_id = ?
+               ORDER BY t.name COLLATE NOCASE""",
+            (user_id,),
+        ).fetchall()
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["followed"] = bool(row["followed"])
+        result.append(item)
+    return result
+
+
+def follow_topic(user_id, topic_id):
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO user_conference_topic_follows
+               (user_id, topic_id, followed_at) VALUES (?, ?, ?)""",
+            (user_id, int(topic_id), _now_iso()),
+        )
+
+
+def unfollow_topic(user_id, topic_id):
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM user_conference_topic_follows WHERE user_id = ? AND topic_id = ?",
+            (user_id, int(topic_id)),
+        )
+
+
+def delete_topic(topic_id):
+    with get_conn() as conn:
+        row = conn.execute("SELECT name FROM conference_topics WHERE id = ?", (int(topic_id),)).fetchone()
+        if not row:
+            return
+        conn.execute("DELETE FROM user_conference_topic_follows WHERE topic_id = ?", (int(topic_id),))
+        conn.execute("DELETE FROM conference_matches WHERE topic = ?", (row["name"],))
+        conn.execute("DELETE FROM conference_topics WHERE id = ?", (int(topic_id),))
 
 
 def set_topics(user_id, topics):
@@ -133,14 +250,9 @@ def set_topics(user_id, topics):
             clean.append(topic)
             seen.add(key)
     with get_conn() as conn:
-        conn.execute(
-            """INSERT INTO user_conference_topics (user_id, topics_json, updated_at)
-               VALUES (?, ?, ?)
-               ON CONFLICT(user_id) DO UPDATE SET
-                   topics_json = excluded.topics_json,
-                   updated_at = excluded.updated_at""",
-            (user_id, json.dumps(clean, ensure_ascii=False), _now_iso()),
-        )
+        conn.execute("DELETE FROM user_conference_topic_follows WHERE user_id = ?", (user_id,))
+    for topic in clean:
+        create_topic(topic, user_id=user_id, follow=True)
     return clean
 
 
