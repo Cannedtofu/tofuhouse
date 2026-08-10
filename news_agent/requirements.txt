@@ -16,7 +16,7 @@ browser-use>=0.1.0
 
 # YouTube transcript feature
 youtube-transcript-api>=0.6.0   # fast path: fetch captions without audio download
-yt-dlp>=2024.1.0                # audio-only download fallback (requires ffmpeg on server)
+yt-dlp>=2026.7.4                # audio-only download fallback (requires ffmpeg on server)
 pydub>=0.25.1                   # audio chunking on silence boundaries
 dashscope>=1.20.0               # DashScope SDK - used for qwen3-asr-flash speech-to-text
 pikepdf>=8.0.0                  # PDF post-compression - recompresses Playwright-generated PDFs without quality loss

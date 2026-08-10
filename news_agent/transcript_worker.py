@@ -29,6 +29,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 
 import db
 import secrets
@@ -136,6 +137,38 @@ def is_bilibili_url(url: str) -> bool:
 # Cues are grouped into paragraphs spanning roughly this many seconds, each
 # prefixed with a single [HH:MM:SS] marker.
 _CAPTION_PARAGRAPH_INTERVAL_SEC = 30
+
+
+def _is_transient_ytdlp_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return any(
+        marker in text
+        for marker in (
+            "eof occurred in violation of protocol",
+            "ssl",
+            "timed out",
+            "timeout",
+            "connection reset",
+            "connection aborted",
+            "remote end closed",
+            "temporarily unavailable",
+        )
+    )
+
+
+def _run_ytdlp_with_outer_retries(action: str, fn, attempts: int = 3):
+    for attempt in range(1, attempts + 1):
+        try:
+            return fn()
+        except Exception as exc:
+            if attempt >= attempts or not _is_transient_ytdlp_error(exc):
+                raise
+            sleep_seconds = min(2 ** attempt, 8)
+            logger.warning(
+                "yt-dlp %s failed with transient network error (attempt %d/%d): %s; retrying in %ss",
+                action, attempt, attempts, exc, sleep_seconds,
+            )
+            time.sleep(sleep_seconds)
 
 
 def _format_timestamp(seconds: float) -> str:
@@ -271,6 +304,7 @@ def _fetch_transcript_fast(video_id_or_url: str) -> str | None:
         "skip_download": True,
         "socket_timeout": 30,
         "retries": 5,
+        "extractor_retries": 5,
     }
     if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
         ydl_opts["cookiefile"] = YOUTUBE_COOKIES_FILE
@@ -287,8 +321,10 @@ def _fetch_transcript_fast(video_id_or_url: str) -> str | None:
 
     # Step 1: probe what subtitle tracks actually exist
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+        info = _run_ytdlp_with_outer_retries(
+            f"subtitle extract_info for {video_id}",
+            lambda: yt_dlp.YoutubeDL(ydl_opts).extract_info(url, download=False),
+        )
     except Exception as exc:
         logger.warning("yt-dlp extract_info failed for %s: %s", video_id, exc)
         return None
@@ -376,6 +412,7 @@ def _download_audio(video_id_or_url: str, tmp_dir: str) -> str:
         "retries": 10,
         "fragment_retries": 10,
         "file_access_retries": 5,
+        "extractor_retries": 5,
         "retry_sleep_functions": {"http": lambda n: min(4 ** n, 60)},
     }
     if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
@@ -387,8 +424,10 @@ def _download_audio(video_id_or_url: str, tmp_dir: str) -> str:
     else:
         logger.warning("yt-dlp: no proxy configured — may be blocked on cloud IPs")
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([dl_url])
+    _run_ytdlp_with_outer_retries(
+        f"audio download for {file_id}",
+        lambda: yt_dlp.YoutubeDL(ydl_opts).download([dl_url]),
+    )
 
     for fname in os.listdir(tmp_dir):
         if fname.startswith(file_id):
@@ -623,6 +662,9 @@ def _fetch_video_metadata(video_id_or_url: str) -> tuple[str | None, str | None]
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
+        "socket_timeout": 30,
+        "retries": 5,
+        "extractor_retries": 5,
     }
     if YOUTUBE_COOKIES_FILE and os.path.isfile(YOUTUBE_COOKIES_FILE):
         opts["cookiefile"] = YOUTUBE_COOKIES_FILE
@@ -630,11 +672,13 @@ def _fetch_video_metadata(video_id_or_url: str) -> tuple[str | None, str | None]
         opts["proxy"] = SOCKS_PROXY
 
     try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info   = ydl.extract_info(url, download=False)
-            title  = info.get("title")
-            author = info.get("uploader") or info.get("channel")
-            return title, author
+        info = _run_ytdlp_with_outer_retries(
+            f"metadata extract_info for {video_id_or_url}",
+            lambda: yt_dlp.YoutubeDL(opts).extract_info(url, download=False),
+        )
+        title  = info.get("title")
+        author = info.get("uploader") or info.get("channel")
+        return title, author
     except Exception as exc:
         logger.warning("Could not fetch metadata for %s: %s", video_id_or_url, exc)
         return None, None
