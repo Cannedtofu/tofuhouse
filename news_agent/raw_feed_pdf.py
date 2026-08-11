@@ -115,14 +115,17 @@ def _safe_filename(text):
 
 
 def _inline_markdown(text):
-    escaped = html.escape(text or "")
-
-    def repl(match):
-        label = html.escape(match.group(1))
+    text = text or ""
+    parts = []
+    position = 0
+    for match in re.finditer(r"\[([^\]]+)\]\(([^)]+)\)", text):
+        parts.append(html.escape(text[position:match.start()], quote=False))
+        label = html.escape(match.group(1), quote=False)
         url = html.escape(match.group(2), quote=True)
-        return f'<a href="{url}" color="#2563eb">{label}</a>'
-
-    return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", repl, escaped)
+        parts.append(f'<a href="{url}" color="#2563eb">{label}</a>')
+        position = match.end()
+    parts.append(html.escape(text[position:], quote=False))
+    return "".join(parts)
 
 
 def _page_footer(canvas, doc):
