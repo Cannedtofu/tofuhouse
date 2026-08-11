@@ -123,6 +123,7 @@ from db.popmart_youtube import (
     get_all_popmart_youtube_videos,
     get_latest_popmart_youtube_snapshot_at,
     get_popmart_youtube_weekly_summary,
+    get_popmart_youtube_snapshot_trend,
     build_popmart_youtube_csv,
 )
 from db.script_reports import (
@@ -173,5 +174,6 @@ __all__ = [
     "get_panel_access", "set_panel_access", "delete_script_data",
     "upsert_popmart_youtube_snapshot", "get_latest_popmart_youtube_videos",
     "get_all_popmart_youtube_videos", "get_latest_popmart_youtube_snapshot_at",
-    "get_popmart_youtube_weekly_summary", "build_popmart_youtube_csv",
+    "get_popmart_youtube_weekly_summary", "get_popmart_youtube_snapshot_trend",
+    "build_popmart_youtube_csv",
 ]

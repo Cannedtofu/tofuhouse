@@ -145,39 +145,40 @@ def _format_int(value):
         return str(value)
 
 
-def _build_panels(summary, latest_rows):
-    table_rows = []
-    for row in latest_rows[:100]:
-        table_rows.append([
-            row.get("last_seen_at") or "",
-            row.get("title") or "",
-            row.get("url") or "",
-            row.get("published_at") or "",
-            _format_int(row.get("view_count")),
-            _format_int(row.get("like_count")),
-            _format_int(row.get("comment_count")),
-        ])
-
+def _build_panels(summary, trend_rows):
     return [
         {
-            "type": "metrics",
-            "title": "POP MART YouTube weekly summary",
-            "metrics": [
-                {"label": "本周视频播放量", "value": _format_int(summary["weekly_view_delta"])},
-                {"label": "本周视频发布数量", "value": _format_int(summary["weekly_new_videos"])},
-                {"label": "最新视频数量", "value": _format_int(summary["latest_count"])},
-                {"label": "抓取失败数量", "value": _format_int(summary["failed_count"])},
+            "type": "line",
+            "title": "POP MART YouTube weekly trend",
+            "x_type": "date",
+            "span_gaps": True,
+            "datasets": [
+                {
+                    "label": "Weekly view delta",
+                    "axis": "left",
+                    "data": [
+                        {"x": row["date"], "y": row["view_delta"]}
+                        for row in trend_rows
+                    ],
+                },
+                {
+                    "label": "Weekly new videos",
+                    "axis": "right",
+                    "data": [
+                        {"x": row["date"], "y": row["weekly_new_videos"]}
+                        for row in trend_rows
+                    ],
+                },
             ],
-            "note": f"current={summary.get('snapshot_at') or '-'}; previous={summary.get('previous_snapshot_at') or '-'}",
-        },
-        {
-            "type": "table",
-            "title": "POP MART latest 100 videos",
-            "headers": ["抓取时间", "视频名称", "视频URL", "视频发布时间", "视频浏览量", "视频点赞量", "视频评论数量"],
-            "rows": table_rows,
+            "note": f"current={summary.get('snapshot_at') or '-'}; previous={summary.get('previous_snapshot_at') or '-'}; first crawl excluded",
         },
     ]
 
+
+def build_popmart_youtube_panels_from_db():
+    summary = db.get_popmart_youtube_weekly_summary()
+    trend_rows = db.get_popmart_youtube_snapshot_trend()
+    return _build_panels(summary, trend_rows)
 
 def run_popmart_youtube_fetch():
     snapshot_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -193,7 +194,7 @@ def run_popmart_youtube_fetch():
     latest_rows = db.get_latest_popmart_youtube_videos(LATEST_LIMIT)
     all_rows = db.get_all_popmart_youtube_videos()
     summary = db.get_popmart_youtube_weekly_summary(snapshot_at)
-    panels = _build_panels(summary, latest_rows)
+    panels = build_popmart_youtube_panels_from_db()
 
     db.upsert_script_file(
         SCRIPT_NAME,

@@ -168,6 +168,57 @@ def get_popmart_youtube_weekly_summary(current_snapshot_at=None):
         "failed_count": failed_count,
     }
 
+
+def get_popmart_youtube_snapshot_trend():
+    """Return per-snapshot trend rows, skipping the first crawl baseline."""
+    with get_conn() as conn:
+        snapshot_rows = conn.execute(
+            "SELECT DISTINCT snapshot_at FROM popmart_youtube_snapshots ORDER BY snapshot_at"
+        ).fetchall()
+        snapshots = [row["snapshot_at"] for row in snapshot_rows]
+        rows_by_snapshot = {}
+        for snapshot_at in snapshots:
+            rows_by_snapshot[snapshot_at] = conn.execute(
+                """SELECT video_id, published_at, view_count
+                   FROM popmart_youtube_snapshots
+                   WHERE snapshot_at = ?""",
+                (snapshot_at,),
+            ).fetchall()
+
+    trend = []
+    previous_views = None
+    sgt = timezone(timedelta(hours=8))
+    for snapshot_at in snapshots:
+        rows = rows_by_snapshot[snapshot_at]
+        current_views = {row["video_id"]: row["view_count"] or 0 for row in rows}
+        if previous_views is None:
+            previous_views = current_views
+            continue
+
+        view_delta = 0
+        for video_id, view_count in current_views.items():
+            view_delta += max(view_count - previous_views.get(video_id, 0), 0)
+
+        dt = datetime.fromisoformat(snapshot_at)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt_sgt = dt.astimezone(sgt)
+        week_start = (dt_sgt - timedelta(days=dt_sgt.weekday())).date().isoformat()
+        week_end = (dt_sgt + timedelta(days=1)).date().isoformat()
+        weekly_new_videos = sum(
+            1 for row in rows
+            if row["published_at"] and week_start <= str(row["published_at"]) < week_end
+        )
+
+        trend.append({
+            "snapshot_at": snapshot_at,
+            "date": dt_sgt.date().isoformat(),
+            "view_delta": view_delta,
+            "weekly_new_videos": weekly_new_videos,
+        })
+        previous_views = current_views
+    return trend
+
 def build_popmart_youtube_csv(rows):
     out = io.StringIO(newline="")
     writer = csv.writer(out)

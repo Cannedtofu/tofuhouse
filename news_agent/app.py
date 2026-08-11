@@ -636,21 +636,15 @@ def _bootstrap_dashboard_datasets() -> None:
                 None,
                 _json.dumps([
                     {
-                        "type": "metrics",
-                        "title": "POP MART YouTube weekly summary",
-                        "metrics": [
-                            {"label": "本周视频播放量", "value": "-"},
-                            {"label": "本周视频发布数量", "value": "-"},
-                            {"label": "最新视频数量", "value": "0"},
-                            {"label": "抓取失败数量", "value": "0"},
+                        "type": "line",
+                        "title": "POP MART YouTube weekly trend",
+                        "x_type": "date",
+                        "span_gaps": True,
+                        "datasets": [
+                            {"label": "Weekly view delta", "axis": "left", "data": []},
+                            {"label": "Weekly new videos", "axis": "right", "data": []},
                         ],
-                        "note": "等待首次抓取",
-                    },
-                    {
-                        "type": "table",
-                        "title": "POP MART latest 100 videos",
-                        "headers": ["抓取时间", "视频名称", "视频URL", "视频发布时间", "视频浏览量", "视频点赞量", "视频评论数量"],
-                        "rows": [],
+                        "note": "Waiting for at least two crawls; first crawl is excluded",
                     },
                 ], ensure_ascii=False),
                 _POPMART_YOUTUBE_INTERVAL_HOURS,
@@ -658,6 +652,36 @@ def _bootstrap_dashboard_datasets() -> None:
     except Exception:
         logger_dashboard.exception("Dashboard bootstrap failed")
 
+
+
+def _popmart_youtube_report_needs_refresh(report: dict | None) -> bool:
+    if not report:
+        return True
+    panels = report.get("panels") or []
+    if not panels:
+        return True
+    return any(panel.get("type") != "line" for panel in panels)
+
+
+def _ensure_popmart_youtube_report() -> None:
+    try:
+        report = next(
+            (row for row in db.get_all_script_reports() if row["script_name"] == _POPMART_YOUTUBE_SCRIPT_NAME),
+            None,
+        )
+        if _popmart_youtube_report_needs_refresh(report):
+            from fetchers.popmart_youtube import build_popmart_youtube_panels_from_db
+            import json as _json
+
+            db.upsert_script_report(
+                _POPMART_YOUTUBE_SCRIPT_NAME,
+                "ok",
+                None,
+                _json.dumps(build_popmart_youtube_panels_from_db(), ensure_ascii=False),
+                _POPMART_YOUTUBE_INTERVAL_HOURS,
+            )
+    except Exception:
+        logger_dashboard.exception("Failed to ensure POP MART YouTube report")
 
 def _llm_token_index_report_needs_refresh(report: dict | None) -> bool:
     if not report:
@@ -3208,6 +3232,7 @@ def api_report_file_download(script_name, file_key):
 @login_required
 def dashboard_status():
     _ensure_llm_token_index_report()
+    _ensure_popmart_youtube_report()
     reports = db.get_all_script_reports()
     if not any(report["script_name"] == _GPU_STATUS_SCRIPT_NAME for report in reports):
         gpu_fallback_panel = _build_gpu_status_panel_fallback()
@@ -3232,6 +3257,7 @@ def dashboard_status():
 @login_required
 def dashboard():
     _ensure_llm_token_index_report()
+    _ensure_popmart_youtube_report()
     is_admin = g.current_user["email"] == ADMIN_EMAIL
     all_panels = db.get_all_script_reports()
     if not any(panel["script_name"] == _GPU_STATUS_SCRIPT_NAME for panel in all_panels):

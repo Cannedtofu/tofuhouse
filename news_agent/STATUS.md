@@ -44,7 +44,7 @@ _Last updated: 2026-08-11_
 - Admin deletes on `资讯` update the page dynamically without a full reload.
 
 ### Data Dashboard
-- Added a POP MART YouTube dashboard panel under `数据` with latest-100 video metrics, weekly view-delta/new-video summary cards, weekly scheduled refresh, admin manual refresh, retrying/rate-limited yt-dlp detail fetches, and separate CSV downloads for latest 100 and cumulative history.
+- Added a POP MART YouTube dashboard panel under `数据` with a weekly trend line chart, latest-100/current-history CSV downloads, weekly scheduled refresh, admin manual refresh, retrying/rate-limited yt-dlp detail fetches, and first-crawl baseline exclusion from chart data.
 ### Infrastructure
 - Outbound WeCom active-push foundation is ready as a distinct subproject under `docs/wecom-assistant`: notification abstraction, token-caching client, env template, Docker files, README, server checklist, roadmap, and acceptance test script.
 - SQLite with WAL mode and in-place schema migrations.
