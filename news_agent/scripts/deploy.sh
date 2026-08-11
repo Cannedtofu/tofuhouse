@@ -56,6 +56,7 @@ add_if_missing WECOM_AGENT_ID ""
 add_if_missing WECOM_SECRET ""
 add_if_missing WECOM_TARGET_USER ""
 add_if_missing WECOM_TIMEOUT_SECONDS "10"
+add_if_missing WECOM_WEBHOOK_URL ""
 if [ "$MISSING" -gt 0 ]; then
   echo "  Added $MISSING missing variable(s) to .env"
 else

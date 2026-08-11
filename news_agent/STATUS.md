@@ -46,7 +46,7 @@ _Last updated: 2026-08-11_
 ### Data Dashboard
 - Added a POP MART YouTube dashboard panel under `数据` with a weekly trend line chart, latest-100/current-history CSV downloads, weekly scheduled refresh, admin manual refresh, retrying/rate-limited yt-dlp detail fetches, and first-crawl baseline exclusion from chart data.
 ### Infrastructure
-- Outbound WeCom active-push foundation is ready as a distinct subproject under `docs/wecom-assistant`: notification abstraction, token-caching client, env template, Docker files, README, server checklist, roadmap, and acceptance test script.
+- Outbound WeCom notification foundation is ready as a distinct subproject under `docs/wecom-assistant`: group robot webhook channel, optional self-built app client, env template, Docker files, README, server checklist, roadmap, and acceptance scripts.
 - SQLite with WAL mode and in-place schema migrations.
 - Separate scheduled topic fetch job alongside the existing source scheduler.
 - Separate scheduled raw-feed digest job alongside the existing AI digest scheduler.
@@ -59,7 +59,7 @@ _Last updated: 2026-08-11_
 - Tightening topic-result precision, ranking heuristics, and date semantics for topic items.
 
 ## Known Issues
-- Real WeCom push acceptance test is pending production CorpID, AgentID, Secret, target UserID, and the server public outbound IPv4 in WeCom trusted IPs.
+- Real WeCom webhook acceptance test is pending `WECOM_WEBHOOK_URL` in server `.env`; self-built app acceptance remains deferred because trusted-domain/IP setup is heavier.
 - Topic auto-fetch can still surface older videos if YouTube search returns relevant historical items; decide whether scheduled topic fetch should enforce a recent published-date window.
 - Topic `web` and `x` discovery remain disabled while YouTube discovery is stabilized.
 - Topic items do not yet participate in the existing AI digest preset system.
