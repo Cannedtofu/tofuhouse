@@ -4,22 +4,28 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from datetime import datetime, timedelta, timezone
 
 import conference_db
 import db
 from article_summarizer import _get_client
-from config import QWEN_API_KEY, QWEN_SUMMARY_MODEL
+from config import (
+    COMEIN_BROWSER_CHANNEL,
+    COMEIN_CDP_URL,
+    COMEIN_CHROME_USER_DATA_DIR,
+    COMEIN_IDENTITY,
+    COMEIN_HEADLESS,
+    COMEIN_PASSWORD,
+    COMEIN_USERNAME,
+    QWEN_API_KEY,
+    QWEN_SUMMARY_MODEL,
+)
 
 logger = logging.getLogger(__name__)
 
 ROADSHOW_URL = "https://www.comein.cn/roadshow/home/all"
 _TZ = timezone(timedelta(hours=8))
-_COMEIN_CDP_URL = os.getenv("COMEIN_CDP_URL", "").strip()
-_COMEIN_CHROME_USER_DATA_DIR = os.getenv("COMEIN_CHROME_USER_DATA_DIR", "").strip()
-_COMEIN_BROWSER_CHANNEL = os.getenv("COMEIN_BROWSER_CHANNEL", "").strip()
 
 
 def _today():
@@ -110,9 +116,9 @@ def _format_starts_at(value):
 
     today = _today()
     if dt.date() == today:
-        date_text = f"今天 {dt:%H:%M}"
+        date_text = f"\u4eca\u5929 {dt:%H:%M}"
     elif dt.date() == today + timedelta(days=1):
-        date_text = f"明天 {dt:%H:%M}"
+        date_text = f"\u660e\u5929 {dt:%H:%M}"
     else:
         date_text = dt.strftime("%Y-%m-%d %H:%M")
     return dt.isoformat(), date_text
@@ -211,33 +217,194 @@ def _read_legacy_dom_items_from_page(page):
     )
 
 
+def _browser_launch_candidates():
+    if COMEIN_BROWSER_CHANNEL:
+        return [{"headless": COMEIN_HEADLESS, "channel": COMEIN_BROWSER_CHANNEL}]
+    return [
+        {"headless": COMEIN_HEADLESS},
+        {"headless": COMEIN_HEADLESS, "channel": "chrome"},
+        {"headless": COMEIN_HEADLESS, "channel": "msedge"},
+    ]
+
+
 def _launch_browser(p):
-    if _COMEIN_CDP_URL:
-        browser = p.chromium.connect_over_cdp(_COMEIN_CDP_URL)
+    if COMEIN_CDP_URL:
+        browser = p.chromium.connect_over_cdp(COMEIN_CDP_URL)
         context = browser.contexts[0] if browser.contexts else browser.new_context()
         return browser, context, False
 
-    launch_kwargs = {"headless": True}
-    if _COMEIN_BROWSER_CHANNEL:
-        launch_kwargs["channel"] = _COMEIN_BROWSER_CHANNEL
+    last_error = None
+    for launch_kwargs in _browser_launch_candidates():
+        try:
+            if COMEIN_CHROME_USER_DATA_DIR:
+                context = p.chromium.launch_persistent_context(
+                    COMEIN_CHROME_USER_DATA_DIR,
+                    **launch_kwargs,
+                    viewport={"width": 1440, "height": 1200},
+                    locale="zh-CN",
+                    timezone_id="Asia/Shanghai",
+                )
+                return None, context, True
 
-    if _COMEIN_CHROME_USER_DATA_DIR:
-        context = p.chromium.launch_persistent_context(
-            _COMEIN_CHROME_USER_DATA_DIR,
-            **launch_kwargs,
-            viewport={"width": 1440, "height": 1200},
-            locale="zh-CN",
-            timezone_id="Asia/Shanghai",
-        )
-        return None, context, True
+            browser = p.chromium.launch(**launch_kwargs)
+            context = browser.new_context(
+                viewport={"width": 1440, "height": 1200},
+                locale="zh-CN",
+                timezone_id="Asia/Shanghai",
+            )
+            return browser, context, True
+        except Exception as exc:
+            last_error = exc
+            logger.warning("Comein browser launch failed with %s: %s", launch_kwargs, exc)
+    raise last_error
 
-    browser = p.chromium.launch(**launch_kwargs)
-    context = browser.new_context(
-        viewport={"width": 1440, "height": 1200},
-        locale="zh-CN",
-        timezone_id="Asia/Shanghai",
+
+def _click_text(page, text, timeout=2000):
+    locator = page.get_by_text(text, exact=True)
+    if locator.count() <= 0:
+        return False
+    try:
+        locator.last.click(timeout=timeout)
+        return True
+    except Exception:
+        return False
+
+
+def _dismiss_login_prompt(page):
+    _click_text(page, "\u6211\u77e5\u9053\u4e86", timeout=1500)
+
+
+def _has_conference_items(page):
+    try:
+        return page.locator(".roadshow-list-item").count() > 0
+    except Exception:
+        return False
+
+
+def _select_identity_if_needed(page):
+    try:
+        body = page.locator("body").inner_text(timeout=2000)
+    except Exception:
+        return False
+    if "\u9009\u62e9\u8d26\u53f7" not in body:
+        return False
+
+    if COMEIN_IDENTITY in ("enterprise", "company", "org", "\u4f01\u4e1a\u7248"):
+        preferred = ["\u4f01\u4e1a\u7248"]
+    else:
+        preferred = ["\u4e2a\u4eba\u7248"]
+
+    for label in preferred:
+        locator = page.get_by_text(label, exact=True)
+        try:
+            if locator.count() > 0:
+                locator.last.click(timeout=3000)
+                page.wait_for_timeout(3000)
+                return True
+        except Exception:
+            logger.warning("Comein identity click failed for %s", label, exc_info=True)
+
+    return page.evaluate(
+        r"""(labels) => {
+          const visible = el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+          for (const label of labels) {
+            const target = Array.from(document.querySelectorAll('*')).find(el =>
+              visible(el) && (el.innerText || '').trim() === label
+            );
+            if (!target) continue;
+            let clickable = target;
+            for (let i = 0; i < 4 && clickable.parentElement; i++) {
+              const style = window.getComputedStyle(clickable);
+              if (clickable.tagName === 'BUTTON' || clickable.onclick || style.cursor === 'pointer') break;
+              clickable = clickable.parentElement;
+            }
+            clickable.click();
+            return true;
+          }
+          return false;
+        }""",
+        preferred,
     )
-    return browser, context, True
+
+
+def _wait_for_conference_items(page, attempts=10, delay_ms=1000):
+    for _ in range(attempts):
+        if _has_conference_items(page):
+            return True
+        page.wait_for_timeout(delay_ms)
+    return _has_conference_items(page)
+
+
+def _open_login_dialog(page):
+    if _click_text(page, "\u767b\u5f55/\u6ce8\u518c", timeout=3000):
+        page.wait_for_timeout(1500)
+        return True
+    return page.evaluate(
+        r"""() => {
+          for (const el of Array.from(document.querySelectorAll('*'))) {
+            if ((el.innerText || '').trim() === '\u767b\u5f55/\u6ce8\u518c') {
+              el.click();
+              return true;
+            }
+          }
+          return false;
+        }"""
+    )
+
+
+def _fill_login_form(page):
+    username = COMEIN_USERNAME.strip()
+    password = COMEIN_PASSWORD
+    if not username or not password:
+        return False
+
+    if "@" in username:
+        _click_text(page, "\u90ae\u7bb1\u767b\u5f55", timeout=1500)
+        page.wait_for_timeout(800)
+        username_selector = "input[placeholder*=\"\u90ae\u7bb1\"]"
+    else:
+        username_selector = "input[placeholder*=\"\u624b\u673a\u53f7\"], input[type=tel]"
+
+    try:
+        page.locator(username_selector).first.fill(username, timeout=5000)
+        page.locator("input[type=password]").first.fill(password, timeout=5000)
+    except Exception:
+        logger.exception("Comein login form fill failed")
+        return False
+
+    page.evaluate(
+        r"""() => {
+          const visible = el => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+          const checkbox = Array.from(document.querySelectorAll('input[type=checkbox]')).find(visible);
+          if (checkbox && !checkbox.checked) checkbox.click();
+        }"""
+    )
+    page.wait_for_timeout(500)
+    return _click_text(page, "\u767b \u5f55", timeout=3000) or _click_text(page, "\u767b\u5f55", timeout=3000)
+
+
+def _ensure_logged_in(page):
+    if _has_conference_items(page):
+        return True
+    if _select_identity_if_needed(page):
+        page.wait_for_timeout(3000)
+        if _has_conference_items(page):
+            return True
+    _dismiss_login_prompt(page)
+    if not COMEIN_USERNAME.strip() or not COMEIN_PASSWORD:
+        return False
+    if not _open_login_dialog(page):
+        return False
+    if not _fill_login_form(page):
+        return False
+    for _ in range(20):
+        page.wait_for_timeout(1000)
+        _dismiss_login_prompt(page)
+        if _select_identity_if_needed(page):
+            page.wait_for_timeout(3000)
+        if _has_conference_items(page):
+            return True
+    return _has_conference_items(page)
 
 
 def crawl_conferences(days=5, max_scrolls=40):
@@ -254,6 +421,10 @@ def crawl_conferences(days=5, max_scrolls=40):
         page = context.pages[0] if context.pages else context.new_page()
         page.goto(ROADSHOW_URL, wait_until="domcontentloaded", timeout=60000)
         page.wait_for_timeout(5000)
+        _ensure_logged_in(page)
+        if not _wait_for_conference_items(page, attempts=5, delay_ms=1000):
+            page.goto(ROADSHOW_URL, wait_until="domcontentloaded", timeout=60000)
+            _wait_for_conference_items(page, attempts=12, delay_ms=1000)
 
         for _ in range(max_scrolls):
             for raw in _read_items_from_page(page):
@@ -302,6 +473,11 @@ def crawl_conferences(days=5, max_scrolls=40):
                 browser.close()
 
     items = sorted(seen.values(), key=lambda x: (x.get("starts_at") or "9999", x["title"]))
+    if not items:
+        raise RuntimeError(
+            "Comein conference crawl returned no items. "
+            "If the page requires login, set COMEIN_USERNAME and COMEIN_PASSWORD in .env."
+        )
     stats = conference_db.upsert_conferences(items)
     return {
         "fetched": len(items),

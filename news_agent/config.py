@@ -24,6 +24,14 @@ MIN_BROWSER_FALLBACK_CHARS = 300        # Playwright result shorter than this tr
 DB_PATH = os.getenv("DB_PATH", "news.db")
 CONFERENCE_DB_PATH = os.getenv("CONFERENCE_DB_PATH", "conferences.db")
 
+# --- Comein roadshow conference crawler ---
+COMEIN_CDP_URL: str = os.getenv("COMEIN_CDP_URL", "").strip()
+COMEIN_CHROME_USER_DATA_DIR: str = os.getenv("COMEIN_CHROME_USER_DATA_DIR", "").strip()
+COMEIN_BROWSER_CHANNEL: str = os.getenv("COMEIN_BROWSER_CHANNEL", "").strip()
+COMEIN_USERNAME: str = os.getenv("COMEIN_USERNAME", "").strip()
+COMEIN_PASSWORD: str = os.getenv("COMEIN_PASSWORD", "")
+COMEIN_IDENTITY: str = os.getenv("COMEIN_IDENTITY", "personal").strip().lower()
+COMEIN_HEADLESS: bool = os.getenv("COMEIN_HEADLESS", "true").strip().lower() not in ("0", "false", "no")
 # --- Scheduler + Nitter fetch window ---
 # NITTER_FETCH_PERIOD_HOURS controls two things simultaneously:
 #   1. How often the background scheduler runs.
