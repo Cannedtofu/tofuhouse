@@ -23,6 +23,7 @@ dashscope>=1.20.0               # DashScope SDK - used for qwen3-asr-flash speec
 pikepdf>=8.0.0                  # PDF post-compression - recompresses Playwright-generated PDFs without quality loss
 pdfplumber>=0.11.0              # PDF text/image layout extraction for uploaded translation tools
 pypdf>=5.0.0                    # PDF image extraction for uploaded translation tools
+reportlab>=4.0.0                # PDF generation for WeCom digest attachments
 Pillow>=10.0.0                  # Image handling for extracted PDF images
 # NOTE: pydub requires ffmpeg to be installed on the server:
 #   Ubuntu/Debian: apt-get install ffmpeg

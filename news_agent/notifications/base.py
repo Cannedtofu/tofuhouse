@@ -51,6 +51,16 @@ class NotificationService:
 
         raise NotificationError(f"Unsupported notification channel: {channel}")
 
+    def notify_file(self, channel, file_path, title=None):
+        if channel != "wecom_webhook":
+            raise NotificationError(f"Unsupported file notification channel: {channel}")
+        if not self.wecom_webhook_client:
+            raise NotificationError("WECOM_WEBHOOK_URL is not configured")
+        if title:
+            self.notify(channel="wecom_webhook", title=title, content="")
+        logger.info("Sending WeCom webhook file: %s", file_path)
+        return self.wecom_webhook_client.send_file_path(file_path)
+
     @staticmethod
     def _format_text(title, content):
         title = (title or "").strip()

@@ -74,6 +74,17 @@ cd /opt/tofuhouse/news_agent
 企业微信群机器人主动推送成功
 ```
 
+## 发送信息流日报
+
+使用现有用户的「新增信息流日报」订阅配置，生成历史日期范围内的日报并推送到企业微信群：
+
+```bash
+cd /opt/tofuhouse/news_agent
+.venv/bin/python scripts/send_raw_feed_wecom.py --list-users
+.venv/bin/python scripts/send_raw_feed_wecom.py --user-email you@example.com --days 1 --date-to 2026-08-10
+```
+
+默认会生成 PDF 附件并作为企业微信群文件发送；如需回退到文本分片，可追加 `--format text`。
 ## 自建应用长期路线
 
 如果以后需要私聊指定成员、工作台应用、OAuth、接收消息 callback 或 Agent 双向对话，再回到自建应用官方 API 路线。
