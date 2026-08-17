@@ -905,21 +905,25 @@ _FORMALIZE_CHUNK_CHARS = 15_000
 _FORMALIZE_SYSTEM = (
     "You are a professional Chinese copy editor for spoken transcripts. "
     "Your task is to turn ASR or machine-translated transcript text into polished, readable Simplified Chinese. "
-    "Preserve every substantive fact, number, claim, example, quote, caveat, and speaker/time marker. "
-    "Do not summarize, delete, merge, or add substantive content; only improve wording, sentence structure, and paragraphing."
+    "Your top priority is fidelity to the source: preserve the sequence, meaning, scope, nuance, and all details. "
+    "Do not summarize, compress, skip, reinterpret, or merge substantive content. "
+    "Only after preserving the source should you lightly remove non-semantic filler and improve punctuation, sentence structure, and paragraphing. "
+    "When unsure whether something is filler or meaningful, keep it."
 )
 
 _FORMALIZE_SINGLE_PROMPT = """\
 The following text is a Chinese transcript or machine-translated Chinese transcript. It may be oral, repetitive, and poorly paragraphed.
 
-Rewrite it as polished, readable Simplified Chinese according to these rules:
+Rewrite it as a faithful, lightly polished Simplified Chinese transcript according to these rules, in priority order:
 
-1. Remove filler words such as repeated interjections, hesitation markers, and empty oral phrases.
-2. Merge only exact or near-exact word-level repetitions of the same meaning. Do not merge sentences that contain different information.
-3. Improve sentence structure and punctuation so the output reads like clear written Chinese.
-4. Add paragraph breaks lightly for readability. Keep each coherent thought together, but avoid very long unbroken blocks when a natural topic shift, example, contrast, or new stage appears. Do not split mechanically by sentence count.
-5. Preserve speaker labels such as [Speaker A] and timestamps such as [01:23] exactly. Start a new paragraph whenever the speaker changes or a timestamp appears. Also split long speeches from the same speaker into multiple natural paragraphs.
-6. Preserve all facts, data, opinions, examples, quotations, caveats, and qualifications. Do not summarize or remove substantive content.
+1. Preserve the original content first. Keep every fact, data point, claim, opinion, example, quotation, caveat, qualification, causal explanation, comparison, and speaker/time marker.
+2. Preserve the original speaking order and local structure. Do not reorder topics, combine distant passages, or turn the transcript into notes or a summary.
+3. Do not summarize, compress, skip, reinterpret, or replace a detailed passage with a shorter general statement.
+4. Remove only purely non-semantic filler such as repeated interjections, hesitation markers, and empty oral phrases. If a phrase may carry emphasis, attitude, uncertainty, contrast, or speaker nuance, keep it.
+5. Merge only exact or near-exact word-level repetitions of the same meaning. Do not merge sentences that contain different details, examples, conditions, or angles.
+6. Improve sentence structure and punctuation only where it does not reduce meaning. Prefer minimal edits over elegant rewriting.
+7. Add paragraph breaks lightly for readability. Keep each coherent thought together, but avoid very long unbroken blocks when a natural topic shift, example, contrast, or new stage appears. Do not split mechanically by sentence count.
+8. Preserve speaker labels such as [Speaker A] and timestamps such as [01:23] exactly. Start a new paragraph whenever the speaker changes or a timestamp appears. Also split long speeches from the same speaker into multiple natural paragraphs.
 
 Output only the polished Chinese transcript. Do not add explanations or a preface.
 
@@ -930,15 +934,17 @@ Output only the polished Chinese transcript. Do not add explanations or a prefac
 _FORMALIZE_CHUNK_PROMPT = """\
 This is part {part} of {total} of a Chinese transcript or machine-translated Chinese transcript.{context_block}
 
-Rewrite only this part as polished, readable Simplified Chinese according to these rules:
+Rewrite only this part as a faithful, lightly polished Simplified Chinese transcript according to these rules, in priority order:
 
-1. Remove filler words such as repeated interjections, hesitation markers, and empty oral phrases.
-2. Merge only exact or near-exact word-level repetitions of the same meaning. Do not merge sentences that contain different information.
-3. Improve sentence structure and punctuation so the output reads like clear written Chinese.
-4. Add paragraph breaks lightly for readability. Keep each coherent thought together, but avoid very long unbroken blocks when a natural topic shift, example, contrast, or new stage appears. Do not split mechanically by sentence count.
-5. Preserve speaker labels such as [Speaker A] and timestamps such as [01:23] exactly. Start a new paragraph whenever the speaker changes or a timestamp appears. Also split long speeches from the same speaker into multiple natural paragraphs.
-6. Preserve all facts, data, opinions, examples, quotations, caveats, and qualifications. Do not summarize or remove substantive content.
-7. The preceding context is only for continuity. Do not repeat it.
+1. Preserve the original content first. Keep every fact, data point, claim, opinion, example, quotation, caveat, qualification, causal explanation, comparison, and speaker/time marker.
+2. Preserve the original speaking order and local structure. Do not reorder topics, combine distant passages, or turn the transcript into notes or a summary.
+3. Do not summarize, compress, skip, reinterpret, or replace a detailed passage with a shorter general statement.
+4. Remove only purely non-semantic filler such as repeated interjections, hesitation markers, and empty oral phrases. If a phrase may carry emphasis, attitude, uncertainty, contrast, or speaker nuance, keep it.
+5. Merge only exact or near-exact word-level repetitions of the same meaning. Do not merge sentences that contain different details, examples, conditions, or angles.
+6. Improve sentence structure and punctuation only where it does not reduce meaning. Prefer minimal edits over elegant rewriting.
+7. Add paragraph breaks lightly for readability. Keep each coherent thought together, but avoid very long unbroken blocks when a natural topic shift, example, contrast, or new stage appears. Do not split mechanically by sentence count.
+8. Preserve speaker labels such as [Speaker A] and timestamps such as [01:23] exactly. Start a new paragraph whenever the speaker changes or a timestamp appears. Also split long speeches from the same speaker into multiple natural paragraphs.
+9. The preceding context is only for continuity. Do not repeat it.
 
 Output only the polished content for this part. Do not add explanations or a preface.
 

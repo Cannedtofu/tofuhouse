@@ -370,7 +370,7 @@ async function postPasteChunkTool(payload) {
     'X-Paste-Upload-Id': payload.upload_id,
     'X-Paste-Index': String(payload.index),
     'X-Paste-Total': String(payload.total),
-    'X-Paste-Title': encodeBase64Utf8Tool(payload.title),
+    'X-Paste-Title': payload.includeTitle ? encodeBase64Utf8Tool(payload.title) : '',
     'X-Paste-Chunk': encodeBase64Utf8Tool(payload.chunk),
     'X-Paste-Client-Version': 'paste-header-chunks-20260806a',
   };
@@ -425,7 +425,15 @@ async function submitPastedTranscriptTool() {
       const start = index * chunkSize;
       const chunk = transcript.slice(start, start + chunkSize);
       setPasteStatusTool(`正在提交逐字稿 ${index + 1}/${total}...`);
-      data = await postPasteChunkTool({ upload_id: uploadId, title, index, total, chunk, client_version: 'paste-header-chunks-20260806a' });
+      data = await postPasteChunkTool({
+        upload_id: uploadId,
+        title,
+        includeTitle: index === total - 1,
+        index,
+        total,
+        chunk,
+        client_version: 'paste-header-chunks-20260806a',
+      });
     }
 
     if (!data || data.error) throw new Error(data ? data.error : '请求失败，请重试。');
