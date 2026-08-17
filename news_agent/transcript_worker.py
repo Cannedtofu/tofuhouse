@@ -893,9 +893,11 @@ _STEP2_FINAL_PROMPT = """\
 分段笔记：
 {summaries}"""
 
-# qwen-mt-lite has a smaller token budget; 4000 chars ≈ 1000 English tokens,
-# leaving headroom for system message and output tokens.
-_MT_CHUNK_CHARS = 4000
+# qwen-mt-lite has a smaller token budget than qwen-plus, but transcript
+# translation has no instruction prompt. 10000 chars keeps requests reasonably
+# large while leaving output headroom for dense Chinese or longer translations.
+_MT_CHUNK_CHARS = 10_000
+_MT_MAX_TOKENS = 8192
 
 # Formalization pass (qwen-plus). Chinese: ~1.5 chars/token.
 # 15 000 chars ≈ 10 000 input tokens; output is similar length (no summarization),
@@ -996,7 +998,7 @@ def _split_into_chunks(text: str, max_chars: int) -> list[str]:
         hi = min(target + target // 4, len(remaining) - 1)
 
         cut = -1
-        for sep in ("\n\n", "\n", ". ", "! ", "? "):
+        for sep in ("\n\n", "\n", "。", "！", "？", "；", ". ", "! ", "? ", "; "):
             pos = remaining.rfind(sep, lo, hi)
             if pos != -1:
                 cut = pos + len(sep)
@@ -1026,7 +1028,7 @@ def _translate_chunk(text: str, prev_translated_tail: str = "") -> str:
         messages=[
             {"role": "user", "content": text},
         ],
-        max_tokens=4096,
+        max_tokens=_MT_MAX_TOKENS,
         extra_body={"translation_options": {"source_lang": "auto", "target_lang": "Chinese"}},
     )
     return resp.choices[0].message.content.strip()
