@@ -55,6 +55,7 @@ _Last updated: 2026-08-11_
 - PDF tool translation uses large structured batches while preserving image/text block order.
 - PDF tool now persists completed bilingual PDFs and shows a refresh-safe recent-files list.
 - Added a 工具 tab for uploaded-PDF paragraph translation plus pasted-transcript cleanup/translation.
+- Added a Q4 Inc earnings-call tool path under 工具: local validation logs into Q4 attendee pages, captures the recording, extracts audio-only `.m4a`, then hands it to the existing diarization transcript pipeline and Chinese translation flow.
 
 - Tightening topic-result precision, ranking heuristics, and date semantics for topic items.
 

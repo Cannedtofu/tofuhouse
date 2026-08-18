@@ -37,6 +37,30 @@
     </div>
 
     <div class="card p-4 mt-3">
+      <h5 class="mb-3">Q4 业绩会</h5>
+      <div class="mb-2">
+        <input type="url" id="q4-url-input" class="form-control form-control-sm"
+               placeholder="https://events.q4inc.com/attendee/..." autocomplete="off">
+        <div id="q4-error" class="text-danger small mt-1" style="display:none"></div>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" id="btn-q4-submit" class="btn btn-outline-primary" onclick="submitQ4Tool()">
+          <span class="btn-label">提取音频并生成逐字稿</span>
+          <span class="btn-spinner spinner-border spinner-border-sm ms-1" style="display:none"></span>
+        </button>
+        <span id="q4-status" class="text-muted small">使用 .env 中的 Q4 账号登录。</span>
+      </div>
+      <div id="q4-result" class="mt-3" style="display:none">
+        <div class="small fw-semibold mb-2" id="q4-result-title"></div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a id="q4-open-transcript" href="/transcript" class="btn btn-sm btn-outline-primary">在转录中查看</a>
+          <a id="q4-download-zh-txt" href="#" class="btn btn-sm btn-outline-secondary" style="display:none">下载中文 .txt</a>
+          <a id="q4-download-zh-pdf" href="#" class="btn btn-sm btn-outline-secondary" style="display:none">下载中文 .pdf</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-4 mt-3">
       <h5 class="mb-3">粘贴逐字稿</h5>
       <div class="mb-2">
         <input type="text" id="paste-title-input" class="form-control form-control-sm"
@@ -340,6 +364,104 @@ function pollPastedTranscriptTool(jobId) {
   }, 2000);
 }
 
+function setQ4BusyTool(busy) {
+  const btn = document.getElementById('btn-q4-submit');
+  const input = document.getElementById('q4-url-input');
+  btn.disabled = busy;
+  input.disabled = busy;
+  const label = btn.querySelector('.btn-label');
+  const spinner = btn.querySelector('.btn-spinner');
+  if (label) label.style.opacity = busy ? '.5' : '1';
+  if (spinner) spinner.style.display = busy ? 'inline-block' : 'none';
+}
+
+function showQ4ErrorTool(message) {
+  const el = document.getElementById('q4-error');
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+function clearQ4ErrorTool() {
+  document.getElementById('q4-error').style.display = 'none';
+}
+
+function setQ4StatusTool(text) {
+  document.getElementById('q4-status').textContent = text;
+}
+
+function pollQ4Tool(jobId) {
+  const interval = setInterval(() => {
+    fetch(`/tools/q4inc/status/${jobId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error && !data.status) throw new Error(data.error);
+        setQ4StatusTool(data.message || '处理中...');
+        if (data.title) {
+          document.getElementById('q4-result-title').textContent = data.title;
+        }
+        if (data.transcript_url) {
+          document.getElementById('q4-open-transcript').href = data.transcript_url;
+          document.getElementById('q4-result').style.display = 'block';
+        }
+        if (data.download_chinese_txt) {
+          document.getElementById('q4-download-zh-txt').href = data.download_chinese_txt;
+          document.getElementById('q4-download-zh-txt').style.display = 'inline-block';
+        }
+        if (data.download_chinese_pdf) {
+          document.getElementById('q4-download-zh-pdf').href = data.download_chinese_pdf;
+          document.getElementById('q4-download-zh-pdf').style.display = 'inline-block';
+        }
+        if (data.status === 'done') {
+          clearInterval(interval);
+          setQ4BusyTool(false);
+          setQ4StatusTool('Q4 业绩会中文稿已生成。');
+        } else if (data.status === 'error') {
+          clearInterval(interval);
+          setQ4BusyTool(false);
+          showQ4ErrorTool(data.error || data.message || '处理失败，请重试。');
+        }
+      })
+      .catch(err => {
+        clearInterval(interval);
+        setQ4BusyTool(false);
+        showQ4ErrorTool(err.message || '状态查询失败。');
+      });
+  }, 4000);
+}
+
+function submitQ4Tool() {
+  const input = document.getElementById('q4-url-input');
+  const url = input.value.trim().replace(/[“”"]/g, '');
+  clearQ4ErrorTool();
+  document.getElementById('q4-result').style.display = 'none';
+  document.getElementById('q4-download-zh-txt').style.display = 'none';
+  document.getElementById('q4-download-zh-pdf').style.display = 'none';
+
+  if (!url) { showQ4ErrorTool('请输入 Q4 Inc 链接。'); return; }
+  if (!url.includes('events.q4inc.com/attendee/')) {
+    showQ4ErrorTool('请输入 events.q4inc.com/attendee/ 开头的链接。');
+    return;
+  }
+
+  setQ4BusyTool(true);
+  setQ4StatusTool('正在启动 Q4 任务...');
+  fetch('/tools/q4inc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      pollQ4Tool(data.job_id);
+    })
+    .catch(err => {
+      setQ4BusyTool(false);
+      showQ4ErrorTool(err.message || '请求失败，请重试。');
+      setQ4StatusTool('使用 .env 中的 Q4 账号登录。');
+    });
+}
+
 function encodeBase64Utf8Tool(value) {
   const bytes = new TextEncoder().encode(value || '');
   let binary = '';
@@ -451,5 +573,10 @@ loadPdfJobs();
 const pasteInputTool = document.getElementById('paste-transcript-input');
 if (pasteInputTool) {
   pasteInputTool.addEventListener('input', clearPasteErrorTool);
-}</script>
+}
+const q4InputTool = document.getElementById('q4-url-input');
+if (q4InputTool) {
+  q4InputTool.addEventListener('input', clearQ4ErrorTool);
+}
+</script>
 {% endblock %}

@@ -187,6 +187,7 @@ _digest_jobs: dict[str, dict] = {}
 _article_translation_jobs: dict[str, dict] = {}
 
 _pdf_tool_jobs: dict[str, dict] = {}
+_q4_tool_jobs: dict[str, dict] = {}
 _PDF_TOOL_UPLOAD_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "uploads",
@@ -1900,6 +1901,142 @@ def _list_pdf_tool_jobs(limit: int = 20) -> list[dict]:
     jobs = [item for item in (_pdf_tool_public_job(job_id) for job_id in ids) if item]
     jobs.sort(key=lambda item: item.get("completed_at") or item.get("created_at") or "", reverse=True)
     return jobs[:limit]
+
+
+def _run_q4_tool_job(job_id: str, q4_url: str, initiated_by: str) -> None:
+    try:
+        from q4inc_audio import extract_q4inc_audio
+        from transcript_worker import process_uploaded_transcript_job, translate_transcript, _run_url_audio_transcript
+
+        _q4_tool_jobs[job_id].update({
+            "status": "extracting",
+            "message": "正在登录 Q4 并提取音频...",
+        })
+        result = extract_q4inc_audio(q4_url, headless=True)
+        audio_path = result.output_path
+        original_name = os.path.basename(audio_path)
+
+        transcript_job_id = db.create_transcript_job(
+            video_url=q4_url,
+            video_id=f"q4inc:{uuid.uuid4().hex}",
+            mode="diarization",
+            initiated_by=initiated_by,
+            input_type="q4inc",
+            original_filename=original_name,
+        )
+        db.set_transcript_metadata(transcript_job_id, video_title=result.title, video_author="Q4 Inc")
+        db.update_transcript_job(transcript_job_id, status="pending", audio_path=audio_path)
+
+        _q4_tool_jobs[job_id].update({
+            "status": "transcribing",
+            "message": "音频已提取，正在生成区分发言人的逐字稿...",
+            "title": result.title,
+            "audio_path": audio_path,
+            "media_url": result.media_url,
+            "transcript_job_id": transcript_job_id,
+        })
+
+        try:
+            _run_url_audio_transcript(transcript_job_id, result.media_url, diarize=True)
+        except Exception as exc:
+            if "Invalid API-key" in str(exc) or "401" in str(exc):
+                raise
+            logging.exception("Q4 direct media transcription failed; falling back to extracted audio file")
+            process_uploaded_transcript_job(transcript_job_id, audio_path, original_name, "diarization")
+        transcript_job = db.get_transcript_job(transcript_job_id)
+        if not transcript_job or transcript_job["status"] == "error":
+            error = transcript_job["error_message"] if transcript_job else "Transcript job disappeared."
+            raise RuntimeError(error or "生成逐字稿失败。")
+
+        _q4_tool_jobs[job_id].update({
+            "status": "translating",
+            "message": "逐字稿已生成，正在生成中文稿...",
+        })
+        db.update_transcript_job(transcript_job_id, status="translating")
+        translate_transcript(transcript_job_id)
+
+        final_job = db.get_transcript_job(transcript_job_id)
+        if final_job and final_job["status"] == "error":
+            raise RuntimeError(final_job["error_message"] or "中文稿生成失败。")
+        if not final_job or not final_job["transcript_zh"]:
+            raise RuntimeError("逐字稿已生成，但中文稿生成失败。请在转录页面重试翻译。")
+
+        _q4_tool_jobs[job_id].update({
+            "status": "done",
+            "message": "Q4 业绩会逐字稿和中文稿已生成。",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as exc:
+        logging.exception("Q4 Inc tool job failed")
+        _q4_tool_jobs.setdefault(job_id, {}).update({
+            "status": "error",
+            "message": str(exc),
+            "error": str(exc),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+
+@app.route("/tools/q4inc", methods=["POST"])
+@login_required
+def tools_q4inc():
+    data = request.get_json(silent=True) or {}
+    q4_url = (data.get("url") or "").strip().strip('"“”')
+    if not q4_url:
+        return jsonify({"error": "请输入 Q4 Inc attendee URL。"}), 400
+    if "events.q4inc.com/attendee/" not in q4_url:
+        return jsonify({"error": "请输入 events.q4inc.com/attendee/ 开头的 Q4 Inc 链接。"}), 400
+
+    job_id = str(uuid.uuid4())
+    _q4_tool_jobs[job_id] = {
+        "job_id": job_id,
+        "status": "pending",
+        "message": "正在准备 Q4 任务...",
+        "url": q4_url,
+        "title": "",
+        "audio_path": "",
+        "media_url": "",
+        "transcript_job_id": "",
+        "error": "",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "initiated_by": g.current_user["email"],
+    }
+    threading.Thread(
+        target=_run_q4_tool_job,
+        args=(job_id, q4_url, g.current_user["email"]),
+        daemon=True,
+    ).start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/tools/q4inc/status/<job_id>")
+@login_required
+def tools_q4inc_status(job_id: str):
+    job = _q4_tool_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found."}), 404
+    if g.current_user["email"] != ADMIN_EMAIL and job.get("initiated_by") != g.current_user["email"]:
+        return jsonify({"error": "Job not found."}), 404
+
+    result = dict(job)
+    transcript_job_id = job.get("transcript_job_id")
+    if transcript_job_id:
+        transcript_job = db.get_transcript_job(transcript_job_id)
+        if transcript_job:
+            result["transcript_status"] = transcript_job["status"]
+            result["transcript_error"] = transcript_job["error_message"]
+            result["transcript_url"] = url_for("transcript_page") + f"?job_id={transcript_job_id}"
+            if transcript_job["transcript"]:
+                result["download_original_txt"] = url_for(
+                    "transcript_download", job_id=transcript_job_id, version="original"
+                )
+            if transcript_job["transcript_zh"]:
+                result["download_chinese_txt"] = url_for(
+                    "transcript_download", job_id=transcript_job_id, version="chinese"
+                )
+                result["download_chinese_pdf"] = url_for(
+                    "transcript_download_pdf", job_id=transcript_job_id, version="chinese"
+                )
+    return jsonify(result)
 def _localize_pdf_tool_images(md: str, job_id: str) -> str:
     from pathlib import Path
 
