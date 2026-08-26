@@ -905,29 +905,36 @@ _MT_MAX_TOKENS = 8192
 _FORMALIZE_CHUNK_CHARS = 15_000
 
 _FORMALIZE_SYSTEM = (
-    "You are a professional Chinese copy editor for spoken transcripts. "
-    "Your task is to turn ASR or machine-translated transcript text into polished, readable Simplified Chinese. "
-    "Your top priority is fidelity to the source: preserve the sequence, meaning, scope, nuance, and all details. "
-    "Do not summarize, compress, skip, reinterpret, or merge substantive content. "
-    "Only after preserving the source should you lightly remove non-semantic filler and improve punctuation, sentence structure, and paragraphing. "
-    "When unsure whether something is filler or meaningful, keep it."
+    "You are a senior Chinese transcript editor. "
+    "Your task is to produce an edited transcript that stays close to the original wording and speaking order, "
+    "while removing oral redundancy and text that carries no useful information. "
+    "Preserve every substantive claim, fact, number, example, quotation, caveat, condition, contrast, and speaker/time marker. "
+    "Do not summarize, reorganize by topic, add conclusions, or turn the transcript into notes. "
+    "You may delete or shorten non-substantive oral clutter when doing so does not change meaning, nuance, emphasis, or uncertainty. "
+    "Use sensible paragraph breaks to make the transcript readable without adding headings or changing the structure."
 )
 
 _FORMALIZE_SINGLE_PROMPT = """\
 The following text is a Chinese transcript or machine-translated Chinese transcript. It may be oral, repetitive, and poorly paragraphed.
 
-Rewrite it as a faithful, lightly polished Simplified Chinese transcript according to these rules, in priority order:
+Edit it into a professional readable transcript, not a summary. The target style is: as close to a transcript as possible, but cleaned by a careful editor.
 
-1. Preserve the original content first. Keep every fact, data point, claim, opinion, example, quotation, caveat, qualification, causal explanation, comparison, and speaker/time marker.
-2. Preserve the original speaking order and local structure. Do not reorder topics, combine distant passages, or turn the transcript into notes or a summary.
-3. Do not summarize, compress, skip, reinterpret, or replace a detailed passage with a shorter general statement.
-4. Remove only purely non-semantic filler such as repeated interjections, hesitation markers, and empty oral phrases. If a phrase may carry emphasis, attitude, uncertainty, contrast, or speaker nuance, keep it.
-5. Merge only exact or near-exact word-level repetitions of the same meaning. Do not merge sentences that contain different details, examples, conditions, or angles.
-6. Improve sentence structure and punctuation only where it does not reduce meaning. Prefer minimal edits over elegant rewriting.
-7. Add paragraph breaks lightly for readability. Keep each coherent thought together, but avoid very long unbroken blocks when a natural topic shift, example, contrast, or new stage appears. Do not split mechanically by sentence count.
-8. Preserve speaker labels such as [Speaker A] and timestamps such as [01:23] exactly. Start a new paragraph whenever the speaker changes or a timestamp appears. Also split long speeches from the same speaker into multiple natural paragraphs.
+Rules, in priority order:
 
-Output only the polished Chinese transcript. Do not add explanations or a preface.
+1. Preserve all substantive information: claims, facts, data, examples, quotations, reasons, comparisons, caveats, conditions, uncertainty, disagreement, emphasis, and speaker/time markers.
+2. Preserve the original speaking order and local flow. Do not reorganize by topic, add headings, add conclusions, or turn the content into notes.
+3. Remove or shorten non-substantive oral clutter, including:
+   - filler words and hesitation markers: "嗯", "啊", "呃", "就是", "然后就是", "怎么说", "you know", "I mean", "sort of", "kind of", when they do not carry meaning;
+   - repeated starts, false starts, and self-corrections that do not add information;
+   - backchannel acknowledgements and empty confirmations, such as "对对对", "是的是的", "right", when they only keep the conversation going;
+   - duplicated phrases or sentences that express the exact same meaning.
+4. Keep wording close to the original. Prefer deletion of useless words and light sentence repair over rewriting in a new style.
+5. Do not delete material that carries attitude, uncertainty, limitation, contrast, emphasis, speaker stance, or rhetorical intent.
+6. Merge only exact or near-exact repetitions. Do not merge passages that contain different details, examples, conditions, angles, or speaker positions.
+7. Improve punctuation, paragraphing, and sentence boundaries for readability. Start a new paragraph when speaker labels or timestamps change. Also split long speeches at natural shifts such as a new point, example, clarification, contrast, objection, answer, or transition, but do not add headings or bullet lists.
+8. Keep the output in Simplified Chinese. Preserve English names, product names, company names, technical terms, and numbers when present.
+
+Output only the edited transcript. Do not add explanations, a preface, headings, or a summary.
 
 ---
 
@@ -936,19 +943,25 @@ Output only the polished Chinese transcript. Do not add explanations or a prefac
 _FORMALIZE_CHUNK_PROMPT = """\
 This is part {part} of {total} of a Chinese transcript or machine-translated Chinese transcript.{context_block}
 
-Rewrite only this part as a faithful, lightly polished Simplified Chinese transcript according to these rules, in priority order:
+Edit only this part into a professional readable transcript, not a summary. The target style is: as close to a transcript as possible, but cleaned by a careful editor.
 
-1. Preserve the original content first. Keep every fact, data point, claim, opinion, example, quotation, caveat, qualification, causal explanation, comparison, and speaker/time marker.
-2. Preserve the original speaking order and local structure. Do not reorder topics, combine distant passages, or turn the transcript into notes or a summary.
-3. Do not summarize, compress, skip, reinterpret, or replace a detailed passage with a shorter general statement.
-4. Remove only purely non-semantic filler such as repeated interjections, hesitation markers, and empty oral phrases. If a phrase may carry emphasis, attitude, uncertainty, contrast, or speaker nuance, keep it.
-5. Merge only exact or near-exact word-level repetitions of the same meaning. Do not merge sentences that contain different details, examples, conditions, or angles.
-6. Improve sentence structure and punctuation only where it does not reduce meaning. Prefer minimal edits over elegant rewriting.
-7. Add paragraph breaks lightly for readability. Keep each coherent thought together, but avoid very long unbroken blocks when a natural topic shift, example, contrast, or new stage appears. Do not split mechanically by sentence count.
-8. Preserve speaker labels such as [Speaker A] and timestamps such as [01:23] exactly. Start a new paragraph whenever the speaker changes or a timestamp appears. Also split long speeches from the same speaker into multiple natural paragraphs.
+Rules, in priority order:
+
+1. Preserve all substantive information in this part: claims, facts, data, examples, quotations, reasons, comparisons, caveats, conditions, uncertainty, disagreement, emphasis, and speaker/time markers.
+2. Preserve this part's original speaking order and local flow. Do not reorganize by topic, add headings, add conclusions, or turn the content into notes.
+3. Remove or shorten non-substantive oral clutter, including:
+   - filler words and hesitation markers: "嗯", "啊", "呃", "就是", "然后就是", "怎么说", "you know", "I mean", "sort of", "kind of", when they do not carry meaning;
+   - repeated starts, false starts, and self-corrections that do not add information;
+   - backchannel acknowledgements and empty confirmations, such as "对对对", "是的是的", "right", when they only keep the conversation going;
+   - duplicated phrases or sentences that express the exact same meaning.
+4. Keep wording close to the original. Prefer deletion of useless words and light sentence repair over rewriting in a new style.
+5. Do not delete material that carries attitude, uncertainty, limitation, contrast, emphasis, speaker stance, or rhetorical intent.
+6. Merge only exact or near-exact repetitions. Do not merge passages that contain different details, examples, conditions, angles, or speaker positions.
+7. Improve punctuation, paragraphing, and sentence boundaries for readability. Start a new paragraph when speaker labels or timestamps change. Also split long speeches at natural shifts such as a new point, example, clarification, contrast, objection, answer, or transition, but do not add headings or bullet lists.
+8. Keep the output in Simplified Chinese. Preserve English names, product names, company names, technical terms, and numbers when present.
 9. The preceding context is only for continuity. Do not repeat it.
 
-Output only the polished content for this part. Do not add explanations or a preface.
+Output only the edited content for this part. Do not add explanations, a preface, headings, or a summary.
 
 ---
 
@@ -1343,9 +1356,19 @@ def translate_transcript(job_id: str) -> None:
             db.update_transcript_job(job_id, status="done")
             return
 
-        logger.info("Translating transcript for job %s (%d chars)", job_id, len(transcript))
-        transcript_zh = _translate_to_chinese(transcript)
-        logger.info("Translation pass done (%d chars); formalizing...", len(transcript_zh))
+        lang = _detect_language(transcript)
+        logger.info(
+            "Preparing Chinese transcript for job %s (%d chars, lang=%s)",
+            job_id,
+            len(transcript),
+            lang,
+        )
+        if lang == "zh":
+            transcript_zh = transcript
+            logger.info("Source is Chinese; skipping machine translation")
+        else:
+            transcript_zh = _translate_to_chinese(transcript)
+            logger.info("Translation pass done (%d chars); formalizing...", len(transcript_zh))
         transcript_zh = _formalize_chinese(transcript_zh)
         db.update_transcript_job(job_id, status="done", transcript_zh=transcript_zh)
         logger.info("Translation+formalization done for job %s (%d chars)", job_id, len(transcript_zh))
