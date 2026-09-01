@@ -658,10 +658,7 @@ def _bootstrap_dashboard_datasets() -> None:
 def _popmart_youtube_report_needs_refresh(report: dict | None) -> bool:
     if not report:
         return True
-    panels = report.get("panels") or []
-    if not panels:
-        return True
-    return any(panel.get("type") != "line" for panel in panels)
+    return bool(db.get_latest_popmart_youtube_snapshot_at())
 
 
 def _ensure_popmart_youtube_report() -> None:
