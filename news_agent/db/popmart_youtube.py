@@ -111,6 +111,29 @@ def _previous_snapshot_at(before_at):
         ).fetchone()
     return row["snapshot_at"] if row and row["snapshot_at"] else None
 
+
+def _snapshot_local_date(snapshot_at):
+    dt = datetime.fromisoformat(snapshot_at)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone(timedelta(hours=8))).date().isoformat()
+
+
+def _snapshot_date_range(previous_snapshot_at, current_snapshot_at):
+    interval_end = _snapshot_local_date(current_snapshot_at)
+    interval_start = _snapshot_local_date(previous_snapshot_at) if previous_snapshot_at else None
+    return interval_start, interval_end
+
+
+def _published_in_snapshot_interval(published_at, interval_start, interval_end):
+    if not published_at:
+        return False
+    published = str(published_at)
+    if interval_start and published <= interval_start:
+        return False
+    return published <= interval_end
+
+
 def get_popmart_youtube_weekly_summary(current_snapshot_at=None):
     current_snapshot_at = current_snapshot_at or get_latest_popmart_youtube_snapshot_at()
     if not current_snapshot_at:
@@ -123,15 +146,7 @@ def get_popmart_youtube_weekly_summary(current_snapshot_at=None):
             "failed_count": 0,
         }
 
-    sgt = timezone(timedelta(hours=8))
-    now = datetime.now(sgt)
-    week_start_dt = datetime.combine(
-        (now - timedelta(days=now.weekday())).date(),
-        datetime.min.time(),
-        tzinfo=sgt,
-    )
-    week_start_utc = week_start_dt.astimezone(timezone.utc).isoformat()
-    previous_at = _previous_snapshot_at(week_start_utc)
+    previous_at = _previous_snapshot_at(current_snapshot_at)
     with get_conn() as conn:
         current_rows = conn.execute(
             "SELECT * FROM popmart_youtube_snapshots WHERE snapshot_at = ?",
@@ -152,11 +167,10 @@ def get_popmart_youtube_weekly_summary(current_snapshot_at=None):
         prior_views = previous_views.get(row["video_id"], 0)
         weekly_delta += max(current_views - prior_views, 0)
 
-    week_start = week_start_dt.date().isoformat()
-    week_end = (now + timedelta(days=1)).date().isoformat()
+    interval_start, interval_end = _snapshot_date_range(previous_at, current_snapshot_at)
     weekly_new_videos = sum(
         1 for row in current_rows
-        if row["published_at"] and week_start <= str(row["published_at"]) < week_end
+        if _published_in_snapshot_interval(row["published_at"], interval_start, interval_end)
     )
 
     return {
@@ -187,36 +201,33 @@ def get_popmart_youtube_snapshot_trend():
 
     trend = []
     previous_views = None
-    sgt = timezone(timedelta(hours=8))
+    previous_snapshot_at = None
     for snapshot_at in snapshots:
         rows = rows_by_snapshot[snapshot_at]
         current_views = {row["video_id"]: row["view_count"] or 0 for row in rows}
         if previous_views is None:
             previous_views = current_views
+            previous_snapshot_at = snapshot_at
             continue
 
         view_delta = 0
         for video_id, view_count in current_views.items():
             view_delta += max(view_count - previous_views.get(video_id, 0), 0)
 
-        dt = datetime.fromisoformat(snapshot_at)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        dt_sgt = dt.astimezone(sgt)
-        week_start = (dt_sgt - timedelta(days=dt_sgt.weekday())).date().isoformat()
-        week_end = (dt_sgt + timedelta(days=1)).date().isoformat()
+        interval_start, interval_end = _snapshot_date_range(previous_snapshot_at, snapshot_at)
         weekly_new_videos = sum(
             1 for row in rows
-            if row["published_at"] and week_start <= str(row["published_at"]) < week_end
+            if _published_in_snapshot_interval(row["published_at"], interval_start, interval_end)
         )
 
         trend.append({
             "snapshot_at": snapshot_at,
-            "date": dt_sgt.date().isoformat(),
+            "date": interval_end,
             "view_delta": view_delta,
             "weekly_new_videos": weekly_new_videos,
         })
         previous_views = current_views
+        previous_snapshot_at = snapshot_at
     return trend
 
 def build_popmart_youtube_csv(rows):
