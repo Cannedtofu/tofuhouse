@@ -909,6 +909,7 @@ _FORMALIZE_SYSTEM = (
     "Your task is to produce an edited transcript that stays close to the original wording and speaking order, "
     "while removing oral redundancy and text that carries no useful information. "
     "Preserve every substantive claim, fact, number, example, quotation, caveat, condition, contrast, and speaker/time marker. "
+    "Never infer or add dates, years, fiscal periods, quarters, company names, titles, or numbers that are not explicitly present in the input. "
     "Do not summarize, reorganize by topic, add conclusions, or turn the transcript into notes. "
     "You may delete or shorten non-substantive oral clutter when doing so does not change meaning, nuance, emphasis, or uncertainty. "
     "Use sensible paragraph breaks to make the transcript readable without adding headings or changing the structure."
@@ -923,16 +924,17 @@ Rules, in priority order:
 
 1. Preserve all substantive information: claims, facts, data, examples, quotations, reasons, comparisons, caveats, conditions, uncertainty, disagreement, emphasis, and speaker/time markers.
 2. Preserve the original speaking order and local flow. Do not reorganize by topic, add headings, add conclusions, or turn the content into notes.
-3. Remove or shorten non-substantive oral clutter, including:
+3. Do not infer or add missing facts. This is especially strict for years, dates, fiscal periods, quarters, company names, titles, and numbers. If a value, period, label, or modifier is missing from the input, keep it missing.
+4. Remove or shorten non-substantive oral clutter, including:
    - filler words and hesitation markers: "嗯", "啊", "呃", "就是", "然后就是", "怎么说", "you know", "I mean", "sort of", "kind of", when they do not carry meaning;
    - repeated starts, false starts, and self-corrections that do not add information;
    - backchannel acknowledgements and empty confirmations, such as "对对对", "是的是的", "right", when they only keep the conversation going;
    - duplicated phrases or sentences that express the exact same meaning.
-4. Keep wording close to the original. Prefer deletion of useless words and light sentence repair over rewriting in a new style.
-5. Do not delete material that carries attitude, uncertainty, limitation, contrast, emphasis, speaker stance, or rhetorical intent.
-6. Merge only exact or near-exact repetitions. Do not merge passages that contain different details, examples, conditions, angles, or speaker positions.
-7. Improve punctuation, paragraphing, and sentence boundaries for readability. Start a new paragraph when speaker labels or timestamps change. Also split long speeches at natural shifts such as a new point, example, clarification, contrast, objection, answer, or transition, but do not add headings or bullet lists.
-8. Keep the output in Simplified Chinese. Preserve English names, product names, company names, technical terms, and numbers when present.
+5. Keep wording close to the original. Prefer deletion of useless words and light sentence repair over rewriting in a new style.
+6. Do not delete material that carries attitude, uncertainty, limitation, contrast, emphasis, speaker stance, or rhetorical intent.
+7. Merge only exact or near-exact repetitions. Do not merge passages that contain different details, examples, conditions, angles, or speaker positions.
+8. Improve punctuation, paragraphing, and sentence boundaries for readability. Start a new paragraph when speaker labels or timestamps change. Also split long speeches at natural shifts such as a new point, example, clarification, contrast, objection, answer, or transition, but do not add headings or bullet lists.
+9. Keep the output in Simplified Chinese. Preserve English names, product names, company names, technical terms, and numbers when present.
 
 Output only the edited transcript. Do not add explanations, a preface, headings, or a summary.
 
@@ -949,17 +951,18 @@ Rules, in priority order:
 
 1. Preserve all substantive information in this part: claims, facts, data, examples, quotations, reasons, comparisons, caveats, conditions, uncertainty, disagreement, emphasis, and speaker/time markers.
 2. Preserve this part's original speaking order and local flow. Do not reorganize by topic, add headings, add conclusions, or turn the content into notes.
-3. Remove or shorten non-substantive oral clutter, including:
+3. Do not infer or add missing facts. This is especially strict for years, dates, fiscal periods, quarters, company names, titles, and numbers. If a value, period, label, or modifier is missing from this part's input, keep it missing.
+4. Remove or shorten non-substantive oral clutter, including:
    - filler words and hesitation markers: "嗯", "啊", "呃", "就是", "然后就是", "怎么说", "you know", "I mean", "sort of", "kind of", when they do not carry meaning;
    - repeated starts, false starts, and self-corrections that do not add information;
    - backchannel acknowledgements and empty confirmations, such as "对对对", "是的是的", "right", when they only keep the conversation going;
    - duplicated phrases or sentences that express the exact same meaning.
-4. Keep wording close to the original. Prefer deletion of useless words and light sentence repair over rewriting in a new style.
-5. Do not delete material that carries attitude, uncertainty, limitation, contrast, emphasis, speaker stance, or rhetorical intent.
-6. Merge only exact or near-exact repetitions. Do not merge passages that contain different details, examples, conditions, angles, or speaker positions.
-7. Improve punctuation, paragraphing, and sentence boundaries for readability. Start a new paragraph when speaker labels or timestamps change. Also split long speeches at natural shifts such as a new point, example, clarification, contrast, objection, answer, or transition, but do not add headings or bullet lists.
-8. Keep the output in Simplified Chinese. Preserve English names, product names, company names, technical terms, and numbers when present.
-9. The preceding context is only for continuity. Do not repeat it.
+5. Keep wording close to the original. Prefer deletion of useless words and light sentence repair over rewriting in a new style.
+6. Do not delete material that carries attitude, uncertainty, limitation, contrast, emphasis, speaker stance, or rhetorical intent.
+7. Merge only exact or near-exact repetitions. Do not merge passages that contain different details, examples, conditions, angles, or speaker positions.
+8. Improve punctuation, paragraphing, and sentence boundaries for readability. Start a new paragraph when speaker labels or timestamps change. Also split long speeches at natural shifts such as a new point, example, clarification, contrast, objection, answer, or transition, but do not add headings or bullet lists.
+9. Keep the output in Simplified Chinese. Preserve English names, product names, company names, technical terms, and numbers when present.
+10. The preceding context is only for continuity. Do not repeat it.
 
 Output only the edited content for this part. Do not add explanations, a preface, headings, or a summary.
 
