@@ -686,7 +686,11 @@ def _llm_token_index_report_needs_refresh(report: dict | None) -> bool:
         return True
     for panel in report.get("panels") or []:
         labels = {dataset.get("label") for dataset in (panel.get("datasets") or [])}
-        if any(label and label.startswith("TrakToken") for label in labels):
+        if (
+            any(label and label.startswith("TrakToken") for label in labels)
+            and "Silicon Data - Open LLM" in labels
+            and "Silicon Data - Proprietary LLM" in labels
+        ):
             return False
     return True
 
@@ -695,8 +699,8 @@ def _ensure_llm_token_index_report() -> None:
     """Guarantee the LLM token index dashboard includes the latest source mix.
 
     This is intentionally request-safe and DB-backed: if the report is missing,
-    or if it predates the TrakToken dataset addition, we refresh it immediately
-    so the dashboard can render the combined series without waiting for the next
+    or if it predates a dataset addition, we refresh it immediately so the
+    dashboard can render the combined series without waiting for the next
     scheduled run.
     """
     try:

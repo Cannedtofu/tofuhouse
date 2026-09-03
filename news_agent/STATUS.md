@@ -1,5 +1,5 @@
 # Project Status
-_Last updated: 2026-08-11_
+_Last updated: 2026-09-03_
 
 ## Shipped & Stable
 
@@ -47,6 +47,7 @@ _Last updated: 2026-08-11_
 - Added a POP MART YouTube dashboard panel under `数据` with a weekly trend line chart, latest-100/current-history CSV downloads, weekly scheduled refresh, admin manual refresh, retrying/rate-limited yt-dlp detail fetches, and first-crawl baseline exclusion from chart data.
 - POP MART YouTube weekly new-video counts now use the interval between consecutive crawl snapshots, matching the weekly view-delta window instead of only counting videos published on the Monday crawl date.
 - POP MART YouTube dashboard reports are rebuilt from existing snapshots on dashboard load so cached line-chart data reflects calculation fixes immediately without a new YouTube crawl.
+- LLM Token Expenditure Index now fetches Silicon Data's LLM Token, Open LLM, and Proprietary LLM series from the plural token-indexes portal, stores all three in the dashboard Excel, and refreshes stale reports automatically.
 ### Infrastructure
 - Outbound WeCom notification foundation is ready as a distinct subproject under `docs/wecom-assistant`: group robot webhook channel, optional self-built app client, env template, Docker files, README, server checklist, roadmap, acceptance scripts, and `scripts/send_raw_feed_wecom.py` for sending raw-feed digests to WeCom.
 - SQLite with WAL mode and in-place schema migrations.

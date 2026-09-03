@@ -13,14 +13,45 @@ import db
 
 log = logging.getLogger(__name__)
 
-_SILICON_EMBED_URL = "https://portal.silicondata.com/token-index-chart"
+_SILICON_EMBED_URL = "https://portal.silicondata.com/token-indexes-chart"
+_SILICON_LEGACY_EMBED_URL = "https://portal.silicondata.com/token-index-chart"
 _TRAKTOKEN_CANONICAL_URL = "https://www.traktoken.com/spend-index"
 _TRAKTOKEN_HISTORY_URL = "https://www.traktoken.com/api/index/history"
 _SCRIPT_NAME = "LLM Token Expenditure Index"
 _SILICON_SHEET = "Silicon Data"
 _TRAKTOKEN_SHEET = "TrakToken"
 _LEGACY_SHEET = "Daily Index"
-_SILICON_HEADERS = ["As Of Date", "USD / 1M Tokens", "Fetched At UTC", "Source URL"]
+_SILICON_SERIES = [
+    {
+        "token": "expenditure",
+        "label": "Silicon Data - LLM Token",
+        "value_key": "usd_per_m_tokens",
+        "header": "USD / 1M Tokens",
+        "color": "#0d6efd",
+    },
+    {
+        "token": "open_expenditure",
+        "label": "Silicon Data - Open LLM",
+        "value_key": "open_llm_usd_per_m_tokens",
+        "header": "Open LLM USD / 1M Tokens",
+        "color": "#20c997",
+    },
+    {
+        "token": "closed_expenditure",
+        "label": "Silicon Data - Proprietary LLM",
+        "value_key": "proprietary_llm_usd_per_m_tokens",
+        "header": "Proprietary LLM USD / 1M Tokens",
+        "color": "#6f42c1",
+    },
+]
+_SILICON_HEADERS = [
+    "As Of Date",
+    "USD / 1M Tokens",
+    "Open LLM USD / 1M Tokens",
+    "Proprietary LLM USD / 1M Tokens",
+    "Fetched At UTC",
+    "Source URL",
+]
 _TRAKTOKEN_HEADERS = [
     "As Of Date",
     "USD / 1M Tokens (MA7)",
@@ -37,30 +68,79 @@ def _utc_now_iso() -> str:
 
 
 def fetch_silicon_snapshot_series() -> list[dict]:
-    resp = requests.get(
-        _SILICON_EMBED_URL,
-        headers={"User-Agent": "Mozilla/5.0"},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    return parse_silicon_snapshot_series(resp.text)
+    fetched_at = _utc_now_iso()
+    merged: dict[str, dict] = {}
+    errors = []
+    for config in _SILICON_SERIES:
+        url = _SILICON_EMBED_URL
+        params = {"token": config["token"]}
+        try:
+            resp = requests.get(
+                url,
+                params=params,
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            rows = parse_silicon_snapshot_series(
+                resp.text,
+                value_key=config["value_key"],
+                source_url=resp.url,
+                fetched_at=fetched_at,
+            )
+        except Exception as exc:
+            if config["token"] == "expenditure":
+                resp = requests.get(
+                    _SILICON_LEGACY_EMBED_URL,
+                    headers={"User-Agent": "Mozilla/5.0"},
+                    timeout=30,
+                )
+                resp.raise_for_status()
+                rows = parse_silicon_snapshot_series(
+                    resp.text,
+                    value_key=config["value_key"],
+                    source_url=resp.url,
+                    fetched_at=fetched_at,
+                )
+            else:
+                errors.append((config["label"], exc))
+                continue
+
+        for row in rows:
+            existing = merged.setdefault(row["as_of_date"], {
+                "as_of_date": row["as_of_date"],
+                "fetched_at": fetched_at,
+                "source_url": _SILICON_EMBED_URL,
+            })
+            existing[config["value_key"]] = row[config["value_key"]]
+            existing["fetched_at"] = fetched_at
+            existing["source_url"] = _SILICON_EMBED_URL
+
+    for label, exc in errors:
+        log.warning("Silicon Data token index fetch failed for %s: %s", label, exc)
+    return [merged[key] for key in sorted(merged.keys())]
 
 
-def parse_silicon_snapshot_series(html: str) -> list[dict]:
+def parse_silicon_snapshot_series(
+    html: str,
+    value_key: str = "usd_per_m_tokens",
+    source_url: str = _SILICON_EMBED_URL,
+    fetched_at: str | None = None,
+) -> list[dict]:
     series_match = re.search(r'\\"indexes\\":\{([^{}]+)\}', html)
     if not series_match:
         raise ValueError("Could not parse Silicon Data token index series")
 
-    fetched_at = _utc_now_iso()
+    fetched_at = fetched_at or _utc_now_iso()
     series_json = "{" + series_match.group(1).replace('\\"', '"') + "}"
     indexes = json.loads(series_json)
     rows = []
     for as_of_date, value in sorted(indexes.items()):
         rows.append({
             "as_of_date": as_of_date,
-            "usd_per_m_tokens": float(value),
+            value_key: float(value),
             "fetched_at": fetched_at,
-            "source_url": _SILICON_EMBED_URL,
+            "source_url": source_url,
         })
     return rows
 
@@ -119,9 +199,15 @@ def _load_legacy_silicon_rows(wb) -> dict[str, dict]:
             "as_of_date": str(as_of_date),
             "usd_per_m_tokens": float(index_value),
             "fetched_at": str(fetched_at or ""),
-            "source_url": str(source_url or _SILICON_EMBED_URL),
+            "source_url": str(source_url or _SILICON_LEGACY_EMBED_URL),
         }
     return existing
+
+
+def _float_or_none(value):
+    if value is None:
+        return None
+    return float(value)
 
 
 def _load_silicon_rows(wb) -> dict[str, dict]:
@@ -129,20 +215,31 @@ def _load_silicon_rows(wb) -> dict[str, dict]:
         return _load_legacy_silicon_rows(wb)
 
     ws = wb[_SILICON_SHEET]
+    headers = [ws.cell(row=1, column=col_idx).value for col_idx in range(1, ws.max_column + 1)]
+    header_cols = {str(header): idx + 1 for idx, header in enumerate(headers) if header}
     existing: dict[str, dict] = {}
     for row_idx in range(2, ws.max_row + 1):
         as_of_date = ws.cell(row=row_idx, column=1).value
-        usd_per_m_tokens = ws.cell(row=row_idx, column=2).value
-        fetched_at = ws.cell(row=row_idx, column=3).value
-        source_url = ws.cell(row=row_idx, column=4).value
-        if not as_of_date or usd_per_m_tokens is None:
+        if not as_of_date:
             continue
-        existing[str(as_of_date)] = {
-            "as_of_date": str(as_of_date),
-            "usd_per_m_tokens": float(usd_per_m_tokens),
-            "fetched_at": str(fetched_at or ""),
-            "source_url": str(source_url or _SILICON_EMBED_URL),
-        }
+        row = {"as_of_date": str(as_of_date)}
+        for config in _SILICON_SERIES:
+            col_idx = header_cols.get(config["header"])
+            if col_idx:
+                value = _float_or_none(ws.cell(row=row_idx, column=col_idx).value)
+                if value is not None:
+                    row[config["value_key"]] = value
+
+        if not any(row.get(config["value_key"]) is not None for config in _SILICON_SERIES):
+            continue
+
+        fetched_at_col = header_cols.get("Fetched At UTC") or 3
+        source_url_col = header_cols.get("Source URL") or 4
+        fetched_at = ws.cell(row=row_idx, column=fetched_at_col).value
+        source_url = ws.cell(row=row_idx, column=source_url_col).value
+        row["fetched_at"] = str(fetched_at or "")
+        row["source_url"] = str(source_url or _SILICON_EMBED_URL)
+        existing[str(as_of_date)] = row
     return existing
 
 
@@ -186,7 +283,7 @@ def _merge_rows(existing_rows: dict[str, dict], snapshots: list[dict], source_la
                 prior.get(value_key),
                 snapshot.get(value_key),
             )
-        merged[snapshot["as_of_date"]] = snapshot
+        merged[snapshot["as_of_date"]] = {**(prior or {}), **snapshot}
     return [merged[key] for key in sorted(merged.keys())]
 
 
@@ -202,7 +299,9 @@ def _upsert_silicon_sheet(wb, rows: list[dict]) -> None:
     for row in rows:
         ws.append([
             row["as_of_date"],
-            row["usd_per_m_tokens"],
+            row.get("usd_per_m_tokens"),
+            row.get("open_llm_usd_per_m_tokens"),
+            row.get("proprietary_llm_usd_per_m_tokens"),
             row["fetched_at"],
             row["source_url"],
         ])
@@ -231,13 +330,19 @@ def _upsert_traktoken_sheet(wb, rows: list[dict]) -> None:
 
 def build_panels(silicon_rows: list[dict], traktoken_rows: list[dict]) -> list[dict]:
     datasets = []
-    if silicon_rows:
+    for config in _SILICON_SERIES:
+        series_rows = [
+            row for row in silicon_rows
+            if row.get(config["value_key"]) is not None
+        ]
+        if not series_rows:
+            continue
         datasets.append({
-            "label": "Silicon Data",
-            "color": "#0d6efd",
+            "label": config["label"],
+            "color": config["color"],
             "data": [
-                {"x": row["as_of_date"], "y": row["usd_per_m_tokens"]}
-                for row in silicon_rows
+                {"x": row["as_of_date"], "y": row[config["value_key"]]}
+                for row in series_rows
             ],
         })
     if traktoken_rows:
